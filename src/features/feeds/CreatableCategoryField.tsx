@@ -11,6 +11,7 @@ import type { Category } from '../../types';
 interface CreatableCategoryFieldProps {
   describedBy?: string;
   inputId: string;
+  labelledBy?: string;
   value: string;
   options: Category[];
   onChange: (value: string) => void;
@@ -28,6 +29,7 @@ function normalizeCategoryKey(value: string): string {
 export default function CreatableCategoryField({
   describedBy,
   inputId,
+  labelledBy,
   value,
   options,
   onChange,
@@ -62,10 +64,14 @@ export default function CreatableCategoryField({
     };
   }, [open]);
 
-  const selectOption = (nextValue: string) => {
-    onChange(nextValue);
+  const closeSuggestions = () => {
     setOpen(false);
     setActiveIndex(-1);
+  };
+
+  const selectOption = (nextValue: string) => {
+    onChange(nextValue);
+    closeSuggestions();
     inputRef.current?.focus();
   };
 
@@ -94,6 +100,24 @@ export default function CreatableCategoryField({
     inputRef.current?.focus();
   };
 
+  const commitCategoryValue = () => {
+    const activeOption = open && activeIndex >= 0 ? filteredOptions[activeIndex] : undefined;
+    if (activeOption) {
+      selectOption(activeOption.name);
+      return;
+    }
+
+    const matchedOption = options.find((option) => normalizeCategoryKey(option.name) === normalizedInputKey);
+    if (matchedOption) {
+      selectOption(matchedOption.name);
+      return;
+    }
+
+    // Enter 只确认当前分类输入，不能把整个表单直接提交出去。
+    onChange(normalizedInput);
+    closeSuggestions();
+  };
+
   return (
     <Popover
       open={disabled ? false : open}
@@ -116,14 +140,6 @@ export default function CreatableCategoryField({
               onChange(nextValue);
               setOpen(true);
               setActiveIndex(resolveActiveIndex(nextValue));
-            }}
-            onFocus={() => {
-              setOpen(true);
-              setActiveIndex(resolveActiveIndex(value));
-            }}
-            onClick={() => {
-              setOpen(true);
-              setActiveIndex(resolveActiveIndex(value));
             }}
             onKeyDown={(event) => {
               if (event.key === 'ArrowDown') {
@@ -149,15 +165,15 @@ export default function CreatableCategoryField({
                 return;
               }
 
-              if (event.key === 'Enter' && open && activeIndex >= 0 && filteredOptions[activeIndex]) {
+              if (event.key === 'Enter') {
                 event.preventDefault();
-                selectOption(filteredOptions[activeIndex].name);
+                commitCategoryValue();
                 return;
               }
 
               if (event.key === 'Escape' && open) {
                 event.preventDefault();
-                setOpen(false);
+                closeSuggestions();
               }
             }}
             placeholder="输入分类或选择已有分类"
@@ -167,9 +183,15 @@ export default function CreatableCategoryField({
             role="combobox"
             aria-autocomplete="list"
             aria-describedby={describedBy}
+            aria-labelledby={labelledBy}
             aria-expanded={open}
             aria-controls={`${inputId}-options`}
             aria-haspopup="listbox"
+            // 仅在用户直接点击输入框时展开，避免点击 label 误触发下拉。
+            onClick={() => {
+              setOpen(true);
+              setActiveIndex(resolveActiveIndex(value));
+            }}
           />
           <Button
             type="button"

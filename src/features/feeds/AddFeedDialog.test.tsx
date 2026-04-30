@@ -556,8 +556,7 @@ describe('AddFeedDialog', () => {
       target: { value: 'https://example.com/success.xml' },
     });
     const categoryInput = screen.getByLabelText('分类');
-    fireEvent.focus(categoryInput);
-    fireEvent.click(categoryInput);
+    fireEvent.click(screen.getByRole('button', { name: '展开分类选项' }));
     expect(await screen.findByRole('listbox', { name: '分类建议' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('option', { name: '设计' }));
     expect(categoryInput).toHaveValue('设计');
@@ -578,6 +577,16 @@ describe('AddFeedDialog', () => {
       .getState()
       .feeds.find((item) => item.url === 'https://example.com/success.xml');
     expect(added?.categoryId).toBe('cat-design');
+  });
+
+  it('does not open category suggestions when clicking category label', async () => {
+    renderWithNotifications();
+    await openAddFeedDialog();
+
+    fireEvent.click(screen.getByText('分类', { selector: 'label' }));
+
+    expect(screen.getByLabelText('分类')).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('listbox', { name: '分类建议' })).not.toBeInTheDocument();
   });
 
   it('submits categoryName when user enters a new category', async () => {
@@ -602,6 +611,30 @@ describe('AddFeedDialog', () => {
       expect(lastCreateFeedBody).toMatchObject({ categoryName: '新分类' });
       expect(lastCreateFeedBody?.categoryId).toBeUndefined();
     });
+  });
+
+  it('does not submit add feed dialog when pressing Enter in category field', async () => {
+    renderWithNotifications();
+    await openAddFeedDialog();
+
+    fireEvent.change(screen.getByLabelText('名称'), { target: { value: 'My Feed' } });
+    const urlInput = screen.getByLabelText('URL');
+    fireEvent.change(urlInput, { target: { value: 'https://example.com/success.xml' } });
+    fireEvent.blur(urlInput);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '添加订阅源' })).toBeEnabled();
+    });
+
+    const categoryInput = screen.getByLabelText('分类');
+    fireEvent.change(categoryInput, {
+      target: { value: '新分类' },
+    });
+    fireEvent.keyDown(categoryInput, { key: 'Enter' });
+
+    expect(categoryInput).toHaveValue('新分类');
+    expect(screen.getByRole('dialog', { name: '添加 RSS 源' })).toBeInTheDocument();
+    expect(lastCreateFeedBody).toBeNull();
   });
 
   it('reuses existing categoryId when input only differs by spaces', async () => {
@@ -644,9 +677,7 @@ describe('AddFeedDialog', () => {
     renderWithNotifications();
     await openAddFeedDialog();
 
-    const categoryInput = screen.getByLabelText('分类');
-    fireEvent.focus(categoryInput);
-    fireEvent.click(categoryInput);
+    fireEvent.click(screen.getByRole('button', { name: '展开分类选项' }));
 
     const optionValues = (await screen.findAllByRole('option')).map((item) => item.textContent);
 

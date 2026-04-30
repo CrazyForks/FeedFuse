@@ -72,6 +72,7 @@ export default function FeedDialogForm({
   const urlInputId = `${fieldIdPrefix}-url`;
   const titleInputId = `${fieldIdPrefix}-title`;
   const categoryInputId = `${fieldIdPrefix}-category`;
+  const categoryLabelId = `${fieldIdPrefix}-category-label`;
   const urlMessageId = `${fieldIdPrefix}-url-message`;
   const titleMessageId = `${fieldIdPrefix}-title-message`;
   const categoryHintId = `${fieldIdPrefix}-category-hint`;
@@ -153,12 +154,13 @@ export default function FeedDialogForm({
           </div>
 
           <div className="grid gap-1.5">
-            <Label htmlFor={categoryInputId} className="text-xs">
+            <Label id={categoryLabelId} className="text-xs">
               分类
             </Label>
             <CreatableCategoryField
               describedBy={categoryHintId}
               inputId={categoryInputId}
+              labelledBy={categoryLabelId}
               value={categoryInput}
               options={categoryOptions}
               onChange={onCategoryChange}

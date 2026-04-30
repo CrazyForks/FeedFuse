@@ -1484,6 +1484,24 @@ describe('FeedList manage', () => {
     expect(lastPatchBody?.siteUrl).toBe('https://changed.example.com/');
   });
 
+  it('does not submit edit dialog when pressing Enter in category field', async () => {
+    renderWithNotifications();
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: /My Feed.*2/ }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: '编辑' }));
+    expect(await screen.findByRole('dialog', { name: '编辑 RSS 源' })).toBeInTheDocument();
+
+    const categoryInput = screen.getByLabelText('分类');
+    fireEvent.change(categoryInput, {
+      target: { value: '新分类' },
+    });
+    fireEvent.keyDown(categoryInput, { key: 'Enter' });
+
+    expect(categoryInput).toHaveValue('新分类');
+    expect(screen.getByRole('dialog', { name: '编辑 RSS 源' })).toBeInTheDocument();
+    expect(lastPatchBody).toBeNull();
+  });
+
   it('toggles enabled via context menu', async () => {
     renderWithNotifications();
 

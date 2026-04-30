@@ -33,5 +33,6 @@ artifacts/
 
 .env
 .superpowers
+.superwork
 
 tsconfig.typecheck.tsbuildinfo

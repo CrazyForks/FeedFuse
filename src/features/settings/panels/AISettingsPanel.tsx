@@ -219,11 +219,6 @@ export default function AISettingsPanel({
                 </Button>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {translation.useSharedAi
-                ? "当前：翻译复用上方主 AI 配置。"
-                : "当前：翻译使用下方单独配置。"}
-            </p>
           </div>
 
           {!translation.useSharedAi ? (

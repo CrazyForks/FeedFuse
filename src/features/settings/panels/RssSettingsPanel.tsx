@@ -132,7 +132,6 @@ export default function RssSettingsPanel({
             <div className="mb-3 flex items-center justify-between gap-4 rounded-md border border-border px-3 py-2.5">
               <div className="space-y-1">
                 <p className="text-sm font-medium text-foreground">启用关键词过滤</p>
-                <p className="text-xs text-muted-foreground">关闭后会保留关键词列表，但不再用于新文章过滤。</p>
               </div>
               <Switch
                 id="rss-article-filter-keyword-enabled"
@@ -170,7 +169,6 @@ export default function RssSettingsPanel({
             <div className="mb-3 flex items-center justify-between gap-4 rounded-md border border-border px-3 py-2.5">
               <div className="space-y-1">
                 <p className="text-sm font-medium text-foreground">启用 AI 过滤</p>
-                <p className="text-xs text-muted-foreground">AI 判断失败时会回退为错误状态，不会误杀文章。</p>
               </div>
               <Switch
                 id="rss-article-filter-ai-enabled"

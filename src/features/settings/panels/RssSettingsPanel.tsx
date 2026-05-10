@@ -123,7 +123,7 @@ export default function RssSettingsPanel({
           </div>
 
           <div className="px-4 py-3.5">
-            <Label htmlFor="rss-global-article-keyword-filter" className="mb-2 block">
+            <Label className="mb-2 block">
               全局关键词过滤
             </Label>
             <p className="mb-2 text-xs text-muted-foreground">
@@ -160,7 +160,7 @@ export default function RssSettingsPanel({
           </div>
 
           <div className="px-4 py-3.5">
-            <Label htmlFor="rss-ai-article-filter-prompt" className="mb-2 block">
+            <Label className="mb-2 block">
               AI 过滤提示词
             </Label>
             <p className="mb-2 text-xs text-muted-foreground">

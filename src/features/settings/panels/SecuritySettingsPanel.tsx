@@ -16,6 +16,9 @@ import { Label } from '@/components/ui/label';
 import { ApiError, changePassword, logout } from '@/lib/apiClient';
 
 export default function SecuritySettingsPanel() {
+  const currentPasswordLabelId = 'settings-current-password-label';
+  const nextPasswordLabelId = 'settings-next-password-label';
+  const confirmPasswordLabelId = 'settings-confirm-password-label';
   const [currentPassword, setCurrentPassword] = useState('');
   const [nextPassword, setNextPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -106,33 +109,36 @@ export default function SecuritySettingsPanel() {
 
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
-            <Label htmlFor="settings-current-password">当前密码</Label>
+            <Label id={currentPasswordLabelId}>当前密码</Label>
             <Input
               id="settings-current-password"
               type="password"
               autoComplete="current-password"
+              aria-labelledby={currentPasswordLabelId}
               value={currentPassword}
               onChange={(event) => setCurrentPassword(event.target.value)}
               placeholder="输入当前密码"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="settings-next-password">新密码</Label>
+            <Label id={nextPasswordLabelId}>新密码</Label>
             <Input
               id="settings-next-password"
               type="password"
               autoComplete="new-password"
+              aria-labelledby={nextPasswordLabelId}
               value={nextPassword}
               onChange={(event) => setNextPassword(event.target.value)}
               placeholder="至少 8 位"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="settings-confirm-password">确认新密码</Label>
+            <Label id={confirmPasswordLabelId}>确认新密码</Label>
             <Input
               id="settings-confirm-password"
               type="password"
               autoComplete="new-password"
+              aria-labelledby={confirmPasswordLabelId}
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
               placeholder="再次输入新密码"

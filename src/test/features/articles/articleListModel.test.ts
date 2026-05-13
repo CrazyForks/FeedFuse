@@ -6,7 +6,7 @@ import {
   ARTICLE_LIST_ROW_HEIGHT,
   ARTICLE_SECTION_ROW_HEIGHT,
   buildArticleListDerivedState,
-} from '../../../features/articles/articleListModel';
+} from '../../../features/articles/utils/articleListModel';
 
 function createFeed(overrides: Partial<Feed> = {}): Feed {
   return {

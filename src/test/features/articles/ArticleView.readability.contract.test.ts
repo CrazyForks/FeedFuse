@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('ArticleView readability contract', () => {
   it('applies stronger article typography contrast and weight inside the prose container', () => {
-    const source = readFileSync('src/features/articles/ArticleView.tsx', 'utf-8');
+    const source = readFileSync('src/features/articles/components/ArticleView.tsx', 'utf-8');
 
     expect(source).toContain('prose-headings:text-foreground/94');
     expect(source).toContain('prose-p:text-foreground/84');

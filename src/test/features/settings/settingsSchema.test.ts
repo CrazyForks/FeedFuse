@@ -4,7 +4,7 @@ import {
   READER_LEFT_PANE_MAX_WIDTH,
   READER_MIDDLE_PANE_DEFAULT_WIDTH,
   READER_MIDDLE_PANE_MIN_WIDTH,
-} from '../../../features/reader/readerLayoutSizing';
+} from '../../../features/reader/utils/readerLayoutSizing';
 import { normalizePersistedSettings } from '../../../features/settings/settingsSchema';
 
 describe('settingsSchema normalize', () => {

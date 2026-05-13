@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ArticleSearchItemDto } from '@/lib/apiClient';
-import GlobalSearchDialog from '../../../features/reader/GlobalSearchDialog';
+import GlobalSearchDialog from '../../../features/reader/components/GlobalSearchDialog';
 
 const searchArticlesMock = vi.fn();
 

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import ArticleView from '../../../features/articles/ArticleView';
+import ArticleView from '../../../features/articles/components/ArticleView';
 import { defaultPersistedSettings } from '../../../features/settings/settingsSchema';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { useAppStore } from '../../../store/appStore';

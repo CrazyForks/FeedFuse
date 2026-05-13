@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { ToastHost } from '../../../features/toast/ToastHost';
-import FeedDialog from '../../../features/feeds/FeedDialog';
+import { ToastHost } from '../../../features/toast/components/ToastHost';
+import FeedDialog from '../../../features/feeds/components/FeedDialog';
 
 function renderFeedDialog() {
   render(

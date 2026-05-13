@@ -1,9 +1,9 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Feed } from '../../../types';
-import FeedFulltextPolicyDialog from '../../../features/feeds/FeedFulltextPolicyDialog';
-import FeedSummaryPolicyDialog from '../../../features/feeds/FeedSummaryPolicyDialog';
-import FeedTranslationPolicyDialog from '../../../features/feeds/FeedTranslationPolicyDialog';
+import FeedFulltextPolicyDialog from '../../../features/feeds/components/FeedFulltextPolicyDialog';
+import FeedSummaryPolicyDialog from '../../../features/feeds/components/FeedSummaryPolicyDialog';
+import FeedTranslationPolicyDialog from '../../../features/feeds/components/FeedTranslationPolicyDialog';
 
 function buildFeed(overrides: Partial<Feed> = {}): Feed {
   return {

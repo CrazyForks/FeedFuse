@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { normalizePersistedSettings, defaultPersistedSettings } from '../features/settings/settingsSchema';
-import { validateSettingsDraft } from '../features/settings/validateSettingsDraft';
+import { validateSettingsDraft } from '../features/settings/utils/validateSettingsDraft';
 import type { GeneralSettings, PersistedSettings, UserSettings } from '../types';
 import {
   deleteAiApiKey,

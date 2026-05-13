@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type ApiClientModule = typeof import('../../../lib/apiClient');
-type ArticleViewModule = typeof import('../../../features/articles/ArticleView');
+type ArticleViewModule = typeof import('../../../features/articles/components/ArticleView');
 type AppStoreModule = typeof import('../../../store/appStore');
 type SettingsStoreModule = typeof import('../../../store/settingsStore');
 type ToastStoreModule = typeof import('../../../features/toast/toastStore');
@@ -205,7 +205,7 @@ describe('ArticleView ai summary', () => {
     );
     getArticleTasksMock.mockResolvedValue(idleTasks);
 
-    ({ default: ArticleView } = await import('../../../features/articles/ArticleView'));
+    ({ default: ArticleView } = await import('../../../features/articles/components/ArticleView'));
     ({ useAppStore } = await import('../../../store/appStore'));
     ({ useSettingsStore } = await import('../../../store/settingsStore'));
     ({ toastStore } = await import('../../../features/toast/toastStore'));

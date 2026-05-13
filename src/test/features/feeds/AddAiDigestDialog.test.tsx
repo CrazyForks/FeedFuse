@@ -35,7 +35,7 @@ vi.mock('../../../store/appStore', () => ({
 
 describe('AddAiDigestDialog', () => {
   it('requires title, prompt and at least one source', async () => {
-    const { default: AddAiDigestDialog } = await import('../../../features/feeds/AddAiDigestDialog');
+    const { default: AddAiDigestDialog } = await import('../../../features/feeds/components/AddAiDigestDialog');
 
     render(
       <StrictMode>
@@ -75,7 +75,7 @@ describe('AddAiDigestDialog', () => {
   });
 
   it('does not focus or toggle controls when clicking labels', async () => {
-    const { default: AddAiDigestDialog } = await import('../../../features/feeds/AddAiDigestDialog');
+    const { default: AddAiDigestDialog } = await import('../../../features/feeds/components/AddAiDigestDialog');
 
     render(
       <StrictMode>

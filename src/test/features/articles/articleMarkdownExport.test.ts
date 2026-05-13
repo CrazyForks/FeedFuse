@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildArticleMarkdownDocument,
   sanitizeArticleMarkdownFilename,
-} from '../../../features/articles/articleMarkdownExport';
+} from '../../../features/articles/utils/articleMarkdownExport';
 
 describe('buildArticleMarkdownDocument', () => {
   it('includes title, metadata, and markdown body converted from html', () => {

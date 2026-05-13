@@ -8,7 +8,7 @@ import {
   sanitizeSelectedFeedIds,
   toggleCategorySelection,
   toggleFeedSelection,
-} from '../../../features/feeds/aiDigestSourceTree.utils';
+} from '../../../features/feeds/utils/aiDigestSourceTree.utils';
 
 function createFeed(input: Pick<Feed, 'id' | 'kind' | 'title'> & { categoryId?: string | null }): Feed {
   return {

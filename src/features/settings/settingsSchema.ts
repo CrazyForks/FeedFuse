@@ -15,7 +15,7 @@ import {
   READER_MIDDLE_PANE_DEFAULT_WIDTH,
   READER_MIDDLE_PANE_MAX_WIDTH,
   READER_MIDDLE_PANE_MIN_WIDTH,
-} from '../reader/readerLayoutSizing';
+} from '../reader/utils';
 
 const defaultGeneralSettings: GeneralSettings = {
   theme: 'auto',

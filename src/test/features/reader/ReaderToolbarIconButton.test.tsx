@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { Sparkles } from 'lucide-react';
 import { describe, expect, it, vi } from 'vitest';
-import ReaderToolbarIconButton from '../../../features/reader/ReaderToolbarIconButton';
+import ReaderToolbarIconButton from '../../../features/reader/components/ReaderToolbarIconButton';
 
 function mockRect(
   element: Element,

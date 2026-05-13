@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 
 describe('theme token usage contract', () => {
   it('uses semantic theme tokens in settings, notifications, feeds, and shared menus', () => {
-    const settingsDrawerSource = readFileSync('src/features/settings/SettingsCenterDrawer.tsx', 'utf-8');
-    const toastHostSource = readFileSync('src/features/toast/ToastHost.tsx', 'utf-8');
-    const feedDialogSource = readFileSync('src/features/feeds/FeedDialog.tsx', 'utf-8');
+    const settingsDrawerSource = readFileSync('src/features/settings/components/SettingsCenterDrawer.tsx', 'utf-8');
+    const toastHostSource = readFileSync('src/features/toast/components/ToastHost.tsx', 'utf-8');
+    const feedDialogSource = readFileSync('src/features/feeds/components/FeedDialog.tsx', 'utf-8');
     const contextMenuSource = readFileSync('src/components/ui/context-menu.tsx', 'utf-8');
     const tooltipSource = readFileSync('src/components/ui/tooltip.tsx', 'utf-8');
     const popoverSource = readFileSync('src/components/ui/popover.tsx', 'utf-8');

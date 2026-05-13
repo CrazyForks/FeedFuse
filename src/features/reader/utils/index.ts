@@ -1,0 +1,18 @@
+// 阅读器业务工具统一出口。
+export {
+  GLOBAL_SEARCH_HIGHLIGHT_CLASS_NAME,
+  highlightHtmlByQuery,
+  highlightPlainText,
+} from './globalSearch';
+export {
+  READER_LEFT_PANE_DEFAULT_WIDTH,
+  normalizeReaderPaneWidth,
+  READER_LEFT_PANE_MAX_WIDTH,
+  READER_LEFT_PANE_MIN_WIDTH,
+  READER_MIDDLE_PANE_DEFAULT_WIDTH,
+  READER_MIDDLE_PANE_MAX_WIDTH,
+  READER_MIDDLE_PANE_MIN_WIDTH,
+  READER_RESIZE_DESKTOP_MIN_WIDTH,
+  READER_RIGHT_PANE_MIN_WIDTH,
+  READER_TABLET_MIN_WIDTH,
+} from './readerLayoutSizing';

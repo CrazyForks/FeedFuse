@@ -17,7 +17,7 @@ function createDeferred<T>() {
   return { promise, resolve, reject };
 }
 
-vi.mock('../../../features/articles/ArticleView', () => ({
+vi.mock('../../../features/articles/components/ArticleView', () => ({
   default: function MockArticleView({
     onTitleVisibilityChange,
   }: {
@@ -50,9 +50,9 @@ vi.mock('../../../features/notifications/userOperationNotifier', async (importOr
   };
 });
 
-import ReaderLayout from '../../../features/reader/ReaderLayout';
-import FeedList from '../../../features/feeds/FeedList';
-import { ToastHost } from '../../../features/toast/ToastHost';
+import ReaderLayout from '../../../features/reader/components/ReaderLayout';
+import FeedList from '../../../features/feeds/components/FeedList';
+import { ToastHost } from '../../../features/toast/components/ToastHost';
 import { useAppStore } from '../../../store/appStore';
 import { READER_PANE_ACTIVE_ITEM_CLASS_NAME } from '../../../lib/designSystem';
 import { AI_DIGEST_VIEW_ID } from '../../../lib/view';

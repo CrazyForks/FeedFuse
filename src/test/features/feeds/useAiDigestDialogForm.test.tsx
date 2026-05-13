@@ -2,7 +2,7 @@ import type { FormEvent } from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Feed } from '../../../types';
-import { useAiDigestDialogForm } from '../../../features/feeds/useAiDigestDialogForm';
+import { useAiDigestDialogForm } from '../../../features/feeds/hooks/useAiDigestDialogForm';
 
 const { runImmediateOperationMock } = vi.hoisted(() => ({
   runImmediateOperationMock: vi.fn(),

@@ -224,7 +224,7 @@ describe('ArticleView ai translate', () => {
   });
 
   it('shows original first and appends translated paragraph below when SSE segment arrives', async () => {
-    const { default: ArticleView } = await import('../../../features/articles/ArticleView');
+    const { default: ArticleView } = await import('../../../features/articles/components/ArticleView');
     render(<ArticleView />);
 
     fireEvent.click(screen.getByRole('button', { name: '翻译' }));
@@ -249,7 +249,7 @@ describe('ArticleView ai translate', () => {
     await seedArticleViewState({
       content: '<article><p>A</p><img src="https://img.example/a.jpg" alt="cover" /><p>B</p></article>',
     });
-    const { default: ArticleView } = await import('../../../features/articles/ArticleView');
+    const { default: ArticleView } = await import('../../../features/articles/components/ArticleView');
     const { container } = render(<ArticleView />);
 
     fireEvent.click(screen.getByRole('button', { name: '翻译' }));
@@ -271,7 +271,7 @@ describe('ArticleView ai translate', () => {
   });
 
   it('keeps stable segment order when SSE events arrive out of order', async () => {
-    const { default: ArticleView } = await import('../../../features/articles/ArticleView');
+    const { default: ArticleView } = await import('../../../features/articles/components/ArticleView');
     const { container } = render(<ArticleView />);
 
     fireEvent.click(screen.getByRole('button', { name: '翻译' }));
@@ -302,7 +302,7 @@ describe('ArticleView ai translate', () => {
 
   it('翻译按钮文案固定为翻译，点击两次触发两次翻译请求', async () => {
     const apiClient = await import('../../../lib/apiClient');
-    const { default: ArticleView } = await import('../../../features/articles/ArticleView');
+    const { default: ArticleView } = await import('../../../features/articles/components/ArticleView');
     render(<ArticleView />);
 
     const translateButton = screen.getByRole('button', { name: '翻译' });
@@ -327,7 +327,7 @@ describe('ArticleView ai translate', () => {
     const apiClient = await import('../../../lib/apiClient');
     await seedArticleViewState({ bodyTranslateEnabled: false });
 
-    const { default: ArticleView } = await import('../../../features/articles/ArticleView');
+    const { default: ArticleView } = await import('../../../features/articles/components/ArticleView');
     render(<ArticleView />);
 
     const translateButton = screen.getByRole('button', { name: '翻译' });
@@ -351,7 +351,7 @@ describe('ArticleView ai translate', () => {
       },
     });
 
-    const { default: ArticleView } = await import('../../../features/articles/ArticleView');
+    const { default: ArticleView } = await import('../../../features/articles/components/ArticleView');
     render(<ArticleView />);
 
     await waitFor(() => {
@@ -370,7 +370,7 @@ describe('ArticleView ai translate', () => {
       },
     });
 
-    const { default: ArticleView } = await import('../../../features/articles/ArticleView');
+    const { default: ArticleView } = await import('../../../features/articles/components/ArticleView');
     render(<ArticleView />);
 
     await waitFor(() => {
@@ -393,7 +393,7 @@ describe('ArticleView ai translate', () => {
     });
     await seedArticleViewState({ fullTextOnOpenEnabled: true });
 
-    const { default: ArticleView } = await import('../../../features/articles/ArticleView');
+    const { default: ArticleView } = await import('../../../features/articles/components/ArticleView');
     render(<ArticleView />);
 
     await screen.findByText('正在抓取全文，完成后会自动更新');
@@ -431,7 +431,7 @@ describe('ArticleView ai translate', () => {
 
     await seedArticleViewState();
 
-    const { default: ArticleView } = await import('../../../features/articles/ArticleView');
+    const { default: ArticleView } = await import('../../../features/articles/components/ArticleView');
     render(<ArticleView />);
 
     await waitFor(() => {
@@ -445,7 +445,7 @@ describe('ArticleView ai translate', () => {
       feed: { kind: 'ai_digest' },
     });
 
-    const { default: ArticleView } = await import('../../../features/articles/ArticleView');
+    const { default: ArticleView } = await import('../../../features/articles/components/ArticleView');
     render(<ArticleView />);
 
     await waitFor(() => {
@@ -459,7 +459,7 @@ describe('ArticleView ai translate', () => {
 
   it('triggers retry API from delegated retry button inside rendered html', async () => {
     const apiClient = await import('../../../lib/apiClient');
-    const { default: ArticleView } = await import('../../../features/articles/ArticleView');
+    const { default: ArticleView } = await import('../../../features/articles/components/ArticleView');
     const { container } = render(<ArticleView />);
 
     fireEvent.click(screen.getByRole('button', { name: '翻译' }));
@@ -505,7 +505,7 @@ describe('ArticleView ai translate', () => {
 
     await seedArticleViewState();
 
-    const { default: ArticleView } = await import('../../../features/articles/ArticleView');
+    const { default: ArticleView } = await import('../../../features/articles/components/ArticleView');
     render(<ArticleView />);
 
     const errorMessage = await screen.findByText(`翻译：${longError}`);
@@ -518,7 +518,7 @@ describe('ArticleView ai translate', () => {
     const apiClient = await import('../../../lib/apiClient');
     await seedArticleViewState({ bodyTranslateOnOpenEnabled: true });
 
-    const { default: ArticleView } = await import('../../../features/articles/ArticleView');
+    const { default: ArticleView } = await import('../../../features/articles/components/ArticleView');
     render(<ArticleView />);
 
     await waitFor(() => {

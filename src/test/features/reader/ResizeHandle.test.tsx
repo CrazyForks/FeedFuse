@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import ResizeHandle from '../../../features/reader/ResizeHandle';
+import ResizeHandle from '../../../features/reader/components/ResizeHandle';
 
 describe('ResizeHandle', () => {
   it('applies preview offset only on the draggable separator hit area', () => {

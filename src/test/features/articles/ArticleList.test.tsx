@@ -4,9 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ViewType } from '../../../types';
 import { AI_DIGEST_VIEW_ID } from '../../../lib/view';
 
-type ArticleListModule = typeof import('../../../features/articles/ArticleList');
+type ArticleListModule = typeof import('../../../features/articles/components/ArticleList');
 type AppStoreModule = typeof import('../../../store/appStore');
-type ToastHostModule = typeof import('../../../features/toast/ToastHost');
+type ToastHostModule = typeof import('../../../features/toast/components/ToastHost');
 type LoadSnapshot = (input?: { view?: ViewType }) => Promise<void>;
 
 const ALL_FEEDS_REFRESH_LABEL = '刷新全部订阅源';
@@ -215,8 +215,8 @@ describe('ArticleList', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    ({ default: ArticleList } = await import('../../../features/articles/ArticleList'));
-    ({ ToastHost } = await import('../../../features/toast/ToastHost'));
+    ({ default: ArticleList } = await import('../../../features/articles/components/ArticleList'));
+    ({ ToastHost } = await import('../../../features/toast/components/ToastHost'));
     ({ useAppStore } = await import('../../../store/appStore'));
 
     useAppStore.setState({

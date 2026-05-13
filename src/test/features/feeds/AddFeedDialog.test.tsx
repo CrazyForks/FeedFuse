@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
-import ReaderLayout from '../../../features/reader/ReaderLayout';
-import { ToastHost } from '../../../features/toast/ToastHost';
+import ReaderLayout from '../../../features/reader/components/ReaderLayout';
+import { ToastHost } from '../../../features/toast/components/ToastHost';
 import { useAppStore } from '../../../store/appStore';
 import { validateRssUrl } from '../../../features/feeds/services/rssValidationService';
 

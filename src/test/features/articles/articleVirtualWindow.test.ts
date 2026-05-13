@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getArticleVirtualAnchorCompensation,
   getArticleVirtualWindow,
-} from '../../../features/articles/articleVirtualWindow';
+} from '../../../features/articles/utils/articleVirtualWindow';
 
 describe('getArticleVirtualWindow', () => {
   it('computes visible range with overscan and spacer heights', () => {

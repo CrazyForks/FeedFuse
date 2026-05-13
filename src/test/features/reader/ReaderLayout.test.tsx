@@ -3,13 +3,13 @@ import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { vi } from 'vitest';
 
-vi.mock('../../../features/articles/ArticleList', () => ({
+vi.mock('../../../features/articles/components/ArticleList', () => ({
   default: function MockArticleList() {
     return <div data-testid="mock-article-list" />;
   },
 }));
 
-vi.mock('../../../features/articles/ArticleView', () => ({
+vi.mock('../../../features/articles/components/ArticleView', () => ({
   default: function MockArticleView({
     onOpenSettings,
     reserveTopSpace = true,
@@ -33,12 +33,12 @@ vi.mock('../../../features/articles/ArticleView', () => ({
   },
 }));
 
-import ReaderLayout from '../../../features/reader/ReaderLayout';
-import { ToastHost } from '../../../features/toast/ToastHost';
+import ReaderLayout from '../../../features/reader/components/ReaderLayout';
+import { ToastHost } from '../../../features/toast/components/ToastHost';
 import {
   READER_RESIZE_DESKTOP_MIN_WIDTH,
   READER_TABLET_MIN_WIDTH,
-} from '../../../features/reader/readerLayoutSizing';
+} from '../../../features/reader/utils/readerLayoutSizing';
 import { defaultPersistedSettings } from '../../../features/settings/settingsSchema';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { useAppStore } from '../../../store/appStore';
@@ -563,7 +563,7 @@ describe('ReaderLayout', () => {
       window.history.replaceState({}, '', '/?view=feed-1');
       vi.resetModules();
 
-      const { default: HydrationReaderLayout } = await import('../../../features/reader/ReaderLayout');
+      const { default: HydrationReaderLayout } = await import('../../../features/reader/components/ReaderLayout');
       const { useAppStore: hydrationAppStore } = await import('../../../store/appStore');
       const { useSettingsStore: hydrationSettingsStore } = await import('../../../store/settingsStore');
 

@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultPersistedSettings } from '../../../features/settings/settingsSchema';
-import ReaderLayout from '../../../features/reader/ReaderLayout';
-import { ToastHost } from '../../../features/toast/ToastHost';
+import ReaderLayout from '../../../features/reader/components/ReaderLayout';
+import { ToastHost } from '../../../features/toast/components/ToastHost';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { useAppStore } from '../../../store/appStore';
 

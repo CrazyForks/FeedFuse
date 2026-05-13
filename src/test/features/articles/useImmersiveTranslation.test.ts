@@ -1,8 +1,8 @@
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ImmersiveTranslationApi } from '../../../features/articles/useImmersiveTranslation';
-import { useImmersiveTranslation } from '../../../features/articles/useImmersiveTranslation';
+import type { ImmersiveTranslationApi } from '../../../features/articles/hooks/useImmersiveTranslation';
+import { useImmersiveTranslation } from '../../../features/articles/hooks/useImmersiveTranslation';
 
 const {
   beginDeferredOperationMock,

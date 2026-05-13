@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { buildImmersiveHtml } from '../../../features/articles/immersiveRender';
+import { buildImmersiveHtml } from '../../../features/articles/utils/immersiveRender';
 
 describe('buildImmersiveHtml', () => {
   it('keeps image in original position and appends translation after matching paragraph', () => {

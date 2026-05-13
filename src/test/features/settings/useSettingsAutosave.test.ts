@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { useSettingsAutosave } from '../../../features/settings/useSettingsAutosave';
+import { useSettingsAutosave } from '../../../features/settings/hooks/useSettingsAutosave';
 
 describe('useSettingsAutosave', () => {
   it('debounces saveDraft and exposes saving/saved status', async () => {

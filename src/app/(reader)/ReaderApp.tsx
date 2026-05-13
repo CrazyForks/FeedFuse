@@ -1,8 +1,8 @@
 'use client';
 
-import ReaderLayout from '../../features/reader/ReaderLayout';
-import { ToastHost } from '../../features/toast/ToastHost';
-import { useTheme } from '../../hooks/useTheme';
+import ReaderLayout from '../../features/reader/components/ReaderLayout';
+import { ToastHost } from '../../features/toast/components/ToastHost';
+import { useTheme } from '../../hooks';
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '../../store/appStore';
 import { useSettingsStore } from '../../store/settingsStore';

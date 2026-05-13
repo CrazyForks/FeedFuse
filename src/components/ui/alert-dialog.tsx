@@ -5,7 +5,7 @@ import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
 
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
-import { useDialogMotionContentProps } from '@/components/ui/dialog-motion';
+import { useDialogMotionContentProps } from '@/components/ui/hooks';
 
 const AlertDialog = AlertDialogPrimitive.Root;
 const AlertDialogTrigger = AlertDialogPrimitive.Trigger;

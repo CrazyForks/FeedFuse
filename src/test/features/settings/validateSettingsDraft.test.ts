@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateSettingsDraft, type SettingsDraft } from '../../../features/settings/validateSettingsDraft';
+import { validateSettingsDraft, type SettingsDraft } from '../../../features/settings/utils/validateSettingsDraft';
 import { defaultPersistedSettings } from '../../../features/settings/settingsSchema';
 
 describe('validateSettingsDraft', () => {

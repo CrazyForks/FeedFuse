@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { StreamingAiSummaryApi } from '../../../features/articles/useStreamingAiSummary';
-import { useStreamingAiSummary } from '../../../features/articles/useStreamingAiSummary';
+import type { StreamingAiSummaryApi } from '../../../features/articles/hooks/useStreamingAiSummary';
+import { useStreamingAiSummary } from '../../../features/articles/hooks/useStreamingAiSummary';
 
 const {
   beginDeferredOperationMock,

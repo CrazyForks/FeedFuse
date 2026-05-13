@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useAnimatedAiSummaryText } from '../../../features/articles/useAnimatedAiSummaryText';
+import { useAnimatedAiSummaryText } from '../../../features/articles/hooks/useAnimatedAiSummaryText';
 
 const originalMatchMedia = window.matchMedia;
 

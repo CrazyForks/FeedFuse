@@ -19,7 +19,7 @@ describe('LoginPage', () => {
   it('submits password to login api', async () => {
     loginMock.mockImplementation(() => new Promise(() => {}));
 
-    const { default: LoginPage } = await import('../../../features/auth/LoginPage');
+    const { default: LoginPage } = await import('../../../features/auth/components/LoginPage');
     render(<LoginPage />);
 
     fireEvent.change(screen.getByLabelText('密码'), {
@@ -36,7 +36,7 @@ describe('LoginPage', () => {
     const { ApiError } = await import('@/lib/apiClient');
     loginMock.mockRejectedValue(new ApiError('密码错误，请重试', 'unauthorized'));
 
-    const { default: LoginPage } = await import('../../../features/auth/LoginPage');
+    const { default: LoginPage } = await import('../../../features/auth/components/LoginPage');
     render(<LoginPage />);
 
     fireEvent.change(screen.getByLabelText('密码'), {

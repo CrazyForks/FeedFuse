@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
-import CreatableCategoryField from '../../../features/feeds/CreatableCategoryField';
+import CreatableCategoryField from '../../../features/feeds/components/CreatableCategoryField';
 
 const categoryOptions = [
   { id: 'cat-tech', name: '科技', expanded: true },

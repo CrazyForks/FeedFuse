@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import type { Feed } from '../../../types';
-import AiDigestSourceTreeSelect from '../../../features/feeds/AiDigestSourceTreeSelect';
+import AiDigestSourceTreeSelect from '../../../features/feeds/components/AiDigestSourceTreeSelect';
 
 function createFeed(input: Pick<Feed, 'id' | 'kind' | 'title'> & { categoryId?: string | null }): Feed {
   return {

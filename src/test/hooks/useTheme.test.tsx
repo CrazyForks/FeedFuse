@@ -1,7 +1,7 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { useSettingsStore } from '../../store/settingsStore';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '../../hooks';
 
 function Harness() {
   useTheme();

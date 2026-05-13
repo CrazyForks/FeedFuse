@@ -4,7 +4,7 @@ import {
   highlightHtmlByQuery,
   highlightPlainText,
   tokenizeGlobalSearchQuery,
-} from '../../../features/reader/globalSearch';
+} from '../../../features/reader/utils/globalSearch';
 
 describe('globalSearch utilities', () => {
   it('tokenizes query by whitespace and removes duplicates', () => {

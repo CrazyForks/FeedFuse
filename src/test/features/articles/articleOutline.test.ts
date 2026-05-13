@@ -3,7 +3,7 @@ import {
   buildArticleOutlineMarkers,
   extractArticleOutline,
   getActiveArticleOutlineHeadingId,
-} from '../../../features/articles/articleOutline';
+} from '../../../features/articles/utils/articleOutline';
 
 describe('extractArticleOutline', () => {
   it('extracts only h1 h2 h3 and assigns stable unique ids', () => {

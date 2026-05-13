@@ -48,7 +48,7 @@ vi.mock('../../../lib/apiClient', async () => {
   };
 });
 
-import ArticleView from '../../../features/articles/ArticleView';
+import ArticleView from '../../../features/articles/components/ArticleView';
 import { defaultPersistedSettings } from '../../../features/settings/settingsSchema';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { useAppStore } from '../../../store/appStore';

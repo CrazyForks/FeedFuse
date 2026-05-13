@@ -115,6 +115,8 @@ export interface AIPersistedSettings {
   autoSummarize: boolean;
   model: string;
   apiBaseUrl: string;
+  summaryPrompt: string;
+  translationPrompt: string;
   translation: {
     useSharedAi: boolean;
     model: string;

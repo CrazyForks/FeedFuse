@@ -60,4 +60,17 @@ describe("AISettingsPanel", () => {
     expect(screen.getByLabelText("翻译 API 地址")).toBeInTheDocument();
     expect(screen.getByLabelText("翻译 API 密钥")).toBeInTheDocument();
   });
+
+  it("allows editing summary and translation prompts", () => {
+    render(<Harness />);
+
+    const summaryPrompt = screen.getByLabelText("摘要提示词");
+    const translationPrompt = screen.getByLabelText("翻译提示词");
+
+    fireEvent.change(summaryPrompt, { target: { value: "请输出两条要点" } });
+    fireEvent.change(translationPrompt, { target: { value: "请保留术语英文" } });
+
+    expect((summaryPrompt as HTMLTextAreaElement).value).toBe("请输出两条要点");
+    expect((translationPrompt as HTMLTextAreaElement).value).toBe("请保留术语英文");
+  });
 });

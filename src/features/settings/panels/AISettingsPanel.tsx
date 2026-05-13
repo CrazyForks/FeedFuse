@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useRef } from "react";
 import type { SettingsDraft } from "../../../store/settingsStore";
 
@@ -228,6 +229,48 @@ export default function AISettingsPanel({
                 </Button>
               </div>
             </div>
+          </div>
+
+          <div className="px-4 py-3.5">
+            <Label htmlFor="ai-summary-prompt" className="mb-2 block">
+              摘要提示词
+            </Label>
+            <p className="mb-2 text-xs text-muted-foreground">
+              留空将使用内置默认模板。建议描述摘要语言、风格和输出结构。
+            </p>
+            <Textarea
+              id="ai-summary-prompt"
+              aria-label="摘要提示词"
+              value={ai.summaryPrompt}
+              onChange={(event) =>
+                onChange((nextDraft) => {
+                  nextDraft.persisted.ai.summaryPrompt = event.target.value;
+                })
+              }
+              placeholder="例如：用简洁中文总结，先 1-2 句结论，再给 3 条要点。"
+              className="min-h-28"
+            />
+          </div>
+
+          <div className="px-4 py-3.5">
+            <Label htmlFor="ai-translation-prompt" className="mb-2 block">
+              翻译提示词
+            </Label>
+            <p className="mb-2 text-xs text-muted-foreground">
+              留空将使用内置默认模板。此提示词会同时作用于标题翻译和正文翻译。
+            </p>
+            <Textarea
+              id="ai-translation-prompt"
+              aria-label="翻译提示词"
+              value={ai.translationPrompt}
+              onChange={(event) =>
+                onChange((nextDraft) => {
+                  nextDraft.persisted.ai.translationPrompt = event.target.value;
+                })
+              }
+              placeholder="例如：保持专业术语准确，避免意译过度。"
+              className="min-h-28"
+            />
           </div>
 
           {!translation.useSharedAi ? (

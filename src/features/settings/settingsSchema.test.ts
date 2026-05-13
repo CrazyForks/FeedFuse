@@ -145,6 +145,8 @@ describe('settingsSchema normalize', () => {
       ai: {
         model: 'gpt-4.1-mini',
         apiBaseUrl: 'https://api.example.com/v1',
+        summaryPrompt: '  摘要提示词  ',
+        translationPrompt: '  翻译提示词  ',
       },
     });
 
@@ -159,6 +161,8 @@ describe('settingsSchema normalize', () => {
     expect(ai.translation?.useSharedAi).toBe(true);
     expect(ai.translation?.model).toBe('');
     expect(ai.translation?.apiBaseUrl).toBe('');
+    expect(normalized.ai.summaryPrompt).toBe('摘要提示词');
+    expect(normalized.ai.translationPrompt).toBe('翻译提示词');
   });
 
   it('adds reader pane width defaults and clamps persisted values', () => {

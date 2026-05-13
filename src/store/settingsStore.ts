@@ -122,12 +122,17 @@ function extractNormalizeInput(input: unknown): unknown {
 function ensureAiTranslationSettings(persistedSettings: PersistedSettings): PersistedSettings {
   const next = cloneDeep(persistedSettings);
   const ai = next.ai as typeof next.ai & {
+    summaryPrompt?: string;
+    translationPrompt?: string;
     translation?: {
       useSharedAi?: boolean;
       model?: string;
       apiBaseUrl?: string;
     };
   };
+
+  ai.summaryPrompt = ai.summaryPrompt ?? '';
+  ai.translationPrompt = ai.translationPrompt ?? '';
 
   ai.translation = {
     useSharedAi: ai.translation?.useSharedAi ?? true,

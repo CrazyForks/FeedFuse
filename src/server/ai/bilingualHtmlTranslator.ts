@@ -1,5 +1,6 @@
 import { JSDOM } from 'jsdom';
 import { createOpenAIClient } from './openaiClient';
+import { buildTranslationSystemPrompt } from './promptTemplates';
 
 export const translatableSelectors = [
   'p',
@@ -36,6 +37,7 @@ interface TranslateBatchInput {
   apiKey: string;
   model: string;
   texts: string[];
+  prompt?: string;
 }
 
 interface TranslateSegmentsInput {
@@ -44,6 +46,7 @@ interface TranslateSegmentsInput {
   model: string;
   segments: TranslatableSegment[];
   batchSize?: number;
+  prompt?: string;
 }
 
 function normalizeVisibleText(value: string): string {
@@ -126,8 +129,11 @@ async function translateBatch(input: TranslateBatchInput): Promise<string[]> {
     messages: [
       {
         role: 'system',
-        content:
-          '你是翻译助手。把用户给出的字符串数组逐项翻译为简体中文，保持数组顺序和长度完全一致。只输出 JSON 字符串数组，不要输出解释。',
+        content: buildTranslationSystemPrompt({
+          basePrompt: input.prompt,
+          taskInstruction:
+            '把用户给出的字符串数组逐项翻译为简体中文，保持数组顺序和长度完全一致。只输出 JSON 字符串数组，不要输出解释。',
+        }),
       },
       {
         role: 'user',
@@ -204,6 +210,7 @@ export async function translateSegmentsInBatches(
       apiKey: input.apiKey,
       model: input.model,
       texts,
+      prompt: input.prompt,
     });
 
     for (let j = 0; j < batch.length; j += 1) {

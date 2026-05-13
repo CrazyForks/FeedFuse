@@ -1,10 +1,12 @@
 import { createOpenAIClient } from './openaiClient';
+import { resolveSummaryPrompt } from './promptTemplates';
 
 export interface StreamSummarizeTextInput {
   apiBaseUrl: string;
   apiKey: string;
   model: string;
   text: string;
+  prompt?: string;
 }
 
 interface StreamChunkShape {
@@ -37,8 +39,7 @@ async function createDefaultStream(
     messages: [
       {
         role: 'system',
-        content:
-          '你是中文摘要助手。请输出简洁中文摘要：先给 1-2 句总结，再给 3-5 条要点。不要返回“TL;DR：”或类似前缀。',
+        content: resolveSummaryPrompt(input.prompt),
       },
       {
         role: 'user',

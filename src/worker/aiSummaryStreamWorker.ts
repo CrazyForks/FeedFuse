@@ -257,6 +257,7 @@ export async function runAiSummaryStreamWorker(
           deps.getAiApiKey(input.pool),
           deps.getUiSettings(input.pool),
         ]);
+        const normalizedSettings = normalizePersistedSettings(uiSettings);
         if (!aiApiKey.trim()) throw new Error('Missing AI API key');
         await ensureSharedConfigCurrent();
 
@@ -273,7 +274,7 @@ export async function runAiSummaryStreamWorker(
         sessionIdForFailure = session.id;
 
         const sharedAiConfig = resolveSharedAiConfig({
-          settings: normalizePersistedSettings(uiSettings),
+          settings: normalizedSettings,
           aiApiKey,
         });
         if (!isAiRuntimeConfigComplete(sharedAiConfig)) {
@@ -297,6 +298,8 @@ export async function runAiSummaryStreamWorker(
           apiKey,
           model,
           text: sourceText,
+          // 允许用户在设置中自定义摘要提示词；为空时由 AI 层回退默认模板。
+          prompt: normalizedSettings.ai.summaryPrompt,
         })) {
           await ensureSharedConfigCurrent();
           draftText += deltaText;

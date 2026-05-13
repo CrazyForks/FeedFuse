@@ -1,10 +1,12 @@
 import { createOpenAIClient } from './openaiClient';
+import { buildTranslationSystemPrompt } from './promptTemplates';
 
 interface TranslateTitleInput {
   apiBaseUrl: string;
   apiKey: string;
   model: string;
   title: string;
+  prompt?: string;
 }
 
 function getTranslationContent(content: unknown): string {
@@ -27,8 +29,10 @@ export async function translateTitle(input: TranslateTitleInput): Promise<string
     messages: [
       {
         role: 'system',
-        content:
-          '你是标题翻译助手。请将用户给出的文章标题翻译成简体中文（zh-CN），仅输出翻译后的标题文本，不要输出解释。',
+        content: buildTranslationSystemPrompt({
+          basePrompt: input.prompt,
+          taskInstruction: '请将用户给出的文章标题翻译成简体中文（zh-CN），仅输出翻译后的标题文本，不要输出解释。',
+        }),
       },
       {
         role: 'user',

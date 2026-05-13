@@ -47,6 +47,7 @@ export function resolveAiConfigFingerprints(
     model: trim(settings.ai.model),
     apiBaseUrl: trim(settings.ai.apiBaseUrl),
     apiKey: trim(input.aiApiKey),
+    summaryPrompt: trim(settings.ai.summaryPrompt),
   };
 
   const translationConfig = settings.ai.translation.useSharedAi
@@ -61,9 +62,14 @@ export function resolveAiConfigFingerprints(
         apiKey: trim(input.translationApiKey),
       };
 
+  const translationConfigWithPrompt = {
+    ...translationConfig,
+    translationPrompt: trim(settings.ai.translationPrompt),
+  };
+
   return {
     shared: fingerprint(sharedConfig),
-    translation: fingerprint(translationConfig),
+    translation: fingerprint(translationConfigWithPrompt),
   };
 }
 

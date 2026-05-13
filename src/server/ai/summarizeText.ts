@@ -1,10 +1,12 @@
 import { createOpenAIClient } from './openaiClient';
+import { resolveSummaryPrompt } from './promptTemplates';
 
 interface SummarizeTextInput {
   apiBaseUrl: string;
   apiKey: string;
   model: string;
   text: string;
+  prompt?: string;
 }
 
 function getSummaryContent(content: unknown): string {
@@ -28,8 +30,7 @@ export async function summarizeText(input: SummarizeTextInput): Promise<string> 
     messages: [
       {
         role: 'system',
-        content:
-          '你是中文摘要助手。请输出简洁中文摘要：先给 1-2 句总结，再给 3-5 条要点。不要返回“TL;DR：”或类似前缀。',
+        content: resolveSummaryPrompt(input.prompt),
       },
       {
         role: 'user',

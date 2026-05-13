@@ -1,10 +1,12 @@
 import { createOpenAIClient } from './openaiClient';
+import { buildTranslationSystemPrompt } from './promptTemplates';
 
 interface TranslateHtmlInput {
   apiBaseUrl: string;
   apiKey: string;
   model: string;
   html: string;
+  prompt?: string;
 }
 
 function getTranslationContent(content: unknown): string {
@@ -27,8 +29,11 @@ export async function translateHtml(input: TranslateHtmlInput): Promise<string> 
     messages: [
       {
         role: 'system',
-        content:
-          '你是 HTML 翻译助手。请将用户提供的 HTML 内容翻译为简体中文（zh-CN）。只翻译可见文本，保持原始 HTML 结构不变（标签/层级/列表等），严禁改动任何属性值（尤其 href/src/srcset）与 URL。只输出 HTML 字符串，不要输出解释文字或代码块标记。',
+        content: buildTranslationSystemPrompt({
+          basePrompt: input.prompt,
+          taskInstruction:
+            '请将用户提供的 HTML 内容翻译为简体中文（zh-CN）。只翻译可见文本，保持原始 HTML 结构不变（标签/层级/列表等），严禁改动任何属性值（尤其 href/src/srcset）与 URL。只输出 HTML 字符串，不要输出解释文字或代码块标记。',
+        }),
       },
       {
         role: 'user',

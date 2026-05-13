@@ -607,6 +607,8 @@ async function main() {
                 apiKey,
                 model,
                 batchSize: 1,
+                // 使用用户可配置翻译提示词；为空时在 AI 层自动回退默认提示词。
+                prompt: normalizedSettings.ai.translationPrompt,
                 segments: [
                   {
                     id: `seg-${currentSegmentIndex}`,
@@ -689,6 +691,8 @@ async function main() {
           apiKey,
           model,
           title: titleSource,
+          // 标题翻译与正文翻译共用同一条用户可配置的翻译提示词。
+          prompt: normalizedSettings.ai.translationPrompt,
         });
         await ensureTranslationConfigCurrent();
         if (!translatedTitle.trim()) {

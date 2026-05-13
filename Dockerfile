@@ -26,13 +26,14 @@ RUN addgroup -S appgroup -g 1001 && adduser -S appuser -u 1001 -G appgroup
 FROM runtime AS web
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=9559
+ENV HOSTNAME=0.0.0.0
 
 # Ship only the traced Next.js runtime instead of the full build output.
 COPY --from=builder --chown=appuser:appgroup /app/.next/standalone ./
 COPY --from=builder --chown=appuser:appgroup /app/.next/static ./.next/static
 COPY --from=builder --chown=appuser:appgroup /app/public ./public
 COPY --from=builder --chown=appuser:appgroup /app/scripts ./scripts
-COPY --from=builder --chown=appuser:appgroup /app/src/server/db/migrations ./src/server/db/migrations
+COPY --from=builder --chown=appuser:appgroup /app/src/server/infra/db/migrations ./src/server/infra/db/migrations
 
 USER appuser
 EXPOSE 9559
@@ -45,9 +46,9 @@ FROM runtime AS worker
 # Worker still runs TypeScript via tsx, but only needs production deps now.
 COPY --from=prod-deps --chown=appuser:appgroup /app/node_modules ./node_modules
 COPY --from=builder --chown=appuser:appgroup /app/package.json ./package.json
-COPY --from=builder --chown=appuser:appgroup /app/tsconfig.json ./tsconfig.json
+COPY --from=builder --chown=appuser:appgroup /app/config/typescript ./config/typescript
 COPY --from=builder --chown=appuser:appgroup /app/src ./src
 COPY --from=builder --chown=appuser:appgroup /app/scripts ./scripts
 
 USER appuser
-CMD ["node", "node_modules/tsx/dist/cli.mjs", "src/worker/index.ts"]
+CMD ["node", "node_modules/tsx/dist/cli.mjs", "--tsconfig", "config/typescript/tsconfig.json", "src/worker/index.ts"]

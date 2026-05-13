@@ -35,5 +35,4 @@ artifacts/
 .superpowers
 .superwork
 
-tsconfig.typecheck.tsbuildinfo
-tsconfig.tsbuildinfo
+*.tsbuildinfo

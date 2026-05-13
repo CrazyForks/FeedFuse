@@ -31,6 +31,7 @@ services:
       AUTH_INITIAL_PASSWORD: ${AUTH_INITIAL_PASSWORD}
       IMAGE_PROXY_SECRET: ${IMAGE_PROXY_SECRET}
       PORT: '9559'
+      HOSTNAME: '0.0.0.0'
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     ports:
@@ -39,7 +40,7 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:9559/ >/dev/null || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:9559/api/health >/dev/null || exit 1']
       interval: 30s
       timeout: 5s
       retries: 3
@@ -52,7 +53,7 @@ services:
       [
         'sh',
         '-lc',
-        'node scripts/db/migrate.mjs && exec node node_modules/tsx/dist/cli.mjs src/worker/index.ts',
+        'node scripts/db/migrate.mjs && exec node node_modules/tsx/dist/cli.mjs --tsconfig config/typescript/tsconfig.json src/worker/index.ts',
       ]
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}

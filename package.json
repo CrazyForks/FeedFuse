@@ -1,7 +1,7 @@
 {
   "name": "feedfuse",
   "private": true,
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
   "packageManager": "pnpm@10.30.3",
   "engines": {
@@ -13,16 +13,21 @@
     "build:clean": "node scripts/build/clean-build-artifacts.mjs",
     "build": "pnpm build:clean && next build",
     "start": "next start -p 9559",
-    "worker:dev": "tsx src/worker/index.ts",
-    "worker:start": "tsx src/worker/index.ts",
-    "lint": "eslint .",
-    "type-check": "tsc --noEmit -p tsconfig.typecheck.json",
+    "worker:dev": "tsx --tsconfig config/typescript/tsconfig.json src/worker/index.ts",
+    "worker:start": "tsx --tsconfig config/typescript/tsconfig.json src/worker/index.ts",
+    "lint": "eslint . --no-config-lookup --config config/eslint/eslint.config.js",
+    "type-check": "tsc --noEmit -p config/typescript/tsconfig.typecheck.json",
     "pretest": "node scripts/check-node-version.mjs",
     "pretest:unit": "node scripts/check-node-version.mjs",
-    "test": "vitest run",
-    "test:unit": "vitest run",
-    "test:unit:watch": "vitest",
+    "test": "vitest run --config config/vitest/vitest.config.ts",
+    "test:unit": "vitest run --config config/vitest/vitest.config.ts",
+    "test:unit:watch": "vitest --config config/vitest/vitest.config.ts",
     "test:relocate": "node scripts/testing/relocate-tests.mjs"
+  },
+  "postcss": {
+    "plugins": {
+      "@tailwindcss/postcss": {}
+    }
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",

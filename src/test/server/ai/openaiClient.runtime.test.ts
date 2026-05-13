@@ -12,7 +12,14 @@ describe('openaiClient runtime compatibility', () => {
 
     const result = spawnSync(
       process.execPath,
-      [tsxCli, '-e', `import ${JSON.stringify(target)};`],
+      [
+        tsxCli,
+        // 根 tsconfig 已迁移到 config 目录，运行时显式指定以保持解析行为稳定。
+        '--tsconfig',
+        'config/typescript/tsconfig.json',
+        '-e',
+        `import ${JSON.stringify(target)};`,
+      ],
       {
         cwd: process.cwd(),
         env: process.env,

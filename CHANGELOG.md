@@ -6,6 +6,16 @@
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-05-13
+
+这一版聚焦配置目录归一化与容器构建链路修复，确保根目录瘦身后本地与部署环境都能稳定构建与启动。
+
+### 更改
+
+- 统一将 ESLint、Vitest、TypeScript 配置迁移到 `config/` 目录，并更新脚本显式引用新路径。
+- 修复 Docker `web/worker` 镜像构建与启动路径，补齐 `tsx --tsconfig` 参数和迁移目录复制路径。
+- 同步更新部署编排文件健康检查与运行参数，确保容器发布后能正确通过健康探针。
+
 ## [0.1.4] - 2026-05-13
 
 这一版用于发布最新代码并更新默认镜像通道。
@@ -95,7 +105,8 @@
 - 修复图片代理、全文抓取、AI 任务状态、OPML 图标回填、阅读器选中态与多处可访问性和构建问题。
 - 增强 RSS 拉取异常提示、错误映射与配置校验，降低边界场景下的失败率。
 
-[Unreleased]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.2...v0.1.4
 [0.1.2]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.0...v0.1.1

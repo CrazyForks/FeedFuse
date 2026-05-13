@@ -1,6 +1,7 @@
 import { configDefaults, defineConfig } from 'vitest/config';
 import { fileURLToPath } from 'node:url';
 
+// 统一忽略构建与工作区产物，避免测试扫描无关目录。
 const sharedExcludes = [
   ...configDefaults.exclude,
   '**/.next/**',
@@ -9,6 +10,7 @@ const sharedExcludes = [
   '**/artifacts/**',
 ];
 
+// 明确 Node 环境测试范围，避免与 jsdom 项目交叉执行。
 const nodeTestGlobs = [
   'src/test/server/**/*.test.ts',
   'src/test/worker/**/*.test.ts',
@@ -24,7 +26,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@': fileURLToPath(new URL('../../src', import.meta.url)),
     },
   },
   test: {

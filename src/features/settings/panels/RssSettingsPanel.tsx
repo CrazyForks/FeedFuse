@@ -4,6 +4,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import type { SettingsDraft } from '../../../store/settingsStore';
 import type { RssSettings } from '../../../types';
+import SettingTooltipLabel from '../components/SettingTooltipLabel';
 import OpmlTransferSection, { type OpmlTransferResultSummary } from './OpmlTransferSection';
 
 const fetchIntervalOptions: Array<{ value: RssSettings['fetchIntervalMinutes']; label: string }> = [
@@ -62,8 +63,11 @@ export default function RssSettingsPanel({
         <div className="flex flex-col divide-y divide-border">
           <div className="flex items-center justify-between gap-4 px-4 py-3.5">
             <div>
-              <p className="text-sm font-medium text-foreground">RSS 抓取间隔</p>
-              <p className="text-xs text-muted-foreground">全局设置，会应用到所有订阅源</p>
+              <SettingTooltipLabel
+                label="RSS 抓取间隔"
+                description="全局设置，会应用到所有订阅源"
+                className="text-sm font-medium text-foreground"
+              />
             </div>
             <div className="w-[140px]">
               <Select
@@ -92,10 +96,11 @@ export default function RssSettingsPanel({
 
           <div className="flex items-center justify-between gap-4 px-4 py-3.5">
             <div>
-              <p className="text-sm font-medium text-foreground">每个 Feed 最多存储条数</p>
-              <p className="text-xs text-muted-foreground">
-                超出后会按最旧时间清理未收藏文章；已收藏文章会保留，因此极端情况下总数可能仍高于上限。
-              </p>
+              <SettingTooltipLabel
+                label="每个 Feed 最多存储条数"
+                description="超出后会按最旧时间清理未收藏文章；已收藏文章会保留，因此极端情况下总数可能仍高于上限。"
+                className="text-sm font-medium text-foreground"
+              />
             </div>
             <div className="w-[140px]">
               <Select
@@ -124,11 +129,12 @@ export default function RssSettingsPanel({
 
           <div className="px-4 py-3.5">
             <Label className="mb-2 block">
-              全局关键词过滤
+              <SettingTooltipLabel
+                label="全局关键词过滤"
+                description="对之后新入库的文章生效。先做标题和摘要关键词预过滤，命中后直接标记为已过滤。"
+                className="text-sm font-medium text-foreground"
+              />
             </Label>
-            <p className="mb-2 text-xs text-muted-foreground">
-              对之后新入库的文章生效。先做标题和摘要关键词预过滤，命中后直接标记为已过滤。
-            </p>
             <div className="mb-3 flex items-center justify-between gap-4 rounded-md border border-border px-3 py-2.5">
               <div className="space-y-1">
                 <p className="text-sm font-medium text-foreground">启用关键词过滤</p>
@@ -161,11 +167,12 @@ export default function RssSettingsPanel({
 
           <div className="px-4 py-3.5">
             <Label className="mb-2 block">
-              AI 过滤提示词
+              <SettingTooltipLabel
+                label="AI 过滤提示词"
+                description="对关键词未命中的新文章追加 AI 过滤判断。提示词应描述什么内容应该被过滤。"
+                className="text-sm font-medium text-foreground"
+              />
             </Label>
-            <p className="mb-2 text-xs text-muted-foreground">
-              对关键词未命中的新文章追加 AI 过滤判断。提示词应描述什么内容应该被过滤。
-            </p>
             <div className="mb-3 flex items-center justify-between gap-4 rounded-md border border-border px-3 py-2.5">
               <div className="space-y-1">
                 <p className="text-sm font-medium text-foreground">启用 AI 过滤</p>

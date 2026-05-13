@@ -294,6 +294,20 @@ describe('SettingsCenterModal', () => {
     expect(screen.getByText('主题')).toBeInTheDocument();
   });
 
+  it('does not render section hints in the left tab list', async () => {
+    resetSettingsStore();
+    renderWithNotifications();
+    fireEvent.click(screen.getByLabelText('打开设置'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('settings-center-modal')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('外观与阅读')).not.toBeInTheDocument();
+    expect(screen.queryByText('抓取与过滤')).not.toBeInTheDocument();
+    expect(screen.queryByText('模型与接口')).not.toBeInTheDocument();
+  });
+
   it('renders logging as the fifth settings section', async () => {
     resetSettingsStore();
     renderWithNotifications();
@@ -324,7 +338,6 @@ describe('SettingsCenterModal', () => {
 
     expect(await screen.findByLabelText('当前密码')).toBeInTheDocument();
     expect(screen.getByLabelText('新密码')).toBeInTheDocument();
-    expect(screen.getByText('退出登录', { selector: 'p' })).toBeInTheDocument();
     const logoutButton = screen.getByRole('button', { name: '退出登录' });
     expect(logoutButton).toBeInTheDocument();
 

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { SettingsDraft } from '../../../store/settingsStore';
 import type { GeneralSettings } from '../../../types';
+import SettingTooltipLabel from '../components/SettingTooltipLabel';
 
 interface GeneralSettingsPanelProps {
   draft: SettingsDraft;
@@ -49,8 +50,11 @@ export default function GeneralSettingsPanel({ draft, onChange }: GeneralSetting
         <div className="flex flex-col divide-y divide-border">
           <div className="flex items-center justify-between gap-4 px-4 py-3.5">
             <div>
-              <p className="text-sm font-medium text-foreground">主题</p>
-              <p className="text-xs text-muted-foreground">选择界面配色方案</p>
+              <SettingTooltipLabel
+                label="主题"
+                description="选择界面配色方案"
+                className="text-sm font-medium text-foreground"
+              />
             </div>
             <div className="flex gap-1.5">
               {themeOptions.map(({ value, label, icon: Icon }) => (
@@ -77,8 +81,11 @@ export default function GeneralSettingsPanel({ draft, onChange }: GeneralSetting
 
           <div className="flex items-center justify-between gap-4 px-4 py-3.5">
             <div>
-              <p className="text-sm font-medium text-foreground">字体大小</p>
-              <p className="text-xs text-muted-foreground">调整文章阅读字号</p>
+              <SettingTooltipLabel
+                label="字体大小"
+                description="调整文章阅读字号"
+                className="text-sm font-medium text-foreground"
+              />
             </div>
             <div className="flex gap-1">
               {fontSizeOptions.map(({ value, label }) => (
@@ -103,8 +110,11 @@ export default function GeneralSettingsPanel({ draft, onChange }: GeneralSetting
 
           <div className="flex items-center justify-between gap-4 px-4 py-3.5">
             <div>
-              <p className="text-sm font-medium text-foreground">字体风格</p>
-              <p className="text-xs text-muted-foreground">选择文章字体样式</p>
+              <SettingTooltipLabel
+                label="字体风格"
+                description="选择文章字体样式"
+                className="text-sm font-medium text-foreground"
+              />
             </div>
             <div className="flex gap-1">
               {fontFamilyOptions.map(({ value, label }) => (
@@ -129,8 +139,11 @@ export default function GeneralSettingsPanel({ draft, onChange }: GeneralSetting
 
           <div className="flex items-center justify-between gap-4 px-4 py-3.5">
             <div>
-              <p className="text-sm font-medium text-foreground">行高</p>
-              <p className="text-xs text-muted-foreground">调整文章行间距</p>
+              <SettingTooltipLabel
+                label="行高"
+                description="调整文章行间距"
+                className="text-sm font-medium text-foreground"
+              />
             </div>
             <div className="flex gap-1">
               {lineHeightOptions.map(({ value, label }) => (
@@ -155,8 +168,11 @@ export default function GeneralSettingsPanel({ draft, onChange }: GeneralSetting
 
           <div className="flex items-center justify-between gap-4 px-4 py-3.5">
             <div>
-              <p className="text-sm font-medium text-foreground">自动标记已读</p>
-              <p className="text-xs text-muted-foreground">打开文章后，按设定时间自动标记为已读</p>
+              <SettingTooltipLabel
+                label="自动标记已读"
+                description="打开文章后，按设定时间自动标记为已读"
+                className="text-sm font-medium text-foreground"
+              />
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               <div className="flex gap-1">
@@ -217,8 +233,11 @@ export default function GeneralSettingsPanel({ draft, onChange }: GeneralSetting
 
           <div className="flex items-center justify-between gap-4 px-4 py-3.5">
             <div>
-              <p className="text-sm font-medium text-foreground">默认仅未读</p>
-              <p className="text-xs text-muted-foreground">进入全部文章或任意 RSS 源时，默认只显示未读文章</p>
+              <SettingTooltipLabel
+                label="默认仅未读"
+                description="进入全部文章或任意 RSS 源时，默认只显示未读文章"
+                className="text-sm font-medium text-foreground"
+              />
             </div>
             <div className="flex gap-1">
               <Button

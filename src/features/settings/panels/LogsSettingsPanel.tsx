@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { deleteSystemLogs, getSystemLogs } from '@/lib/apiClient';
 import type { SettingsDraft } from '../../../store/settingsStore';
 import type { LoggingRetentionDays, SystemLogLevel, SystemLogsPage } from '../../../types';
+import SettingTooltipLabel from '../components/SettingTooltipLabel';
 import { LogList } from './logs/LogList';
 import { LogSearchBar } from './logs/LogSearchBar';
 import { LogsPagination } from './logs/LogsPagination';
@@ -151,8 +152,11 @@ export default function LogsSettingsPanel({
           <div className="flex flex-col divide-y divide-border">
             <div className="flex items-center justify-between gap-4 px-4 py-3.5">
               <div>
-                <p className="text-sm font-medium text-foreground">记录系统日志</p>
-                <p className="text-xs text-muted-foreground">控制第三方请求与关键任务日志是否写入数据库</p>
+                <SettingTooltipLabel
+                  label="记录系统日志"
+                  description="控制第三方请求与关键任务日志是否写入数据库。"
+                  className="text-sm font-medium text-foreground"
+                />
               </div>
               <Switch
                 aria-label="启用日志记录"
@@ -167,8 +171,11 @@ export default function LogsSettingsPanel({
 
             <div className="flex items-center justify-between gap-4 px-4 py-3.5">
               <div>
-                <p className="text-sm font-medium text-foreground">日志保留天数</p>
-                <p className="text-xs text-muted-foreground">超过保留期的日志会由后台任务自动清理</p>
+                <SettingTooltipLabel
+                  label="日志保留天数"
+                  description="超过保留期的日志会由后台任务自动清理。"
+                  className="text-sm font-medium text-foreground"
+                />
               </div>
               <div className="w-[132px]">
                 <Select
@@ -200,8 +207,11 @@ export default function LogsSettingsPanel({
 
             <div className="flex items-center justify-between gap-4 px-4 py-3.5">
               <div>
-                <p className="text-sm font-medium text-foreground">记录类型</p>
-                <p className="text-xs text-muted-foreground">控制写入数据库的最低日志等级</p>
+                <SettingTooltipLabel
+                  label="记录类型"
+                  description="控制写入数据库的最低日志等级。"
+                  className="text-sm font-medium text-foreground"
+                />
               </div>
               <div className="w-[220px]">
                 <Select
@@ -237,8 +247,11 @@ export default function LogsSettingsPanel({
           <div className="border-b border-border px-4 py-3.5">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1.5">
-                <p className="text-sm font-medium text-foreground">日志记录</p>
-                <p className="text-xs text-muted-foreground">按关键词搜索摘要字段，并在固定页中浏览日志详情</p>
+                <SettingTooltipLabel
+                  label="日志记录"
+                  description="按关键词搜索摘要字段，并在固定页中浏览日志详情。"
+                  className="text-sm font-medium text-foreground"
+                />
               </div>
               <Button
                 type="button"

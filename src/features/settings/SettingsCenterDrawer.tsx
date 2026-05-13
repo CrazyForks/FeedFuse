@@ -42,16 +42,15 @@ type SettingsSectionKey = 'general' | 'rss' | 'ai' | 'security' | 'logging';
 interface SettingsSectionItem {
   key: SettingsSectionKey;
   label: string;
-  hint: string;
   icon: LucideIcon;
 }
 
 const sectionItems: SettingsSectionItem[] = [
-  { key: 'general', label: '通用', hint: '外观与阅读', icon: Palette },
-  { key: 'rss', label: 'RSS', hint: '抓取与过滤', icon: Rss },
-  { key: 'ai', label: 'AI', hint: '模型与接口', icon: Bot },
-  { key: 'security', label: '账号与安全', hint: '登录与密码', icon: KeyRound },
-  { key: 'logging', label: '日志', hint: '开关与查看', icon: ScrollText },
+  { key: 'general', label: '通用', icon: Palette },
+  { key: 'rss', label: 'RSS', icon: Rss },
+  { key: 'ai', label: 'AI', icon: Bot },
+  { key: 'security', label: '账号与安全', icon: KeyRound },
+  { key: 'logging', label: '日志', icon: ScrollText },
 ];
 
 const autosaveStatusMeta = {
@@ -81,9 +80,6 @@ const settingsSectionIconClassName =
 
 const settingsSectionLabelClassName =
   'text-sm font-medium text-foreground/90 transition-colors group-data-[state=active]:text-foreground group-hover:text-foreground';
-
-const settingsSectionHintClassName =
-  'text-xs text-muted-foreground transition-colors duration-200 group-hover:text-foreground/80';
 
 export default function SettingsCenterDrawer({ onClose }: SettingsCenterDrawerProps) {
   const [draftVersion, setDraftVersion] = useState(0);
@@ -296,7 +292,7 @@ export default function SettingsCenterDrawer({ onClose }: SettingsCenterDrawerPr
                       aria-label="设置导航"
                       className="flex h-auto w-full justify-start gap-2 overflow-x-auto rounded-none bg-transparent px-3 py-4 text-muted-foreground md:flex-col md:items-stretch md:gap-1.5 md:overflow-visible md:px-3 md:py-5"
                     >
-                      {sectionItems.map(({ key, label, hint, icon: Icon }) => {
+                      {sectionItems.map(({ key, label, icon: Icon }) => {
                         const errorCount = sectionErrors[key];
 
                         return (
@@ -316,7 +312,6 @@ export default function SettingsCenterDrawer({ onClose }: SettingsCenterDrawerPr
                                 />
                                 <div>
                                   <p className={settingsSectionLabelClassName}>{label}</p>
-                                  <p className={settingsSectionHintClassName}>{hint}</p>
                                 </div>
                               </div>
                               {errorCount > 0 ? (

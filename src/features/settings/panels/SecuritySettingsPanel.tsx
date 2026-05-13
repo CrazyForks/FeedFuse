@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ApiError, changePassword, logout } from '@/lib/apiClient';
+import SettingTooltipLabel from '../components/SettingTooltipLabel';
 
 export default function SecuritySettingsPanel() {
   const currentPasswordLabelId = 'settings-current-password-label';
@@ -100,88 +101,92 @@ export default function SecuritySettingsPanel() {
     <>
       <section className="space-y-5">
         <div className="rounded-lg border border-border bg-background p-4">
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-foreground">修改密码</p>
-          <p className="text-xs text-muted-foreground">
-            更新后会立即刷新当前登录会话。
-          </p>
-        </div>
+          <div className="space-y-1">
+            <SettingTooltipLabel
+              label="修改密码"
+              description="更新后会立即刷新当前登录会话。"
+              className="text-sm font-medium text-foreground"
+            />
+          </div>
 
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
-          <div className="space-y-2">
-            <Label id={currentPasswordLabelId}>当前密码</Label>
-            <Input
-              id="settings-current-password"
-              type="password"
-              autoComplete="current-password"
-              aria-labelledby={currentPasswordLabelId}
-              value={currentPassword}
-              onChange={(event) => setCurrentPassword(event.target.value)}
-              placeholder="输入当前密码"
-            />
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label id={currentPasswordLabelId}>当前密码</Label>
+              <Input
+                id="settings-current-password"
+                type="password"
+                autoComplete="current-password"
+                aria-labelledby={currentPasswordLabelId}
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                placeholder="输入当前密码"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label id={nextPasswordLabelId}>新密码</Label>
+              <Input
+                id="settings-next-password"
+                type="password"
+                autoComplete="new-password"
+                aria-labelledby={nextPasswordLabelId}
+                value={nextPassword}
+                onChange={(event) => setNextPassword(event.target.value)}
+                placeholder="至少 8 位"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label id={confirmPasswordLabelId}>确认新密码</Label>
+              <Input
+                id="settings-confirm-password"
+                type="password"
+                autoComplete="new-password"
+                aria-labelledby={confirmPasswordLabelId}
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                placeholder="再次输入新密码"
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label id={nextPasswordLabelId}>新密码</Label>
-            <Input
-              id="settings-next-password"
-              type="password"
-              autoComplete="new-password"
-              aria-labelledby={nextPasswordLabelId}
-              value={nextPassword}
-              onChange={(event) => setNextPassword(event.target.value)}
-              placeholder="至少 8 位"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label id={confirmPasswordLabelId}>确认新密码</Label>
-            <Input
-              id="settings-confirm-password"
-              type="password"
-              autoComplete="new-password"
-              aria-labelledby={confirmPasswordLabelId}
-              value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
-              placeholder="再次输入新密码"
-            />
-          </div>
-        </div>
 
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-          {securityMessage ? (
-            <p className={isSecurityError ? 'text-sm text-red-600' : 'text-sm text-muted-foreground'}>
-              {securityMessage}
-            </p>
-          ) : null}
-          <Button
-            type="button"
-            onClick={submitPasswordChange}
-            disabled={isPasswordPending}
-          >
-            {isPasswordPending ? '更新中…' : '更新密码'}
-          </Button>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+            {securityMessage ? (
+              <p className={isSecurityError ? 'text-sm text-red-600' : 'text-sm text-muted-foreground'}>
+                {securityMessage}
+              </p>
+            ) : null}
+            <Button
+              type="button"
+              onClick={submitPasswordChange}
+              disabled={isPasswordPending}
+            >
+              {isPasswordPending ? '更新中…' : '更新密码'}
+            </Button>
+          </div>
         </div>
-      </div>
 
         <div className="rounded-lg border border-border bg-background p-4">
-        {/* 将退出登录独立为单独模块，避免与修改密码操作混淆。 */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-foreground">退出登录</p>
-            <p className="text-xs text-muted-foreground">退出后将返回登录页面。</p>
+          {/* 将退出登录独立为单独模块，避免与修改密码操作混淆。 */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <SettingTooltipLabel
+                label="退出登录"
+                description="退出后将返回登录页面。"
+                className="text-sm font-medium text-foreground"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="destructive"
+              size="compact"
+              onClick={() => {
+                // 危险操作先二次确认，确认后再真正调用退出接口。
+                setLogoutConfirmOpen(true);
+              }}
+              disabled={isLogoutPending}
+            >
+              {isLogoutPending ? '退出中…' : '退出登录'}
+            </Button>
           </div>
-          <Button
-            type="button"
-            variant="destructive"
-            size="compact"
-            onClick={() => {
-              // 危险操作先二次确认，确认后再真正调用退出接口。
-              setLogoutConfirmOpen(true);
-            }}
-            disabled={isLogoutPending}
-          >
-            {isLogoutPending ? '退出中…' : '退出登录'}
-          </Button>
-        </div>
         </div>
       </section>
 

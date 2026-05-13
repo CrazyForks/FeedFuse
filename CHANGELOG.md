@@ -6,6 +6,14 @@
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-05-13
+
+这一版用于发布最新代码并更新默认镜像通道。
+
+### 更改
+
+- 发布 `0.1.4` 版本标签，并同步更新容器镜像发布通道。
+
 ## [0.1.2] - 2026-04-01
 
 这一版聚焦已读状态批量更新边界，修正未指定订阅源时的仓储层筛选条件，避免“全部标为已读”只作用于 RSS 源文章。
@@ -87,7 +95,8 @@
 - 修复图片代理、全文抓取、AI 任务状态、OPML 图标回填、阅读器选中态与多处可访问性和构建问题。
 - 增强 RSS 拉取异常提示、错误映射与配置校验，降低边界场景下的失败率。
 
-[Unreleased]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.2...v0.1.4
 [0.1.2]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/BryanHoo/FeedFuse/compare/v0.0.3...v0.1.0

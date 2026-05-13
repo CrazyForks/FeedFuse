@@ -10,12 +10,12 @@ const sharedExcludes = [
 ];
 
 const nodeTestGlobs = [
-  'src/server/**/*.test.ts',
-  'src/worker/**/*.test.ts',
-  'src/app/api/**/*.test.ts',
-  'src/lib/**/*.test.ts',
-  'src/utils/**/*.test.ts',
-  'src/data/**/*.test.ts',
+  'src/test/server/**/*.test.ts',
+  'src/test/worker/**/*.test.ts',
+  'src/test/app/api/**/*.test.ts',
+  'src/test/lib/**/*.test.ts',
+  'src/test/utils/**/*.test.ts',
+  'src/test/data/**/*.test.ts',
 ];
 
 export default defineConfig({
@@ -50,7 +50,7 @@ export default defineConfig({
         test: {
           name: 'jsdom',
           environment: 'jsdom',
-          include: ['src/**/*.{test,spec}.{ts,tsx}'],
+          include: ['src/test/**/*.{test,spec}.{ts,tsx}'],
           exclude: [...sharedExcludes, ...nodeTestGlobs],
         },
       },

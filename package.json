@@ -20,7 +20,8 @@
     "pretest:unit": "node scripts/check-node-version.mjs",
     "test": "vitest run",
     "test:unit": "vitest run",
-    "test:unit:watch": "vitest"
+    "test:unit:watch": "vitest",
+    "test:relocate": "node scripts/testing/relocate-tests.mjs"
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",

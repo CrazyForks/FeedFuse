@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('errorMapping', () => {
   it('maps Fulltext pending to fulltext_pending', async () => {
-    const mod = await import('../../../server/tasks/errorMapping');
+    const mod = await import('@/server/domains/settings/tasks/errorMapping');
     expect(mod.mapTaskError({ type: 'ai_summary', err: new Error('Fulltext pending') })).toEqual({
       errorCode: 'fulltext_pending',
       errorMessage: expect.any(String),
@@ -11,7 +11,7 @@ describe('errorMapping', () => {
   });
 
   it('maps AbortError to ai_timeout', async () => {
-    const mod = await import('../../../server/tasks/errorMapping');
+    const mod = await import('@/server/domains/settings/tasks/errorMapping');
     const err = new Error('aborted');
     (err as { name?: string }).name = 'AbortError';
     expect(mod.mapTaskError({ type: 'ai_translate', err })).toEqual({
@@ -22,7 +22,7 @@ describe('errorMapping', () => {
   });
 
   it('maps fulltext Non-HTML response to fetch_non_html', async () => {
-    const mod = await import('../../../server/tasks/errorMapping');
+    const mod = await import('@/server/domains/settings/tasks/errorMapping');
     expect(mod.mapTaskError({ type: 'fulltext', err: 'Non-HTML response' })).toEqual({
       errorCode: 'fetch_non_html',
       errorMessage: '返回内容不是可阅读的网页',
@@ -31,7 +31,7 @@ describe('errorMapping', () => {
   });
 
   it('maps fulltext verification pages to fetch_verification_required', async () => {
-    const mod = await import('../../../server/tasks/errorMapping');
+    const mod = await import('@/server/domains/settings/tasks/errorMapping');
     expect(mod.mapTaskError({ type: 'fulltext', err: 'Verification required' })).toEqual({
       errorCode: 'fetch_verification_required',
       errorMessage: '源站要求完成验证，暂时无法抓取全文',
@@ -40,7 +40,7 @@ describe('errorMapping', () => {
   });
 
   it('keeps rawErrorMessage when mapping rate-limit errors', async () => {
-    const mod = await import('../../../server/tasks/errorMapping');
+    const mod = await import('@/server/domains/settings/tasks/errorMapping');
 
     expect(mod.mapTaskError({ type: 'ai_summary', err: new Error('429 rate limit') })).toEqual({
       errorCode: 'ai_rate_limited',
@@ -50,7 +50,7 @@ describe('errorMapping', () => {
   });
 
   it('prefers nested provider error message from cause when mapping AI errors', async () => {
-    const mod = await import('../../../server/tasks/errorMapping');
+    const mod = await import('@/server/domains/settings/tasks/errorMapping');
     const err = new Error('OpenAI request failed');
     (err as Error & { cause?: unknown }).cause = {
       status: 429,

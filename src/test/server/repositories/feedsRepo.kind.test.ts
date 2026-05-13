@@ -5,7 +5,7 @@ describe('feedsRepo (kind)', () => {
   it('listFeeds selects kind', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/feedsRepo')) as typeof import('../../../server/repositories/feedsRepo');
+    const mod = (await import('@/server/domains/feeds/repositories/feedsRepo')) as typeof import('@/server/domains/feeds/repositories/feedsRepo');
 
     await mod.listFeeds(pool);
     const sql = String(query.mock.calls[0]?.[0] ?? '');
@@ -15,7 +15,7 @@ describe('feedsRepo (kind)', () => {
   it('rss fetch helpers only select rss feeds', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/feedsRepo')) as typeof import('../../../server/repositories/feedsRepo');
+    const mod = (await import('@/server/domains/feeds/repositories/feedsRepo')) as typeof import('@/server/domains/feeds/repositories/feedsRepo');
 
     await mod.listEnabledFeedsForFetch(pool);
     const listSql = String(query.mock.calls[0]?.[0] ?? '');
@@ -30,7 +30,7 @@ describe('feedsRepo (kind)', () => {
   it('updateAllFeedsFetchIntervalMinutes only updates rss feeds', async () => {
     const query = vi.fn().mockResolvedValue({ rowCount: 0 });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/feedsRepo')) as typeof import('../../../server/repositories/feedsRepo');
+    const mod = (await import('@/server/domains/feeds/repositories/feedsRepo')) as typeof import('@/server/domains/feeds/repositories/feedsRepo');
 
     await mod.updateAllFeedsFetchIntervalMinutes(pool, 30);
     const sql = String(query.mock.calls[0]?.[0] ?? '');

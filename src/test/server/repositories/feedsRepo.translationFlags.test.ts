@@ -5,7 +5,7 @@ describe('feedsRepo (translation flags)', () => {
   it('listFeeds selects title/body translation flags', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/feedsRepo')) as typeof import('../../../server/repositories/feedsRepo');
+    const mod = (await import('@/server/domains/feeds/repositories/feedsRepo')) as typeof import('@/server/domains/feeds/repositories/feedsRepo');
 
     await mod.listFeeds(pool);
     const sql = String(query.mock.calls[0]?.[0] ?? '');
@@ -18,7 +18,7 @@ describe('feedsRepo (translation flags)', () => {
   it('createFeed inserts and returns title/body translation flags', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [{ id: 'f1' }] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/feedsRepo')) as typeof import('../../../server/repositories/feedsRepo');
+    const mod = (await import('@/server/domains/feeds/repositories/feedsRepo')) as typeof import('@/server/domains/feeds/repositories/feedsRepo');
 
     await mod.createFeed(pool, { title: 'A', url: 'https://example.com/rss.xml' });
     const sql = String(query.mock.calls[0]?.[0] ?? '');
@@ -31,7 +31,7 @@ describe('feedsRepo (translation flags)', () => {
   it('updateFeed supports title/body translation flags and url patch', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [{ id: 'f1' }] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/feedsRepo')) as typeof import('../../../server/repositories/feedsRepo');
+    const mod = (await import('@/server/domains/feeds/repositories/feedsRepo')) as typeof import('@/server/domains/feeds/repositories/feedsRepo');
 
     await mod.updateFeed(pool, 'f1', {
       titleTranslateEnabled: true,

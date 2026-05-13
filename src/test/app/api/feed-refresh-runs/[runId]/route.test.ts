@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const pool = {};
 const getFeedRefreshRunByIdMock = vi.fn();
 
-vi.mock('../../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
 
-vi.mock('../../../../../server/repositories/feedRefreshRunRepo', () => ({
+vi.mock('@/server/domains/feeds/repositories/feedRefreshRunRepo', () => ({
   getFeedRefreshRunById: (...args: unknown[]) => getFeedRefreshRunByIdMock(...args),
 }));
 

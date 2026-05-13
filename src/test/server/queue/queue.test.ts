@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const startBossMock = vi.fn();
 
-vi.mock('../../../server/queue/boss', () => ({
+vi.mock('@/server/infra/queue/boss', () => ({
   startBoss: (...args: unknown[]) => startBossMock(...args),
 }));
 
@@ -18,7 +18,7 @@ describe('queue enqueueWithResult', () => {
       send: vi.fn().mockResolvedValue(null),
     });
 
-    const mod = await import('../../../server/queue/queue');
+    const mod = await import('@/server/infra/queue/queue');
     const res = await mod.enqueueWithResult('ai.summarize_article', { articleId: 'a1' }, {});
     expect(res).toEqual({ status: 'throttled_or_duplicate' });
   });
@@ -29,7 +29,7 @@ describe('queue enqueueWithResult', () => {
       send: vi.fn().mockResolvedValue('job-1'),
     });
 
-    const mod = await import('../../../server/queue/queue');
+    const mod = await import('@/server/infra/queue/queue');
     await expect(mod.enqueue('feed.fetch', { feedId: 'f1' }, {})).resolves.toBe('job-1');
   });
 });

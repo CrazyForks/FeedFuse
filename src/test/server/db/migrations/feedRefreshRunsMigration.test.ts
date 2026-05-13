@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('db migrations', () => {
   it('adds feed_refresh_runs and feed_refresh_run_items tables', () => {
-    const migrationPath = 'src/server/db/migrations/0025_feed_refresh_runs.sql';
+    const migrationPath = 'src/server/infra/db/migrations/0025_feed_refresh_runs.sql';
     expect(existsSync(migrationPath)).toBe(true);
 
     const sql = readFileSync(migrationPath, 'utf8');

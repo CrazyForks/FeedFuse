@@ -1,17 +1,17 @@
-import { requireApiSession } from '@/server/auth/session';
+import { requireApiSession } from '@/server/domains/auth/services/session';
 import { z } from 'zod';
-import { getPool } from '../../../server/db/pool';
-import { ok, fail } from '../../../server/http/apiResponse';
-import { numericIdSchema } from '../../../server/http/idSchemas';
-import { ConflictError, ValidationError } from '../../../server/http/errors';
-import { listFeeds } from '../../../server/repositories/feedsRepo';
-import { isSafeExternalUrl } from '../../../server/rss/ssrfGuard';
-import { createFeedWithCategoryResolution } from '../../../server/services/feedCategoryLifecycleService';
-import { normalizeFeedAutoTriggerFlags } from '../../../lib/feedAutoTriggerPolicy';
+import { getPool } from '@/server/infra/db/pool';
+import { ok, fail } from '@/server/infra/http/apiResponse';
+import { numericIdSchema } from '@/server/infra/http/idSchemas';
+import { ConflictError, ValidationError } from '@/server/infra/http/errors';
+import { listFeeds } from '@/server/domains/feeds/repositories/feedsRepo';
+import { isSafeExternalUrl } from '@/server/integrations/rss/ssrfGuard';
+import { createFeedWithCategoryResolution } from '@/server/domains/feeds/services/feedCategoryLifecycleService';
+import { normalizeFeedAutoTriggerFlags } from '@/lib/feeds/feedAutoTriggerPolicy';
 import {
   writeUserOperationFailedLog,
   writeUserOperationSucceededLog,
-} from '../../../server/logging/userOperationLogger';
+} from '@/server/infra/logging/userOperationLogger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

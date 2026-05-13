@@ -5,11 +5,11 @@ import type { AddressInfo } from 'node:net';
 const pool = {};
 const writeSystemLogMock = vi.hoisted(() => vi.fn());
 
-vi.mock('../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
 
-vi.mock('../../../server/logging/systemLogger', () => ({
+vi.mock('@/server/infra/logging/systemLogger', () => ({
   writeSystemLog: (...args: unknown[]) => writeSystemLogMock(...args),
 }));
 
@@ -58,7 +58,7 @@ describe('externalHttpClient', () => {
   });
 
   it('fetchRssXml returns status/xml/etag/lastModified and logs success metadata', async () => {
-    const { fetchRssXml } = await import('../../../server/http/externalHttpClient');
+    const { fetchRssXml } = await import('@/server/infra/http/externalHttpClient');
     const xmlUrl = `${baseUrl}/rss.xml`;
 
     const res = await fetchRssXml(
@@ -100,7 +100,7 @@ describe('externalHttpClient', () => {
   });
 
   it('writes upstream JSON error payload as raw details text', async () => {
-    const { fetchRssXml } = await import('../../../server/http/externalHttpClient');
+    const { fetchRssXml } = await import('@/server/infra/http/externalHttpClient');
     const errorUrl = `${baseUrl}/error.json`;
 
     const res = await fetchRssXml(

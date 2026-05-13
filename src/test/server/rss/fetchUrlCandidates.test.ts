@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getFetchUrlCandidates } from '../../../server/rss/fetchUrlCandidates';
+import { getFetchUrlCandidates } from '@/server/integrations/rss/fetchUrlCandidates';
 
 describe('getFetchUrlCandidates', () => {
   it('returns input only for public urls', () => {

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fetchRssXmlMock = vi.hoisted(() => vi.fn());
 
-vi.mock('../../../server/http/externalHttpClient', () => ({
+vi.mock('@/server/infra/http/externalHttpClient', () => ({
   fetchRssXml: (...args: unknown[]) => fetchRssXmlMock(...args),
 }));
 
@@ -20,7 +20,7 @@ describe('fetchFeedXml', () => {
       finalUrl: 'https://example.com/feed.xml',
     });
 
-    const mod = await import('../../../server/rss/fetchFeedXml');
+    const mod = await import('@/server/integrations/rss/fetchFeedXml');
     await mod.fetchFeedXml('https://example.com/feed.xml', {
       timeoutMs: 1000,
       userAgent: 'test-agent',

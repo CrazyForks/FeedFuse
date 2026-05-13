@@ -1,6 +1,6 @@
 import type { Pool } from 'pg';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getOrFetchFeedFavicon } from '../../../server/services/feedFaviconService';
+import { getOrFetchFeedFavicon } from '@/server/domains/feeds/services/feedFaviconService';
 
 const getFeedFaviconCacheMock = vi.fn();
 const upsertFeedFaviconCacheMock = vi.fn();
@@ -8,17 +8,17 @@ const upsertFeedFaviconFailureMock = vi.fn();
 const getFeedFaviconTargetMock = vi.fn();
 const discoverFeedFaviconMock = vi.fn();
 
-vi.mock('../../../server/repositories/feedFaviconsRepo', () => ({
+vi.mock('@/server/domains/feeds/repositories/feedFaviconsRepo', () => ({
   getFeedFaviconCache: (...args: unknown[]) => getFeedFaviconCacheMock(...args),
   upsertFeedFaviconCache: (...args: unknown[]) => upsertFeedFaviconCacheMock(...args),
   upsertFeedFaviconFailure: (...args: unknown[]) => upsertFeedFaviconFailureMock(...args),
 }));
 
-vi.mock('../../../server/repositories/feedsRepo', () => ({
+vi.mock('@/server/domains/feeds/repositories/feedsRepo', () => ({
   getFeedFaviconTarget: (...args: unknown[]) => getFeedFaviconTargetMock(...args),
 }));
 
-vi.mock('../../../server/rss/discoverFeedFavicon', () => ({
+vi.mock('@/server/integrations/rss/discoverFeedFavicon', () => ({
   discoverFeedFavicon: (...args: unknown[]) => discoverFeedFaviconMock(...args),
 }));
 

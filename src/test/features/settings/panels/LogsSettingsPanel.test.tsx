@@ -7,7 +7,7 @@ import type { SystemLogsPage } from '../../../../types';
 const getSystemLogsMock = vi.hoisted(() => vi.fn());
 const deleteSystemLogsMock = vi.hoisted(() => vi.fn());
 
-vi.mock('../../../../lib/apiClient', () => ({
+vi.mock('@/lib/api/apiClient', () => ({
   getSystemLogs: (...args: unknown[]) => getSystemLogsMock(...args),
   deleteSystemLogs: (...args: unknown[]) => deleteSystemLogsMock(...args),
 }));

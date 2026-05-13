@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildArticleFilter, decodeCursor, encodeCursor } from '../../../server/services/readerSnapshotService';
-import { AI_DIGEST_VIEW_ID } from '../../../lib/view';
+import { buildArticleFilter, decodeCursor, encodeCursor } from '@/server/domains/reader/services/readerSnapshotService';
+import { AI_DIGEST_VIEW_ID } from '@/lib/reader/view';
 
 const RSS_ONLY = "feed_id in (select id from feeds where kind = 'rss')";
 const AI_DIGEST_ONLY = "feed_id in (select id from feeds where kind = 'ai_digest')";

@@ -1,20 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { getPool } from '../../../server/db/pool';
+import { getPool } from '@/server/infra/db/pool';
 import {
   createCategory,
   deleteCategory,
   listCategories,
   updateCategory,
-} from '../../../server/repositories/categoriesRepo';
-import { createFeed, deleteFeed, listFeeds, updateFeed } from '../../../server/repositories/feedsRepo';
+} from '@/server/domains/feeds/repositories/categoriesRepo';
+import { createFeed, deleteFeed, listFeeds, updateFeed } from '@/server/domains/feeds/repositories/feedsRepo';
 import {
   getArticleById,
   insertArticleIgnoreDuplicate,
   markAllRead,
   setArticleRead,
   setArticleStarred,
-} from '../../../server/repositories/articlesRepo';
-import { getAppSettings, updateAppSettings } from '../../../server/repositories/settingsRepo';
+} from '@/server/domains/articles/repositories/articlesRepo';
+import { getAppSettings, updateAppSettings } from '@/server/domains/settings/repositories/settingsRepo';
 
 const databaseUrl = process.env.DATABASE_URL;
 

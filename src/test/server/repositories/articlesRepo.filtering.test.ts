@@ -5,7 +5,7 @@ describe('articlesRepo (filtering)', () => {
   it('getArticleById selects filtering and duplicate fields', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/articlesRepo')) as typeof import('../../../server/repositories/articlesRepo');
+    const mod = (await import('@/server/domains/articles/repositories/articlesRepo')) as typeof import('@/server/domains/articles/repositories/articlesRepo');
 
     await mod.getArticleById(pool, 'a1');
 
@@ -28,7 +28,7 @@ describe('articlesRepo (filtering)', () => {
   it('insertArticleIgnoreDuplicate inserts and returns filtering and duplicate fields', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [{ id: 'a1' }] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/articlesRepo')) as typeof import('../../../server/repositories/articlesRepo');
+    const mod = (await import('@/server/domains/articles/repositories/articlesRepo')) as typeof import('@/server/domains/articles/repositories/articlesRepo');
 
     await mod.insertArticleIgnoreDuplicate(pool, {
       feedId: 'f1',
@@ -60,7 +60,7 @@ describe('articlesRepo (filtering)', () => {
   it('setArticleFilterPending clears duplicate filtering metadata fields', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/articlesRepo')) as typeof import('../../../server/repositories/articlesRepo');
+    const mod = (await import('@/server/domains/articles/repositories/articlesRepo')) as typeof import('@/server/domains/articles/repositories/articlesRepo');
 
     await mod.setArticleFilterPending(pool, 'a1');
 
@@ -77,7 +77,7 @@ describe('articlesRepo (filtering)', () => {
   it('setArticleFilterResult updates filtering outcome and duplicate metadata fields', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/articlesRepo')) as typeof import('../../../server/repositories/articlesRepo');
+    const mod = (await import('@/server/domains/articles/repositories/articlesRepo')) as typeof import('@/server/domains/articles/repositories/articlesRepo');
 
     const setArticleFilterResult = mod.setArticleFilterResult as (
       pool: Pool,

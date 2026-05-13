@@ -4,8 +4,8 @@ import {
   enqueueArticleAiSummary,
   getArticleAiSummarySnapshot,
   type ArticleAiSummarySessionSnapshotDto,
-} from '../../../lib/apiClient';
-import { parseEventPayload } from '../../../lib/utils';
+} from '@/lib/api/apiClient';
+import { parseEventPayload } from '@/lib/utils';
 import {
   beginDeferredOperation,
   failDeferredOperation,

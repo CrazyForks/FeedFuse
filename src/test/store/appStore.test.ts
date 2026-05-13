@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AI_DIGEST_VIEW_ID } from '../../lib/view';
+import { AI_DIGEST_VIEW_ID } from '@/lib/reader/view';
 
 const { runImmediateFailureMock, runImmediateSuccessMock } = vi.hoisted(() => ({
   runImmediateFailureMock: vi.fn(),
@@ -153,7 +153,7 @@ beforeEach(async () => {
 
 describe('appStore api integration', () => {
   it('keeps snapshot loading failures silent', async () => {
-    const { setApiErrorNotifier, clearApiErrorNotifier } = await import('../../lib/apiErrorNotifier');
+    const { setApiErrorNotifier, clearApiErrorNotifier } = await import('@/lib/api/apiErrorNotifier');
     const notifyError = vi.fn();
     setApiErrorNotifier(notifyError);
 
@@ -182,7 +182,7 @@ describe('appStore api integration', () => {
   });
 
   it('routes optimistic write failures through userOperationNotifier instead of apiClient globals', async () => {
-    const { setApiErrorNotifier, clearApiErrorNotifier } = await import('../../lib/apiErrorNotifier');
+    const { setApiErrorNotifier, clearApiErrorNotifier } = await import('@/lib/api/apiErrorNotifier');
     const notifyError = vi.fn();
     setApiErrorNotifier(notifyError);
 

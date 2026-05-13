@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { parseFeed } from '../../../server/rss/parseFeed';
-import { sanitizeContent } from '../../../server/rss/sanitizeContent';
+import { parseFeed } from '@/server/integrations/rss/parseFeed';
+import { sanitizeContent } from '@/server/integrations/rss/sanitizeContent';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
 async function readFixture(name: string) {
   return fs.readFile(
-    path.join(process.cwd(), 'src/server/rss/__fixtures__', name),
+    path.join(process.cwd(), 'src/server/integrations/rss/__fixtures__', name),
     'utf8',
   );
 }

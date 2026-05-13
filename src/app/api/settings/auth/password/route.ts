@@ -1,15 +1,15 @@
 import { z } from 'zod';
-import { getPool } from '@/server/db/pool';
-import { AUTH_INITIAL_PASSWORD_SETUP_MESSAGE } from '@/server/auth/shared';
+import { getPool } from '@/server/infra/db/pool';
+import { AUTH_INITIAL_PASSWORD_SETUP_MESSAGE } from '@/server/domains/auth/services/shared';
 import {
   createSessionCookieHeader,
   requireApiSession,
   verifyPasswordAgainstAuthConfig,
-} from '@/server/auth/session';
-import { hashPassword } from '@/server/auth/password';
-import { ok, fail } from '@/server/http/apiResponse';
-import { ServiceUnavailableError, UnauthorizedError, ValidationError } from '@/server/http/errors';
-import { updateAuthPassword } from '@/server/repositories/settingsRepo';
+} from '@/server/domains/auth/services/session';
+import { hashPassword } from '@/server/domains/auth/services/password';
+import { ok, fail } from '@/server/infra/http/apiResponse';
+import { ServiceUnavailableError, UnauthorizedError, ValidationError } from '@/server/infra/http/errors';
+import { updateAuthPassword } from '@/server/domains/settings/repositories/settingsRepo';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

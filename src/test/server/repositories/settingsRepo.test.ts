@@ -10,7 +10,7 @@ describe('settingsRepo (ai api key)', () => {
       .mockResolvedValueOnce({ rows: [{ aiApiKey: '' }] });
 
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/settingsRepo')) as typeof import('../../../server/repositories/settingsRepo');
+    const mod = (await import('@/server/domains/settings/repositories/settingsRepo')) as typeof import('@/server/domains/settings/repositories/settingsRepo');
 
     if (typeof mod.getAiApiKey !== 'function') {
       expect.fail('getAiApiKey is not implemented');
@@ -50,7 +50,7 @@ describe('settingsRepo (auth settings)', () => {
       });
 
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/settingsRepo')) as typeof import('../../../server/repositories/settingsRepo');
+    const mod = (await import('@/server/domains/settings/repositories/settingsRepo')) as typeof import('@/server/domains/settings/repositories/settingsRepo');
 
     if (typeof mod.getAuthSettings !== 'function') {
       expect.fail('getAuthSettings is not implemented');

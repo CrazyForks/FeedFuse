@@ -1,5 +1,5 @@
 import type { Pool } from 'pg';
-import { AI_CONFIG_CHANGED_RAW_ERROR } from '../server/ai/configFingerprints';
+import { AI_CONFIG_CHANGED_RAW_ERROR } from '@/server/integrations/ai/configFingerprints';
 import {
   getTranslationSessionByArticleId,
   insertTranslationEvent,
@@ -8,8 +8,8 @@ import {
   upsertTranslationSession,
   type TranslationSegmentRow,
   type TranslationSessionRow,
-} from '../server/repositories/articleTranslationRepo';
-import { mapTaskError } from '../server/tasks/errorMapping';
+} from '@/server/domains/articles/repositories/articleTranslationRepo';
+import { mapTaskError } from '@/server/domains/settings/tasks/errorMapping';
 
 const DEFAULT_CONCURRENCY = 3;
 

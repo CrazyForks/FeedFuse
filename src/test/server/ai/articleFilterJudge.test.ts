@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const createOpenAIClientMock = vi.hoisted(() => vi.fn());
 const createCompletionMock = vi.hoisted(() => vi.fn());
 
-vi.mock('../../../server/ai/openaiClient', () => ({
+vi.mock('@/server/integrations/ai/openaiClient', () => ({
   createOpenAIClient: (...args: unknown[]) => {
     createOpenAIClientMock(...args);
     return {
@@ -27,7 +27,7 @@ describe('articleFilterJudge', () => {
       choices: [{ message: { content: 'FILTER' } }],
     });
 
-    const { articleFilterJudge } = await import('../../../server/ai/articleFilterJudge');
+    const { articleFilterJudge } = await import('@/server/integrations/ai/articleFilterJudge');
     const result = await articleFilterJudge({
       apiBaseUrl: 'https://api.openai.com/v1',
       apiKey: 'sk-test',
@@ -57,7 +57,7 @@ describe('articleFilterJudge', () => {
   });
 
   it('parses FILTER and ALLOW decisions', async () => {
-    const { articleFilterJudge } = await import('../../../server/ai/articleFilterJudge');
+    const { articleFilterJudge } = await import('@/server/integrations/ai/articleFilterJudge');
 
     createCompletionMock.mockResolvedValueOnce({
       choices: [{ message: { content: 'FILTER' } }],
@@ -87,7 +87,7 @@ describe('articleFilterJudge', () => {
   });
 
   it('maps request failures and invalid responses to error results', async () => {
-    const { articleFilterJudge } = await import('../../../server/ai/articleFilterJudge');
+    const { articleFilterJudge } = await import('@/server/integrations/ai/articleFilterJudge');
 
     createCompletionMock.mockRejectedValueOnce(new Error('timeout'));
     await expect(

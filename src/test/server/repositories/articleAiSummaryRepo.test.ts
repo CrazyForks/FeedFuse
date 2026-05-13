@@ -72,7 +72,7 @@ describe('articleAiSummaryRepo', () => {
       });
 
     const pool = { query };
-    const mod = await import('../../../server/repositories/articleAiSummaryRepo');
+    const mod = await import('@/server/domains/articles/repositories/articleAiSummaryRepo');
 
     const session = await mod.upsertAiSummarySession(pool as never, {
       articleId: 'article-1',
@@ -135,7 +135,7 @@ describe('articleAiSummaryRepo', () => {
       ],
     });
     const pool = { query };
-    const mod = await import('../../../server/repositories/articleAiSummaryRepo');
+    const mod = await import('@/server/domains/articles/repositories/articleAiSummaryRepo');
 
     await mod.failAiSummarySession(pool as never, {
       sessionId: 'session-1',

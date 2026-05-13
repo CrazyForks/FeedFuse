@@ -1,15 +1,15 @@
-import { requireApiSession } from '@/server/auth/session';
+import { requireApiSession } from '@/server/domains/auth/services/session';
 import { z } from 'zod';
-import { getPool } from '../../../../server/db/pool';
-import { ok, fail } from '../../../../server/http/apiResponse';
-import { NotFoundError, ValidationError } from '../../../../server/http/errors';
-import { numericIdSchema } from '../../../../server/http/idSchemas';
-import { getAiDigestConfigByFeedId } from '../../../../server/repositories/aiDigestRepo';
-import { updateAiDigestWithCategoryResolution } from '../../../../server/services/aiDigestLifecycleService';
+import { getPool } from '@/server/infra/db/pool';
+import { ok, fail } from '@/server/infra/http/apiResponse';
+import { NotFoundError, ValidationError } from '@/server/infra/http/errors';
+import { numericIdSchema } from '@/server/infra/http/idSchemas';
+import { getAiDigestConfigByFeedId } from '@/server/domains/ai-digests/repositories/aiDigestRepo';
+import { updateAiDigestWithCategoryResolution } from '@/server/domains/ai-digests/services/aiDigestLifecycleService';
 import {
   writeUserOperationFailedLog,
   writeUserOperationSucceededLog,
-} from '../../../../server/logging/userOperationLogger';
+} from '@/server/infra/logging/userOperationLogger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

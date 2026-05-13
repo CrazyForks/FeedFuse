@@ -7,13 +7,13 @@ const getArticleByIdMock = vi.fn();
 const getTranslationSessionByArticleIdMock = vi.fn();
 const listTranslationEventsAfterMock = vi.fn();
 
-vi.mock('../../../../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
-vi.mock('../../../../../../../server/repositories/articlesRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articlesRepo', () => ({
   getArticleById: (...args: unknown[]) => getArticleByIdMock(...args),
 }));
-vi.mock('../../../../../../../server/repositories/articleTranslationRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articleTranslationRepo', () => ({
   getTranslationSessionByArticleId: (...args: unknown[]) =>
     getTranslationSessionByArticleIdMock(...args),
   listTranslationEventsAfter: (...args: unknown[]) => listTranslationEventsAfterMock(...args),

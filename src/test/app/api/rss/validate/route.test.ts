@@ -14,11 +14,11 @@ vi.mock('rss-parser', () => {
   };
 });
 
-vi.mock('../../../../../server/rss/ssrfGuard', () => ({
+vi.mock('@/server/integrations/rss/ssrfGuard', () => ({
   isSafeExternalUrl: (...args: unknown[]) => isSafeExternalUrlMock(...args),
 }));
 
-vi.mock('../../../../../server/http/externalHttpClient', () => ({
+vi.mock('@/server/infra/http/externalHttpClient', () => ({
   fetchRssXml: (...args: unknown[]) => fetchRssXmlMock(...args),
 }));
 

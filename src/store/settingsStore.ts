@@ -12,7 +12,7 @@ import {
   putAiApiKey,
   putSettings,
   putTranslationApiKey,
-} from '../lib/apiClient';
+} from '@/lib/api/apiClient';
 
 interface SessionSettings {
   ai: {

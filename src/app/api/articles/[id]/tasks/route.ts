@@ -1,11 +1,11 @@
-import { requireApiSession } from '@/server/auth/session';
+import { requireApiSession } from '@/server/domains/auth/services/session';
 import { z } from 'zod';
-import { getPool } from '../../../../../server/db/pool';
-import { ok, fail } from '../../../../../server/http/apiResponse';
-import { NotFoundError, ValidationError } from '../../../../../server/http/errors';
-import { numericIdSchema } from '../../../../../server/http/idSchemas';
-import { getArticleById } from '../../../../../server/repositories/articlesRepo';
-import { getArticleTasksByArticleId } from '../../../../../server/repositories/articleTasksRepo';
+import { getPool } from '@/server/infra/db/pool';
+import { ok, fail } from '@/server/infra/http/apiResponse';
+import { NotFoundError, ValidationError } from '@/server/infra/http/errors';
+import { numericIdSchema } from '@/server/infra/http/idSchemas';
+import { getArticleById } from '@/server/domains/articles/repositories/articlesRepo';
+import { getArticleTasksByArticleId } from '@/server/domains/articles/repositories/articleTasksRepo';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

@@ -1,20 +1,20 @@
 import type { Pool } from 'pg';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { exportOpml, importOpml } from '../../../server/services/opmlService';
+import { exportOpml, importOpml } from '@/server/domains/settings/services/opmlService';
 
 const listCategoriesMock = vi.fn();
 const listFeedsMock = vi.fn();
 const createFeedWithCategoryResolutionMock = vi.fn();
 
-vi.mock('../../../server/repositories/categoriesRepo', () => ({
+vi.mock('@/server/domains/feeds/repositories/categoriesRepo', () => ({
   listCategories: (...args: unknown[]) => listCategoriesMock(...args),
 }));
 
-vi.mock('../../../server/repositories/feedsRepo', () => ({
+vi.mock('@/server/domains/feeds/repositories/feedsRepo', () => ({
   listFeeds: (...args: unknown[]) => listFeedsMock(...args),
 }));
 
-vi.mock('../../../server/services/feedCategoryLifecycleService', () => ({
+vi.mock('@/server/domains/feeds/services/feedCategoryLifecycleService', () => ({
   createFeedWithCategoryResolution: (...args: unknown[]) =>
     createFeedWithCategoryResolutionMock(...args),
 }));

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ReaderSnapshotDto } from '../../lib/apiClient';
-import { mapArticleDto, mapFeedDto, mapSnapshotArticleItem } from '../../lib/apiClient';
+import type { ReaderSnapshotDto } from '@/lib/api/apiClient';
+import { mapArticleDto, mapFeedDto, mapSnapshotArticleItem } from '@/lib/api/apiClient';
 
 function getFetchCallUrl(input: unknown): string {
   if (typeof input === 'string') return input;
@@ -555,7 +555,7 @@ it('importOpml posts JSON content to /api/opml/import', async () => {
   });
   vi.stubGlobal('fetch', fetchMock);
 
-  const { importOpml } = await import('../../lib/apiClient');
+  const { importOpml } = await import('@/lib/api/apiClient');
   await importOpml({ content: '<opml />', fileName: 'feeds.opml' });
 
   const firstCall = fetchMock.mock.calls[0] ?? [];
@@ -576,7 +576,7 @@ it('exportOpml reads XML text and filename without using requestApi JSON envelop
   });
   vi.stubGlobal('fetch', fetchMock);
 
-  const { exportOpml } = await import('../../lib/apiClient');
+  const { exportOpml } = await import('@/lib/api/apiClient');
   const result = await exportOpml();
 
   const firstCall = fetchMock.mock.calls[0] ?? [];
@@ -604,7 +604,7 @@ it('exportOpml throws ApiError when download endpoint returns JSON error envelop
   });
   vi.stubGlobal('fetch', fetchMock);
 
-  const { ApiError, exportOpml } = await import('../../lib/apiClient');
+  const { ApiError, exportOpml } = await import('@/lib/api/apiClient');
 
   await expect(exportOpml()).rejects.toBeInstanceOf(ApiError);
   await expect(exportOpml()).rejects.toMatchObject({
@@ -624,7 +624,7 @@ describe('refreshAllFeeds', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const mod = (await import('../../lib/apiClient')) as Record<string, unknown>;
+    const mod = (await import('@/lib/api/apiClient')) as Record<string, unknown>;
     const refreshAllFeeds = mod.refreshAllFeeds as undefined | (() => Promise<unknown>);
     expect(refreshAllFeeds).toBeTypeOf('function');
 
@@ -648,11 +648,11 @@ it('passes RequestApiOptions through refreshFeed and generateAiDigest', async ()
   });
   vi.stubGlobal('fetch', fetchMock);
 
-  const notifier = await import('../../lib/apiErrorNotifier');
+  const notifier = await import('@/lib/api/apiErrorNotifier');
   const notifyError = vi.fn();
   notifier.setApiErrorNotifier(notifyError);
 
-  const { generateAiDigest, refreshFeed } = await import('../../lib/apiClient');
+  const { generateAiDigest, refreshFeed } = await import('@/lib/api/apiClient');
 
   await refreshFeed('feed-1', { notifyOnError: false });
   await generateAiDigest('digest-1', { notifyOnError: false });
@@ -685,7 +685,7 @@ it('GETs /api/ai-digests/runs/:runId', async () => {
   });
   vi.stubGlobal('fetch', fetchMock);
 
-  const { getAiDigestRunStatus } = await import('../../lib/apiClient');
+  const { getAiDigestRunStatus } = await import('@/lib/api/apiClient');
   await getAiDigestRunStatus('run-1');
 
   expect(getFetchCallUrl(fetchMock.mock.calls[0]?.[0])).toContain('/api/ai-digests/runs/run-1');
@@ -715,7 +715,7 @@ it('GETs /api/feed-refresh-runs/:runId', async () => {
   });
   vi.stubGlobal('fetch', fetchMock);
 
-  const { getFeedRefreshRunStatus } = await import('../../lib/apiClient');
+  const { getFeedRefreshRunStatus } = await import('@/lib/api/apiClient');
   await getFeedRefreshRunStatus('run-1');
 
   expect(getFetchCallUrl(fetchMock.mock.calls[0]?.[0])).toContain('/api/feed-refresh-runs/run-1');
@@ -728,7 +728,7 @@ it('throws ApiError invalid_response when response is not an envelope', async ()
   });
   vi.stubGlobal('fetch', fetchMock);
 
-  const { ApiError, refreshAllFeeds } = await import('../../lib/apiClient');
+  const { ApiError, refreshAllFeeds } = await import('@/lib/api/apiClient');
 
   await expect(refreshAllFeeds()).rejects.toBeInstanceOf(ApiError);
   await expect(refreshAllFeeds()).rejects.toMatchObject({ code: 'invalid_response' });
@@ -743,7 +743,7 @@ it('enqueueArticleAiTranslate POSTs /api/articles/:id/ai-translate', async () =>
   });
   vi.stubGlobal('fetch', fetchMock);
 
-  const { enqueueArticleAiTranslate } = await import('../../lib/apiClient');
+  const { enqueueArticleAiTranslate } = await import('@/lib/api/apiClient');
   await enqueueArticleAiTranslate('00000000-0000-0000-0000-000000000000');
 
   const firstCall = fetchMock.mock.calls[0] ?? [];
@@ -766,7 +766,7 @@ it('enqueueArticleFulltext sends force in request body when provided', async () 
   });
   vi.stubGlobal('fetch', fetchMock);
 
-  const { enqueueArticleFulltext } = await import('../../lib/apiClient');
+  const { enqueueArticleFulltext } = await import('@/lib/api/apiClient');
   await enqueueArticleFulltext('00000000-0000-0000-0000-000000000000', { force: true });
 
   const firstCall = fetchMock.mock.calls[0] ?? [];
@@ -791,7 +791,7 @@ it('enqueueArticleAiSummary sends force in request body when provided', async ()
   });
   vi.stubGlobal('fetch', fetchMock);
 
-  const { enqueueArticleAiSummary } = await import('../../lib/apiClient');
+  const { enqueueArticleAiSummary } = await import('@/lib/api/apiClient');
   await enqueueArticleAiSummary('00000000-0000-0000-0000-000000000000', { force: true });
 
   const firstCall = fetchMock.mock.calls[0] ?? [];
@@ -815,7 +815,7 @@ it('enqueueArticleAiTranslate sends force in request body when provided', async 
   });
   vi.stubGlobal('fetch', fetchMock);
 
-  const { enqueueArticleAiTranslate } = await import('../../lib/apiClient');
+  const { enqueueArticleAiTranslate } = await import('@/lib/api/apiClient');
   await enqueueArticleAiTranslate('00000000-0000-0000-0000-000000000000', { force: true });
 
   const firstCall = fetchMock.mock.calls[0] ?? [];
@@ -841,7 +841,7 @@ it('getArticleAiTranslateSnapshot GETs /api/articles/:id/ai-translate', async ()
   });
   vi.stubGlobal('fetch', fetchMock);
 
-  const { getArticleAiTranslateSnapshot } = await import('../../lib/apiClient');
+  const { getArticleAiTranslateSnapshot } = await import('@/lib/api/apiClient');
   await getArticleAiTranslateSnapshot('00000000-0000-0000-0000-000000000000');
 
   const firstCall = fetchMock.mock.calls[0] ?? [];
@@ -863,7 +863,7 @@ it('retryArticleAiTranslateSegment POSTs /api/articles/:id/ai-translate/segments
   });
   vi.stubGlobal('fetch', fetchMock);
 
-  const { retryArticleAiTranslateSegment } = await import('../../lib/apiClient');
+  const { retryArticleAiTranslateSegment } = await import('@/lib/api/apiClient');
   await retryArticleAiTranslateSegment('00000000-0000-0000-0000-000000000000', 3);
 
   const firstCall = fetchMock.mock.calls[0] ?? [];
@@ -883,7 +883,7 @@ it('createArticleAiTranslateEventSource uses stream endpoint', async () => {
 
   vi.stubGlobal('EventSource', MockEventSource as unknown as typeof EventSource);
 
-  const { createArticleAiTranslateEventSource } = await import('../../lib/apiClient');
+  const { createArticleAiTranslateEventSource } = await import('@/lib/api/apiClient');
   const eventSource = createArticleAiTranslateEventSource(
     '00000000-0000-0000-0000-000000000000',
   ) as unknown as MockEventSource;
@@ -907,7 +907,7 @@ it('getArticleAiSummarySnapshot GETs /api/articles/:id/ai-summary', async () => 
   });
   vi.stubGlobal('fetch', fetchMock);
 
-  const { getArticleAiSummarySnapshot } = await import('../../lib/apiClient');
+  const { getArticleAiSummarySnapshot } = await import('@/lib/api/apiClient');
   await getArticleAiSummarySnapshot('00000000-0000-0000-0000-000000000000');
 
   const firstCall = fetchMock.mock.calls[0] ?? [];
@@ -927,7 +927,7 @@ it('createArticleAiSummaryEventSource uses stream endpoint', async () => {
 
   vi.stubGlobal('EventSource', MockEventSource as unknown as typeof EventSource);
 
-  const { createArticleAiSummaryEventSource } = await import('../../lib/apiClient');
+  const { createArticleAiSummaryEventSource } = await import('@/lib/api/apiClient');
   const eventSource = createArticleAiSummaryEventSource(
     '00000000-0000-0000-0000-000000000000',
   ) as unknown as MockEventSource;
@@ -953,7 +953,7 @@ it('getArticleTasks GETs /api/articles/:id/tasks', async () => {
   });
   vi.stubGlobal('fetch', fetchMock);
 
-  const { getArticleTasks } = await import('../../lib/apiClient');
+  const { getArticleTasks } = await import('@/lib/api/apiClient');
   await getArticleTasks('00000000-0000-0000-0000-000000000000');
 
   const firstCall = fetchMock.mock.calls[0] ?? [];
@@ -973,7 +973,7 @@ it('includes includeFiltered in reader snapshot query when requested', async () 
   });
   vi.stubGlobal('fetch', fetchMock);
 
-  const mod = await import('../../lib/apiClient');
+  const mod = await import('@/lib/api/apiClient');
   await mod.getReaderSnapshot({ view: 'feed-1', includeFiltered: true });
 
   const call = fetchMock.mock.calls[0] ?? [];
@@ -996,8 +996,8 @@ describe('apiClient notification bridge', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const notifier = await import('../../lib/apiErrorNotifier');
-    const { createFeed } = await import('../../lib/apiClient');
+    const notifier = await import('@/lib/api/apiErrorNotifier');
+    const { createFeed } = await import('@/lib/api/apiClient');
     const notifyError = vi.fn();
     notifier.setApiErrorNotifier(notifyError);
 
@@ -1024,8 +1024,8 @@ describe('apiClient notification bridge', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const notifier = await import('../../lib/apiErrorNotifier');
-    const { ApiError, getReaderSnapshot } = await import('../../lib/apiClient');
+    const notifier = await import('@/lib/api/apiErrorNotifier');
+    const { ApiError, getReaderSnapshot } = await import('@/lib/api/apiClient');
     const notifyError = vi.fn();
     notifier.setApiErrorNotifier(notifyError);
 
@@ -1068,7 +1068,7 @@ it('getSystemLogs builds /api/logs query with keyword, page and pageSize', async
   });
   vi.stubGlobal('fetch', fetchMock);
 
-  const { getSystemLogs } = await import('../../lib/apiClient');
+  const { getSystemLogs } = await import('@/lib/api/apiClient');
   const result = await getSystemLogs({
     keyword: 'summary',
     page: 2,
@@ -1111,7 +1111,7 @@ it('searchArticles builds /api/articles/search query with keyword and limit', as
   });
   vi.stubGlobal('fetch', fetchMock);
 
-  const { searchArticles } = await import('../../lib/apiClient');
+  const { searchArticles } = await import('@/lib/api/apiClient');
   await searchArticles({ keyword: ' FeedFuse  search ', limit: 12 });
 
   const firstCall = fetchMock.mock.calls[0] ?? [];
@@ -1134,7 +1134,7 @@ it('deleteSystemLogs sends DELETE /api/logs and returns deletedCount', async () 
   });
   vi.stubGlobal('fetch', fetchMock);
 
-  const { deleteSystemLogs } = await import('../../lib/apiClient');
+  const { deleteSystemLogs } = await import('@/lib/api/apiClient');
   const result = await deleteSystemLogs();
 
   const firstCall = fetchMock.mock.calls[0] ?? [];

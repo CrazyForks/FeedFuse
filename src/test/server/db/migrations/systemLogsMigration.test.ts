@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('db migrations', () => {
   it('adds system_logs table with context_json column and descending indexes', () => {
-    const migrationPath = 'src/server/db/migrations/0022_system_logs.sql';
+    const migrationPath = 'src/server/infra/db/migrations/0022_system_logs.sql';
     expect(existsSync(migrationPath)).toBe(true);
 
     const sql = readFileSync(migrationPath, 'utf8');

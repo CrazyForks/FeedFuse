@@ -1,37 +1,37 @@
-import { requireApiSession } from '@/server/auth/session';
+import { requireApiSession } from '@/server/domains/auth/services/session';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { normalizePersistedSettings } from '../../../../../features/settings/settingsSchema';
 import {
   isAiRuntimeConfigComplete,
   resolveSharedAiConfig,
-} from '../../../../../server/ai/runtimeConfig';
-import { resolveAiConfigFingerprints } from '../../../../../server/ai/configFingerprints';
-import { getPool } from '../../../../../server/db/pool';
-import { ok, fail } from '../../../../../server/http/apiResponse';
-import { NotFoundError, ValidationError } from '../../../../../server/http/errors';
-import { numericIdSchema } from '../../../../../server/http/idSchemas';
-import { getArticleById } from '../../../../../server/repositories/articlesRepo';
+} from '@/server/integrations/ai/runtimeConfig';
+import { resolveAiConfigFingerprints } from '@/server/integrations/ai/configFingerprints';
+import { getPool } from '@/server/infra/db/pool';
+import { ok, fail } from '@/server/infra/http/apiResponse';
+import { NotFoundError, ValidationError } from '@/server/infra/http/errors';
+import { numericIdSchema } from '@/server/infra/http/idSchemas';
+import { getArticleById } from '@/server/domains/articles/repositories/articlesRepo';
 import {
   getActiveAiSummarySessionByArticleId,
   markAiSummarySessionSuperseded,
   upsertAiSummarySession,
-} from '../../../../../server/repositories/articleAiSummaryRepo';
+} from '@/server/domains/articles/repositories/articleAiSummaryRepo';
 import {
   getArticleTasksByArticleId,
   type ArticleTaskRow,
   upsertTaskQueued,
-} from '../../../../../server/repositories/articleTasksRepo';
-import { getFeedFullTextOnOpenEnabled } from '../../../../../server/repositories/feedsRepo';
-import { getAiApiKey, getUiSettings } from '../../../../../server/repositories/settingsRepo';
-import { writeUserOperationStartedLog } from '../../../../../server/logging/userOperationLogger';
-import { getQueueSendOptions } from '../../../../../server/queue/contracts';
-import { enqueueWithResult } from '../../../../../server/queue/queue';
-import { JOB_AI_SUMMARIZE } from '../../../../../server/queue/jobs';
+} from '@/server/domains/articles/repositories/articleTasksRepo';
+import { getFeedFullTextOnOpenEnabled } from '@/server/domains/feeds/repositories/feedsRepo';
+import { getAiApiKey, getUiSettings } from '@/server/domains/settings/repositories/settingsRepo';
+import { writeUserOperationStartedLog } from '@/server/infra/logging/userOperationLogger';
+import { getQueueSendOptions } from '@/server/infra/queue/contracts';
+import { enqueueWithResult } from '@/server/infra/queue/queue';
+import { JOB_AI_SUMMARIZE } from '@/server/infra/queue/jobs';
 import {
   getUsableFulltextHtml,
   isFulltextPending,
-} from '../../../../../server/fulltext/fulltextVerification';
+} from '@/server/integrations/fulltext/fulltextVerification';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('feedRefreshRunService', () => {
   it('builds aggregate failure summary for refresh all', async () => {
-    const mod = await import('../../../server/services/feedRefreshRunService');
+    const mod = await import('@/server/domains/feeds/services/feedRefreshRunService');
 
     expect(
       mod.buildFeedRefreshRunAggregate({
@@ -23,7 +23,7 @@ describe('feedRefreshRunService', () => {
   });
 
   it('keeps specific short reason for single-feed failure', async () => {
-    const mod = await import('../../../server/services/feedRefreshRunService');
+    const mod = await import('@/server/domains/feeds/services/feedRefreshRunService');
 
     expect(
       mod.buildFeedRefreshRunAggregate({
@@ -40,7 +40,7 @@ describe('feedRefreshRunService', () => {
   });
 
   it('keeps run in running state while any item is still queued or running', async () => {
-    const mod = await import('../../../server/services/feedRefreshRunService');
+    const mod = await import('@/server/domains/feeds/services/feedRefreshRunService');
 
     expect(
       mod.buildFeedRefreshRunAggregate({

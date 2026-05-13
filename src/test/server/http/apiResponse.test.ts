@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { fail, ok } from '../../../server/http/apiResponse';
-import { ConflictError } from '../../../server/http/errors';
+import { fail, ok } from '@/server/infra/http/apiResponse';
+import { ConflictError } from '@/server/infra/http/errors';
 
 describe('apiResponse', () => {
   it('returns unified ok envelope', async () => {

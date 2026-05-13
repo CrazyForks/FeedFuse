@@ -9,7 +9,7 @@ vi.mock('node:dns/promises', () => {
 });
 
 import { lookup } from 'node:dns/promises';
-import { isSafeExternalUrl } from '../../../server/rss/ssrfGuard';
+import { isSafeExternalUrl } from '@/server/integrations/rss/ssrfGuard';
 
 describe('ssrfGuard', () => {
   const lookupMock = vi.mocked(lookup);

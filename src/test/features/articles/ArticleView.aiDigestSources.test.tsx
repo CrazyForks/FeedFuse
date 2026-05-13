@@ -5,7 +5,7 @@ import { defaultPersistedSettings } from '../../../features/settings/settingsSch
 import { useSettingsStore } from '../../../store/settingsStore';
 import { useAppStore } from '../../../store/appStore';
 
-type ApiClientModule = typeof import('../../../lib/apiClient');
+type ApiClientModule = typeof import('@/lib/api/apiClient');
 
 const idleTasks = {
   fulltext: {
@@ -43,8 +43,8 @@ const idleTasks = {
   },
 };
 
-vi.mock('../../../lib/apiClient', async () => {
-  const actual = await vi.importActual<ApiClientModule>('../../../lib/apiClient');
+vi.mock('@/lib/api/apiClient', async () => {
+  const actual = await vi.importActual<ApiClientModule>('@/lib/api/apiClient');
   return {
     ...actual,
     enqueueArticleFulltext: vi.fn(),
@@ -148,7 +148,7 @@ describe('ArticleView ai digest sources', () => {
   beforeEach(async () => {
     resetStores();
 
-    const apiClient = await import('../../../lib/apiClient');
+    const apiClient = await import('@/lib/api/apiClient');
     vi.mocked(apiClient.enqueueArticleFulltext).mockReset();
     vi.mocked(apiClient.getArticleTasks).mockReset();
     vi.mocked(apiClient.enqueueArticleFulltext).mockResolvedValue({ enqueued: true, jobId: 'job-1' });

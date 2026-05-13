@@ -1,14 +1,14 @@
-import { requireApiSession } from '@/server/auth/session';
+import { requireApiSession } from '@/server/domains/auth/services/session';
 import { z } from 'zod';
-import { getPool } from '../../../../server/db/pool';
-import { ok, fail } from '../../../../server/http/apiResponse';
-import { ValidationError } from '../../../../server/http/errors';
-import { optionalNumericIdSchema } from '../../../../server/http/idSchemas';
-import { markAllRead } from '../../../../server/repositories/articlesRepo';
+import { getPool } from '@/server/infra/db/pool';
+import { ok, fail } from '@/server/infra/http/apiResponse';
+import { ValidationError } from '@/server/infra/http/errors';
+import { optionalNumericIdSchema } from '@/server/infra/http/idSchemas';
+import { markAllRead } from '@/server/domains/articles/repositories/articlesRepo';
 import {
   writeUserOperationFailedLog,
   writeUserOperationSucceededLog,
-} from '../../../../server/logging/userOperationLogger';
+} from '@/server/infra/logging/userOperationLogger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

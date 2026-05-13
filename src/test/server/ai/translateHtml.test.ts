@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const createOpenAIClientMock = vi.hoisted(() => vi.fn());
 const createCompletionMock = vi.hoisted(() => vi.fn());
 
-vi.mock('../../../server/ai/openaiClient', () => ({
+vi.mock('@/server/integrations/ai/openaiClient', () => ({
   createOpenAIClient: (...args: unknown[]) => {
     createOpenAIClientMock(...args);
     return {
@@ -27,7 +27,7 @@ describe('translateHtml', () => {
       choices: [{ message: { content: '<p>你好</p>' } }],
     });
 
-    const { translateHtml } = await import('../../../server/ai/translateHtml');
+    const { translateHtml } = await import('@/server/integrations/ai/translateHtml');
     const out = await translateHtml({
       apiBaseUrl: 'https://api.openai.com/v1',
       apiKey: 'sk-test',

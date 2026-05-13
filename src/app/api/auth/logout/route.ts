@@ -1,5 +1,5 @@
-import { ok } from '@/server/http/apiResponse';
-import { serializeExpiredSessionCookie } from '@/server/auth/session';
+import { ok } from '@/server/infra/http/apiResponse';
+import { serializeExpiredSessionCookie } from '@/server/domains/auth/services/session';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

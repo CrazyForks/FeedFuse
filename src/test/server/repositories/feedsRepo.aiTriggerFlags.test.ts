@@ -3,7 +3,7 @@ import type { Pool } from 'pg';
 
 describe('feedsRepo (ai trigger flags)', () => {
   it('createFeed/updateFeed/listFeeds include ai trigger flags', async () => {
-    const mod = (await import('../../../server/repositories/feedsRepo')) as typeof import('../../../server/repositories/feedsRepo');
+    const mod = (await import('@/server/domains/feeds/repositories/feedsRepo')) as typeof import('@/server/domains/feeds/repositories/feedsRepo');
 
     const listQuery = vi.fn().mockResolvedValue({ rows: [] });
     await mod.listFeeds({ query: listQuery } as unknown as Pool);

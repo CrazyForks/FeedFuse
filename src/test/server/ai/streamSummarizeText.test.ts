@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_SUMMARY_PROMPT } from '../../../server/ai/promptTemplates';
+import { DEFAULT_SUMMARY_PROMPT } from '@/server/integrations/ai/promptTemplates';
 
 const createOpenAIClientMock = vi.hoisted(() => vi.fn());
 const createCompletionMock = vi.hoisted(() => vi.fn());
 
-vi.mock('../../../server/ai/openaiClient', () => ({
+vi.mock('@/server/integrations/ai/openaiClient', () => ({
   createOpenAIClient: (...args: unknown[]) => {
     createOpenAIClientMock(...args);
     return {
@@ -42,7 +42,7 @@ describe('streamSummarizeText', () => {
   it('yields summary text chunks from chat completion stream', async () => {
     const chunks = ['TL;DR', '\n- 第一条', '\n- 第二条'];
     const result: string[] = [];
-    const mod = await import('../../../server/ai/streamSummarizeText');
+    const mod = await import('@/server/integrations/ai/streamSummarizeText');
 
     for await (const part of mod.streamSummarizeText(
       {
@@ -64,7 +64,7 @@ describe('streamSummarizeText', () => {
   it('uses custom summary prompt when provided', async () => {
     createCompletionMock.mockResolvedValue(fakeOpenAiStream(['一句话总结', '\n- 第一条']));
     const result: string[] = [];
-    const mod = await import('../../../server/ai/streamSummarizeText');
+    const mod = await import('@/server/integrations/ai/streamSummarizeText');
 
     for await (const part of mod.streamSummarizeText({
       apiBaseUrl: 'https://api.openai.com/v1',
@@ -92,7 +92,7 @@ describe('streamSummarizeText', () => {
 
   it('falls back to default summary prompt when prompt is blank', async () => {
     createCompletionMock.mockResolvedValue(fakeOpenAiStream(['一句话总结', '\n- 第一条']));
-    const mod = await import('../../../server/ai/streamSummarizeText');
+    const mod = await import('@/server/integrations/ai/streamSummarizeText');
 
     for await (const part of mod.streamSummarizeText({
       apiBaseUrl: 'https://api.openai.com/v1',

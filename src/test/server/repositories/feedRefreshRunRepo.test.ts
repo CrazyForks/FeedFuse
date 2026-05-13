@@ -5,7 +5,7 @@ describe('feedRefreshRunRepo', () => {
   it('creates refresh runs with returning aggregate fields', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/feedRefreshRunRepo')) as typeof import('../../../server/repositories/feedRefreshRunRepo');
+    const mod = (await import('@/server/domains/feeds/repositories/feedRefreshRunRepo')) as typeof import('@/server/domains/feeds/repositories/feedRefreshRunRepo');
 
     await mod.createFeedRefreshRun(pool, {
       scope: 'all',
@@ -23,7 +23,7 @@ describe('feedRefreshRunRepo', () => {
   it('upserts refresh run items by run_id and feed_id', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/feedRefreshRunRepo')) as typeof import('../../../server/repositories/feedRefreshRunRepo');
+    const mod = (await import('@/server/domains/feeds/repositories/feedRefreshRunRepo')) as typeof import('@/server/domains/feeds/repositories/feedRefreshRunRepo');
 
     await mod.upsertFeedRefreshRunItems(pool, {
       runId: 'run-1',
@@ -42,7 +42,7 @@ describe('feedRefreshRunRepo', () => {
   it('reads aggregated refresh run state by id', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/feedRefreshRunRepo')) as typeof import('../../../server/repositories/feedRefreshRunRepo');
+    const mod = (await import('@/server/domains/feeds/repositories/feedRefreshRunRepo')) as typeof import('@/server/domains/feeds/repositories/feedRefreshRunRepo');
 
     await mod.getFeedRefreshRunById(pool, 'run-1');
 

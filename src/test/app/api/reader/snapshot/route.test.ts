@@ -3,19 +3,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const pool = {};
 const getReaderSnapshotMock = vi.fn();
 
-vi.mock('../../../../../server/db/pool', () => ({
-  getPool: () => pool,
-}));
-vi.mock('../../../../../app/server/db/pool', () => ({
-  getPool: () => pool,
-}));
+// 统一 mock 工厂，避免两套路径声明重复实现。
+function poolModuleFactory() {
+  return {
+    getPool: () => pool,
+  };
+}
+vi.mock('@/server/infra/db/pool', poolModuleFactory);
+vi.mock('../../../../../app/server/infra/db/pool', poolModuleFactory);
 
-vi.mock('../../../../../server/services/readerSnapshotService', () => ({
-  getReaderSnapshot: (...args: unknown[]) => getReaderSnapshotMock(...args),
-}));
-vi.mock('../../../../../app/server/services/readerSnapshotService', () => ({
-  getReaderSnapshot: (...args: unknown[]) => getReaderSnapshotMock(...args),
-}));
+function readerSnapshotServiceFactory() {
+  return {
+    getReaderSnapshot: (...args: unknown[]) => getReaderSnapshotMock(...args),
+  };
+}
+vi.mock('@/server/domains/reader/services/readerSnapshotService', readerSnapshotServiceFactory);
+vi.mock('../../../../../app/server/domains/reader/services/readerSnapshotService', readerSnapshotServiceFactory);
 
 describe('/api/reader/snapshot', () => {
   beforeEach(() => {

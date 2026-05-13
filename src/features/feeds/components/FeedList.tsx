@@ -30,14 +30,14 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { deleteCategory, patchCategory, reorderCategories } from '@/lib/apiClient';
+import { deleteCategory, patchCategory, reorderCategories } from '@/lib/api/apiClient';
 import {
   READER_PANE_ACTIVE_ITEM_CLASS_NAME,
   READER_PANE_HOVER_BACKGROUND_CLASS_NAME,
-} from '@/lib/designSystem';
+} from '@/lib/ui/designSystem';
 import { runImmediateOperation } from '../../notifications/userOperationNotifier';
 import { cn } from '@/lib/utils';
-import { AI_DIGEST_VIEW_ID } from '@/lib/view';
+import { AI_DIGEST_VIEW_ID } from '@/lib/reader/view';
 import { useHydratedSelectedView } from '../../../hooks';
 
 const uncategorizedName = '未分类';

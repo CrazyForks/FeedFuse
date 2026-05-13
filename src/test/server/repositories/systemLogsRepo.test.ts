@@ -5,7 +5,7 @@ describe('systemLogsRepo', () => {
   it('inserts system logs with details and context_json payloads', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/systemLogsRepo')) as typeof import('../../../server/repositories/systemLogsRepo');
+    const mod = (await import('@/server/domains/settings/repositories/systemLogsRepo')) as typeof import('@/server/domains/settings/repositories/systemLogsRepo');
 
     await mod.insertSystemLog(pool, {
       level: 'error',
@@ -48,7 +48,7 @@ describe('systemLogsRepo', () => {
         ],
       });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/systemLogsRepo')) as typeof import('../../../server/repositories/systemLogsRepo');
+    const mod = (await import('@/server/domains/settings/repositories/systemLogsRepo')) as typeof import('@/server/domains/settings/repositories/systemLogsRepo');
 
     const result = await mod.listSystemLogs(pool, {
       keyword: 'summary',
@@ -87,7 +87,7 @@ describe('systemLogsRepo', () => {
   it('deletes expired logs using retention days', async () => {
     const query = vi.fn().mockResolvedValue({ rowCount: 3 });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/systemLogsRepo')) as typeof import('../../../server/repositories/systemLogsRepo');
+    const mod = (await import('@/server/domains/settings/repositories/systemLogsRepo')) as typeof import('@/server/domains/settings/repositories/systemLogsRepo');
 
     const deletedCount = await mod.deleteExpiredSystemLogs(pool, { retentionDays: 30 });
 
@@ -101,7 +101,7 @@ describe('systemLogsRepo', () => {
   it('deletes all logs without filters', async () => {
     const query = vi.fn().mockResolvedValue({ rowCount: 42 });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/systemLogsRepo')) as typeof import('../../../server/repositories/systemLogsRepo');
+    const mod = (await import('@/server/domains/settings/repositories/systemLogsRepo')) as typeof import('@/server/domains/settings/repositories/systemLogsRepo');
 
     const deletedCount = await mod.deleteAllSystemLogs(pool);
 

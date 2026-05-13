@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('db migrations', () => {
   it('adds ai translation columns to articles', () => {
-    const migrationPath = 'src/server/db/migrations/0009_article_ai_translation.sql';
+    const migrationPath = 'src/server/infra/db/migrations/0009_article_ai_translation.sql';
     expect(existsSync(migrationPath)).toBe(true);
     const sql = readFileSync(migrationPath, 'utf8');
     expect(sql).toContain('ai_translation_zh_html');

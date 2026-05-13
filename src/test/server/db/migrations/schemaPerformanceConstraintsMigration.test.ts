@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('db migrations', () => {
   it('adds schema performance indexes and safety constraints', () => {
-    const migrationPath = 'src/server/db/migrations/0016_schema_performance_constraints.sql';
+    const migrationPath = 'src/server/infra/db/migrations/0016_schema_performance_constraints.sql';
     expect(existsSync(migrationPath)).toBe(true);
     const sql = readFileSync(migrationPath, 'utf8');
     expect(sql).toContain('create index if not exists articles_sort_published_id_idx');

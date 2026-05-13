@@ -15,8 +15,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   FROSTED_HEADER_CLASS_NAME,
   SETTINGS_CENTER_SHEET_CLASS_NAME,
-} from '@/lib/designSystem';
-import { exportOpml, importOpml } from '@/lib/apiClient';
+} from '@/lib/ui/designSystem';
+import { exportOpml, importOpml } from '@/lib/api/apiClient';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '../../../store/appStore';
 import { useSettingsStore } from '../../../store/settingsStore';

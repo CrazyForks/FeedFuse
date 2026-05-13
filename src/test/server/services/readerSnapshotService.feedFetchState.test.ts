@@ -4,11 +4,11 @@ import type { Pool } from 'pg';
 const listCategoriesMock = vi.fn();
 const listFeedsMock = vi.fn();
 
-vi.mock('../../../server/repositories/categoriesRepo', () => ({
+vi.mock('@/server/domains/feeds/repositories/categoriesRepo', () => ({
   listCategories: (...args: unknown[]) => listCategoriesMock(...args),
 }));
 
-vi.mock('../../../server/repositories/feedsRepo', () => ({
+vi.mock('@/server/domains/feeds/repositories/feedsRepo', () => ({
   listFeeds: (...args: unknown[]) => listFeedsMock(...args),
 }));
 
@@ -40,7 +40,7 @@ describe('readerSnapshotService (feed fetch state)', () => {
 
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = await import('../../../server/services/readerSnapshotService');
+    const mod = await import('@/server/domains/reader/services/readerSnapshotService');
     const snapshot = await mod.getReaderSnapshot(pool, { view: 'all', limit: 10 });
 
     expect(snapshot.feeds[0]).toMatchObject({

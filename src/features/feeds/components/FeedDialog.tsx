@@ -6,7 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { DIALOG_FORM_CONTENT_CLASS_NAME } from '@/lib/designSystem';
+import { DIALOG_FORM_CONTENT_CLASS_NAME } from '@/lib/ui/designSystem';
 import type { UserOperationActionKey } from '@/lib/userOperationCatalog';
 import type { Category } from '../../../types';
 import FeedDialogForm from './FeedDialogForm';

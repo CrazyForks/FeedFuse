@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('db migrations', () => {
   it('adds article filtering columns, constraints, and indexes', () => {
-    const migrationPath = 'src/server/db/migrations/0023_article_filtering.sql';
+    const migrationPath = 'src/server/infra/db/migrations/0023_article_filtering.sql';
     expect(existsSync(migrationPath)).toBe(true);
 
     const sql = readFileSync(migrationPath, 'utf8');

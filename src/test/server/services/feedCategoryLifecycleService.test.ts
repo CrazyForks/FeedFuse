@@ -4,7 +4,7 @@ import {
   createFeedWithCategoryResolution,
   deleteFeedAndCleanupCategory,
   updateFeedWithCategoryResolution,
-} from '../../../server/services/feedCategoryLifecycleService';
+} from '@/server/domains/feeds/services/feedCategoryLifecycleService';
 
 function createMockPool() {
   const client = {

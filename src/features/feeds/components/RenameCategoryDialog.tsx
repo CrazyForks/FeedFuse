@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ApiError } from '@/lib/apiClient';
+import { ApiError } from '@/lib/api/apiClient';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,

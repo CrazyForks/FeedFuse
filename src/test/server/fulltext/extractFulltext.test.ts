@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractFulltext } from '../../../server/fulltext/extractFulltext';
+import { extractFulltext } from '@/server/integrations/fulltext/extractFulltext';
 
 describe('extractFulltext', () => {
   it('extracts main content via Readability', () => {

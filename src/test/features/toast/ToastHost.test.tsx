@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { notifyApiError } from '@/lib/apiErrorNotifier';
+import { notifyApiError } from '@/lib/api/apiErrorNotifier';
 import { ToastHost } from '../../../features/toast/components/ToastHost';
 import { toast } from '../../../features/toast/toast';
 import { toastStore } from '../../../features/toast/toastStore';

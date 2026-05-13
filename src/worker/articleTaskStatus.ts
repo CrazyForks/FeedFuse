@@ -1,17 +1,17 @@
 import type { Pool } from 'pg';
-import type { ArticleTaskType } from '../server/repositories/articleTasksRepo';
-import type { UserOperationActionKey } from '../lib/userOperationCatalog';
+import type { ArticleTaskType } from '@/server/domains/articles/repositories/articleTasksRepo';
+import type { UserOperationActionKey } from '@/lib/userOperationCatalog';
 import {
   upsertTaskFailed,
   upsertTaskRunning,
   upsertTaskSucceeded,
-} from '../server/repositories/articleTasksRepo';
+} from '@/server/domains/articles/repositories/articleTasksRepo';
 import {
   writeUserOperationFailedLog,
   writeUserOperationStartedLog,
   writeUserOperationSucceededLog,
-} from '../server/logging/userOperationLogger';
-import { mapTaskError } from '../server/tasks/errorMapping';
+} from '@/server/infra/logging/userOperationLogger';
+import { mapTaskError } from '@/server/domains/settings/tasks/errorMapping';
 
 interface ArticleTaskUserOperation {
   actionKey: UserOperationActionKey;

@@ -5,8 +5,8 @@ import {
   serializeExpiredSessionCookie,
   serializeSessionCookie,
   verifySessionToken,
-} from '../../../server/auth/session';
-import { hashPassword, verifyPassword, verifyPlainPassword } from '../../../server/auth/password';
+} from '@/server/domains/auth/services/session';
+import { hashPassword, verifyPassword, verifyPlainPassword } from '@/server/domains/auth/services/password';
 
 describe('auth password helpers', () => {
   it('hashes and verifies passwords', () => {

@@ -9,7 +9,8 @@ const { Client } = pg;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '../..');
-const migrationsDir = path.join(repoRoot, 'src/server/db/migrations');
+// 目录重构后，数据库迁移文件统一归入 infra 层。
+const migrationsDir = path.join(repoRoot, 'src/server/infra/db/migrations');
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {

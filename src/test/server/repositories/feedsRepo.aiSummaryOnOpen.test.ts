@@ -5,7 +5,7 @@ describe('feedsRepo (aiSummaryOnOpenEnabled)', () => {
   it('listFeeds selects ai_summary_on_open_enabled', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/feedsRepo')) as typeof import('../../../server/repositories/feedsRepo');
+    const mod = (await import('@/server/domains/feeds/repositories/feedsRepo')) as typeof import('@/server/domains/feeds/repositories/feedsRepo');
 
     await mod.listFeeds(pool);
     expect(String(query.mock.calls[0]?.[0] ?? '')).toContain('ai_summary_on_open_enabled');
@@ -15,7 +15,7 @@ describe('feedsRepo (aiSummaryOnOpenEnabled)', () => {
   it('createFeed inserts and returns ai_summary_on_open_enabled', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [{ id: 'f1' }] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/feedsRepo')) as typeof import('../../../server/repositories/feedsRepo');
+    const mod = (await import('@/server/domains/feeds/repositories/feedsRepo')) as typeof import('@/server/domains/feeds/repositories/feedsRepo');
 
     await mod.createFeed(pool, { title: 'A', url: 'https://example.com/rss.xml' });
     expect(String(query.mock.calls[0]?.[0] ?? '')).toContain('ai_summary_on_open_enabled');
@@ -25,7 +25,7 @@ describe('feedsRepo (aiSummaryOnOpenEnabled)', () => {
   it('updateFeed supports aiSummaryOnOpenEnabled and url patch and returns it', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [{ id: 'f1' }] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/feedsRepo')) as typeof import('../../../server/repositories/feedsRepo');
+    const mod = (await import('@/server/domains/feeds/repositories/feedsRepo')) as typeof import('@/server/domains/feeds/repositories/feedsRepo');
 
     await mod.updateFeed(pool, 'f1', {
       aiSummaryOnOpenEnabled: true,

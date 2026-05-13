@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import sharp from 'sharp';
-import { buildImageProxyUrl } from '../../../../../server/media/imageProxyUrl';
+import { buildImageProxyUrl } from '@/server/integrations/media/imageProxyUrl';
 
 const fetchImageStreamMock = vi.fn();
 
@@ -13,7 +13,7 @@ function streamFromBytes(bytes: Uint8Array): ReadableStream<Uint8Array> {
   });
 }
 
-vi.mock('../../../../../server/http/externalHttpClient', () => ({
+vi.mock('@/server/infra/http/externalHttpClient', () => ({
   fetchImageStream: (...args: unknown[]) => fetchImageStreamMock(...args),
 }));
 

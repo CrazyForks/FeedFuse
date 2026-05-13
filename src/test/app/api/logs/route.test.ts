@@ -4,18 +4,18 @@ const pool = {};
 const getSystemLogsMock = vi.fn();
 const clearSystemLogsMock = vi.fn();
 
-vi.mock('../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
-vi.mock('../../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
 
-vi.mock('../../../../server/services/systemLogsService', () => ({
+vi.mock('@/server/domains/settings/services/systemLogsService', () => ({
   getSystemLogs: (...args: unknown[]) => getSystemLogsMock(...args),
   clearSystemLogs: (...args: unknown[]) => clearSystemLogsMock(...args),
 }));
-vi.mock('../../../../../server/services/systemLogsService', () => ({
+vi.mock('@/server/domains/settings/services/systemLogsService', () => ({
   getSystemLogs: (...args: unknown[]) => getSystemLogsMock(...args),
   clearSystemLogs: (...args: unknown[]) => clearSystemLogsMock(...args),
 }));

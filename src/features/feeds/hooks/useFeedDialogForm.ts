@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react';
-import { ApiError } from '@/lib/apiClient';
-import { mapApiErrorToUserMessage } from '@/lib/mapApiErrorToUserMessage';
+import { ApiError } from '@/lib/api/apiClient';
+import { mapApiErrorToUserMessage } from '@/lib/api/mapApiErrorToUserMessage';
 import type { UserOperationActionKey } from '@/lib/userOperationCatalog';
 import type { Category } from '../../../types';
 import { runImmediateOperation } from '../../notifications/userOperationNotifier';
@@ -9,7 +9,7 @@ import type {
   FeedDialogSubmitPayload,
   ValidationState,
 } from '../feedDialog.types';
-import { validateRssUrl } from '../services/rssValidationService';
+import { validateRssUrl } from '../utils/rssValidation';
 
 interface UseFeedDialogFormOptions {
   actionKey: UserOperationActionKey;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseEnv } from '../../server/env';
+import { parseEnv } from '@/server/infra/env';
 
 describe('env', () => {
   it('throws when DATABASE_URL is missing', () => {

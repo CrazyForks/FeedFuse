@@ -22,7 +22,7 @@ import {
   FROSTED_HEADER_CLASS_NAME,
   READER_FEED_DRAWER_SHEET_CLASS_NAME,
   READER_TABLET_ARTICLE_PANE_CLASS_NAME,
-} from '@/lib/designSystem';
+} from '@/lib/ui/designSystem';
 import { cn } from '@/lib/utils';
 import {
   normalizeReaderPaneWidth,

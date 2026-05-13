@@ -5,7 +5,7 @@ const writeUserOperationStartedLogMock = vi.fn();
 const writeUserOperationSucceededLogMock = vi.fn();
 const writeUserOperationFailedLogMock = vi.fn();
 
-vi.mock('../../server/logging/userOperationLogger', () => ({
+vi.mock('@/server/infra/logging/userOperationLogger', () => ({
   writeUserOperationStartedLog: (...args: unknown[]) => writeUserOperationStartedLogMock(...args),
   writeUserOperationSucceededLog: (...args: unknown[]) => writeUserOperationSucceededLogMock(...args),
   writeUserOperationFailedLog: (...args: unknown[]) => writeUserOperationFailedLogMock(...args),

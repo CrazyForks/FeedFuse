@@ -5,7 +5,7 @@ describe('feedsRepo (fetch result fields)', () => {
   it('listFeeds selects last fetch status and error', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/feedsRepo')) as typeof import('../../../server/repositories/feedsRepo');
+    const mod = (await import('@/server/domains/feeds/repositories/feedsRepo')) as typeof import('@/server/domains/feeds/repositories/feedsRepo');
 
     await mod.listFeeds(pool);
     const sql = String(query.mock.calls[0]?.[0] ?? '');
@@ -20,7 +20,7 @@ describe('feedsRepo (fetch result fields)', () => {
   it('recordFeedFetchResult writes null error to clear prior failures', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/feedsRepo')) as typeof import('../../../server/repositories/feedsRepo');
+    const mod = (await import('@/server/domains/feeds/repositories/feedsRepo')) as typeof import('@/server/domains/feeds/repositories/feedsRepo');
 
     await mod.recordFeedFetchResult(pool, 'feed-1', {
       status: 200,

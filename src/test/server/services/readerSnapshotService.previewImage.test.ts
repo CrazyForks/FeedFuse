@@ -5,15 +5,15 @@ const listCategoriesMock = vi.fn();
 const listFeedsMock = vi.fn();
 const getUiSettingsMock = vi.fn();
 
-vi.mock('../../../server/repositories/categoriesRepo', () => ({
+vi.mock('@/server/domains/feeds/repositories/categoriesRepo', () => ({
   listCategories: (...args: unknown[]) => listCategoriesMock(...args),
 }));
 
-vi.mock('../../../server/repositories/feedsRepo', () => ({
+vi.mock('@/server/domains/feeds/repositories/feedsRepo', () => ({
   listFeeds: (...args: unknown[]) => listFeedsMock(...args),
 }));
 
-vi.mock('../../../server/repositories/settingsRepo', () => ({
+vi.mock('@/server/domains/settings/repositories/settingsRepo', () => ({
   getUiSettings: (...args: unknown[]) => getUiSettingsMock(...args),
 }));
 
@@ -33,7 +33,7 @@ describe('readerSnapshotService (preview image)', () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
 
-    const mod = (await import('../../../server/services/readerSnapshotService')) as typeof import('../../../server/services/readerSnapshotService');
+    const mod = (await import('@/server/domains/reader/services/readerSnapshotService')) as typeof import('@/server/domains/reader/services/readerSnapshotService');
     await mod.getReaderSnapshot(pool, { view: 'all', limit: 1 });
 
     const sql = query.mock.calls
@@ -77,7 +77,7 @@ describe('readerSnapshotService (preview image)', () => {
       .mockResolvedValueOnce({ rows: [{ totalCount: 1 }] });
 
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/services/readerSnapshotService')) as typeof import('../../../server/services/readerSnapshotService');
+    const mod = (await import('@/server/domains/reader/services/readerSnapshotService')) as typeof import('@/server/domains/reader/services/readerSnapshotService');
     const snapshot = await mod.getReaderSnapshot(pool, { view: 'all', limit: 1 });
 
     expect(snapshot.articles.items[0].previewImage).toBe('https://img.example.com/card.jpg');
@@ -117,7 +117,7 @@ describe('readerSnapshotService (preview image)', () => {
       .mockResolvedValueOnce({ rows: [{ totalCount: 1 }] });
 
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/services/readerSnapshotService')) as typeof import('../../../server/services/readerSnapshotService');
+    const mod = (await import('@/server/domains/reader/services/readerSnapshotService')) as typeof import('@/server/domains/reader/services/readerSnapshotService');
     const snapshot = await mod.getReaderSnapshot(pool, { view: 'all', limit: 1 });
 
     expect(snapshot.articles.items[0].previewImage).toBe('https://img.example.com/card.jpg?foo=1&bar=2');
@@ -158,7 +158,7 @@ describe('readerSnapshotService (preview image)', () => {
       .mockResolvedValueOnce({ rows: [{ totalCount: 1 }] });
 
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/services/readerSnapshotService')) as typeof import('../../../server/services/readerSnapshotService');
+    const mod = (await import('@/server/domains/reader/services/readerSnapshotService')) as typeof import('@/server/domains/reader/services/readerSnapshotService');
     const snapshot = await mod.getReaderSnapshot(pool, { view: 'all', limit: 1 });
 
     expect(snapshot.articles.items[0].previewImage).toContain('/api/media/image?');
@@ -205,7 +205,7 @@ describe('readerSnapshotService (preview image)', () => {
       .mockResolvedValueOnce({ rows: [{ totalCount: 0 }] });
 
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/services/readerSnapshotService')) as typeof import('../../../server/services/readerSnapshotService');
+    const mod = (await import('@/server/domains/reader/services/readerSnapshotService')) as typeof import('@/server/domains/reader/services/readerSnapshotService');
     const snapshot = await mod.getReaderSnapshot(pool, { view: 'all', limit: 1 });
 
     expect(snapshot.feeds[0]?.iconUrl).toContain('/api/media/image?');
@@ -250,7 +250,7 @@ describe('readerSnapshotService (preview image)', () => {
       .mockResolvedValueOnce({ rows: [{ totalCount: 0 }] });
 
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/services/readerSnapshotService')) as typeof import('../../../server/services/readerSnapshotService');
+    const mod = (await import('@/server/domains/reader/services/readerSnapshotService')) as typeof import('@/server/domains/reader/services/readerSnapshotService');
     const snapshot = await mod.getReaderSnapshot(pool, { view: 'all', limit: 1 });
 
     expect(snapshot.feeds[0]?.iconUrl).toBe('/api/feeds/feed-1/favicon');
@@ -300,7 +300,7 @@ describe('readerSnapshotService (preview image)', () => {
       .mockResolvedValueOnce({ rows: [{ totalCount: 1 }] });
 
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/services/readerSnapshotService')) as typeof import('../../../server/services/readerSnapshotService');
+    const mod = (await import('@/server/domains/reader/services/readerSnapshotService')) as typeof import('@/server/domains/reader/services/readerSnapshotService');
     const snapshot = await mod.getReaderSnapshot(pool, { view: 'all', limit: 1 });
 
     expect(snapshot.articles.items[0]?.aiSummarySession).toEqual({
@@ -352,7 +352,7 @@ describe('readerSnapshotService (preview image)', () => {
       .mockResolvedValueOnce({ rows: [{ totalCount: 1 }] });
 
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/services/readerSnapshotService')) as typeof import('../../../server/services/readerSnapshotService');
+    const mod = (await import('@/server/domains/reader/services/readerSnapshotService')) as typeof import('@/server/domains/reader/services/readerSnapshotService');
     const snapshot = await mod.getReaderSnapshot(pool, { view: 'all', limit: 1 });
 
     expect(snapshot.articles.items[0].previewImage).toContain('/api/media/image?');
@@ -397,7 +397,7 @@ describe('readerSnapshotService (preview image)', () => {
       .mockResolvedValueOnce({ rows: [{ totalCount: 1 }] });
 
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/services/readerSnapshotService')) as typeof import('../../../server/services/readerSnapshotService');
+    const mod = (await import('@/server/domains/reader/services/readerSnapshotService')) as typeof import('@/server/domains/reader/services/readerSnapshotService');
     const snapshot = await mod.getReaderSnapshot(pool, { view: 'all', limit: 1 });
 
     expect(snapshot.articles.items[0].previewImage).toBeNull();

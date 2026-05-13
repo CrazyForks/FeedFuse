@@ -4,7 +4,7 @@ import {
   findCategoryByNormalizedName,
   getNextCategoryPosition,
   reorderCategories,
-} from '../../../server/repositories/categoriesRepo';
+} from '@/server/domains/feeds/repositories/categoriesRepo';
 
 describe('reorderCategories', () => {
   it('updates positions in a transaction and returns sorted rows', async () => {

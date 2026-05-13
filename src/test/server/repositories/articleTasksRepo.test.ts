@@ -5,7 +5,7 @@ describe('articleTasksRepo', () => {
   it('getArticleTasksByArticleId selects expected columns', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/articleTasksRepo')) as typeof import('../../../server/repositories/articleTasksRepo');
+    const mod = (await import('@/server/domains/articles/repositories/articleTasksRepo')) as typeof import('@/server/domains/articles/repositories/articleTasksRepo');
 
     await mod.getArticleTasksByArticleId(pool, 'a1');
 
@@ -23,7 +23,7 @@ describe('articleTasksRepo', () => {
   it('upsertTaskFailed increments attempts and sets updated_at', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/articleTasksRepo')) as typeof import('../../../server/repositories/articleTasksRepo');
+    const mod = (await import('@/server/domains/articles/repositories/articleTasksRepo')) as typeof import('@/server/domains/articles/repositories/articleTasksRepo');
 
     await mod.upsertTaskFailed(pool, {
       articleId: 'a1',

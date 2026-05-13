@@ -10,33 +10,33 @@ const reorderCategoriesMock = vi.fn();
 const writeUserOperationSucceededLogMock = vi.fn();
 const writeUserOperationFailedLogMock = vi.fn();
 
-vi.mock('../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
-vi.mock('../../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
 
-vi.mock('../../../../server/repositories/categoriesRepo', () => ({
+vi.mock('@/server/domains/feeds/repositories/categoriesRepo', () => ({
   listCategories: (...args: unknown[]) => listCategoriesMock(...args),
   createCategory: (...args: unknown[]) => createCategoryMock(...args),
   updateCategory: (...args: unknown[]) => updateCategoryMock(...args),
   deleteCategory: (...args: unknown[]) => deleteCategoryMock(...args),
   reorderCategories: (...args: unknown[]) => reorderCategoriesMock(...args),
 }));
-vi.mock('../../../../../server/repositories/categoriesRepo', () => ({
+vi.mock('@/server/domains/feeds/repositories/categoriesRepo', () => ({
   listCategories: (...args: unknown[]) => listCategoriesMock(...args),
   createCategory: (...args: unknown[]) => createCategoryMock(...args),
   updateCategory: (...args: unknown[]) => updateCategoryMock(...args),
   deleteCategory: (...args: unknown[]) => deleteCategoryMock(...args),
   reorderCategories: (...args: unknown[]) => reorderCategoriesMock(...args),
 }));
-vi.mock('../../../../server/logging/userOperationLogger', () => ({
+vi.mock('@/server/infra/logging/userOperationLogger', () => ({
   writeUserOperationSucceededLog: (...args: unknown[]) =>
     writeUserOperationSucceededLogMock(...args),
   writeUserOperationFailedLog: (...args: unknown[]) => writeUserOperationFailedLogMock(...args),
 }));
-vi.mock('../../../../../server/logging/userOperationLogger', () => ({
+vi.mock('@/server/infra/logging/userOperationLogger', () => ({
   writeUserOperationSucceededLog: (...args: unknown[]) =>
     writeUserOperationSucceededLogMock(...args),
   writeUserOperationFailedLog: (...args: unknown[]) => writeUserOperationFailedLogMock(...args),

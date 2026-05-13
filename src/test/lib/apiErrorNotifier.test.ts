@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { clearApiErrorNotifier, notifyApiError, setApiErrorNotifier } from '../../lib/apiErrorNotifier';
+import { clearApiErrorNotifier, notifyApiError, setApiErrorNotifier } from '@/lib/api/apiErrorNotifier';
 
 describe('apiErrorNotifier', () => {
   it('forwards messages to the registered notifier', () => {

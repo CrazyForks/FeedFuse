@@ -8,10 +8,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { DIALOG_FORM_CONTENT_CLASS_NAME } from '@/lib/designSystem';
+import { DIALOG_FORM_CONTENT_CLASS_NAME } from '@/lib/ui/designSystem';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { normalizeFeedAutoTriggerFlags } from '../../../lib/feedAutoTriggerPolicy';
+import { normalizeFeedAutoTriggerFlags } from '@/lib/feeds/feedAutoTriggerPolicy';
 import type { Feed } from '../../../types';
 
 export interface FeedFulltextPolicyPatch {

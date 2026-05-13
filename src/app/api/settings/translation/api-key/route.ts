@@ -1,19 +1,19 @@
-import { requireApiSession } from '@/server/auth/session';
-import { getPool } from '../../../../../server/db/pool';
-import { cleanupAiRuntimeState } from '../../../../../server/ai/cleanupAiRuntimeState';
+import { requireApiSession } from '@/server/domains/auth/services/session';
+import { getPool } from '@/server/infra/db/pool';
+import { cleanupAiRuntimeState } from '@/server/integrations/ai/cleanupAiRuntimeState';
 import {
   hasAiCleanupScopes,
   resolveAiCleanupScopesForInputs,
-} from '../../../../../server/ai/configFingerprints';
-import { ok, fail } from '../../../../../server/http/apiResponse';
-import { ValidationError } from '../../../../../server/http/errors';
+} from '@/server/integrations/ai/configFingerprints';
+import { ok, fail } from '@/server/infra/http/apiResponse';
+import { ValidationError } from '@/server/infra/http/errors';
 import {
   clearTranslationApiKey,
   getAiApiKey,
   getTranslationApiKey,
   getUiSettings,
   setTranslationApiKey,
-} from '../../../../../server/repositories/settingsRepo';
+} from '@/server/domains/settings/repositories/settingsRepo';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

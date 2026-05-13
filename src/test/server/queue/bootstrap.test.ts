@@ -1,6 +1,6 @@
 import type { PgBoss } from 'pg-boss';
 import { describe, expect, it, vi } from 'vitest';
-import { bootstrapQueues } from '../../../server/queue/bootstrap';
+import { bootstrapQueues } from '@/server/infra/queue/bootstrap';
 
 describe('bootstrapQueues', () => {
   it('creates queues and dead-letter queues from contracts', async () => {

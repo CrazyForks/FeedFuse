@@ -1,16 +1,16 @@
 import crypto from 'node:crypto';
 import type { Pool } from 'pg';
-import { normalizePersistedSettings } from '../features/settings/settingsSchema';
+import { normalizePersistedSettings } from '@/features/settings/settingsSchema';
 import {
   createConfigFingerprintGuard,
   resolveAiConfigFingerprints,
-} from '../server/ai/configFingerprints';
+} from '@/server/integrations/ai/configFingerprints';
 import {
   isAiRuntimeConfigComplete,
   resolveSharedAiConfig,
-} from '../server/ai/runtimeConfig';
-import { streamSummarizeText, type StreamSummarizeTextInput } from '../server/ai/streamSummarizeText';
-import { getArticleById, setArticleAiSummary, type ArticleRow } from '../server/repositories/articlesRepo';
+} from '@/server/integrations/ai/runtimeConfig';
+import { streamSummarizeText, type StreamSummarizeTextInput } from '@/server/integrations/ai/streamSummarizeText';
+import { getArticleById, setArticleAiSummary, type ArticleRow } from '@/server/domains/articles/repositories/articlesRepo';
 import {
   completeAiSummarySession,
   failAiSummarySession,
@@ -20,15 +20,15 @@ import {
   updateAiSummarySessionDraft,
   upsertAiSummarySession,
   type AiSummarySessionRow,
-} from '../server/repositories/articleAiSummaryRepo';
-import { getFeedFullTextOnOpenEnabled } from '../server/repositories/feedsRepo';
-import { getAiApiKey, getUiSettings } from '../server/repositories/settingsRepo';
+} from '@/server/domains/articles/repositories/articleAiSummaryRepo';
+import { getFeedFullTextOnOpenEnabled } from '@/server/domains/feeds/repositories/feedsRepo';
+import { getAiApiKey, getUiSettings } from '@/server/domains/settings/repositories/settingsRepo';
 import {
   getUsableFulltextHtml,
   isFulltextPending,
-} from '../server/fulltext/fulltextVerification';
-import { mapTaskError } from '../server/tasks/errorMapping';
-import { runArticleTaskWithStatus } from './articleTaskStatus';
+} from '@/server/integrations/fulltext/fulltextVerification';
+import { mapTaskError } from '@/server/domains/settings/tasks/errorMapping';
+import { runArticleTaskWithStatus } from '@/worker/articleTaskStatus';
 
 const MAX_SUMMARY_SOURCE_LENGTH = 16_000;
 

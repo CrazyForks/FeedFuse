@@ -25,8 +25,8 @@ import {
   enqueueArticleFulltext,
   getArticleTasks,
   type ArticleTasksDto,
-} from "../../../lib/apiClient";
-import { pollWithBackoff } from "../../../lib/polling";
+} from "@/lib/api/apiClient";
+import { pollWithBackoff } from "@/lib/api/polling";
 import { useRenderTimeSnapshot } from "../../../hooks";
 import { formatRelativeTime } from "../../../utils/date";
 import { Badge } from "@/components/ui/badge";

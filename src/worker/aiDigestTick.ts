@@ -1,14 +1,14 @@
-import { resolveAiConfigFingerprints } from '../server/ai/configFingerprints';
-import { getAiApiKey, getUiSettings } from '../server/repositories/settingsRepo';
+import { resolveAiConfigFingerprints } from '@/server/integrations/ai/configFingerprints';
+import { getAiApiKey, getUiSettings } from '@/server/domains/settings/repositories/settingsRepo';
 import {
   createAiDigestRun,
   getAiDigestConfigByFeedId,
   getAiDigestRunByFeedIdAndWindowStartAt,
   listDueAiDigestConfigFeedIds,
   updateAiDigestRun,
-} from '../server/repositories/aiDigestRepo';
-import { getQueueSendOptions } from '../server/queue/contracts';
-import { JOB_AI_DIGEST_GENERATE } from '../server/queue/jobs';
+} from '@/server/domains/ai-digests/repositories/aiDigestRepo';
+import { getQueueSendOptions } from '@/server/infra/queue/contracts';
+import { JOB_AI_DIGEST_GENERATE } from '@/server/infra/queue/jobs';
 
 export async function runAiDigestTick(deps: {
   pool: { query: (...args: unknown[]) => unknown };

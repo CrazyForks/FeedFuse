@@ -1,11 +1,11 @@
-import { requireApiSession } from '@/server/auth/session';
-import { getPool } from '../../../../server/db/pool';
-import { fail } from '../../../../server/http/apiResponse';
+import { requireApiSession } from '@/server/domains/auth/services/session';
+import { getPool } from '@/server/infra/db/pool';
+import { fail } from '@/server/infra/http/apiResponse';
 import {
   writeUserOperationFailedLog,
   writeUserOperationSucceededLog,
-} from '../../../../server/logging/userOperationLogger';
-import { exportOpml } from '../../../../server/services/opmlService';
+} from '@/server/infra/logging/userOperationLogger';
+import { exportOpml } from '@/server/domains/settings/services/opmlService';
 
 export async function GET() {
   const authResponse = await requireApiSession();

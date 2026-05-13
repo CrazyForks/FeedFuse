@@ -7,7 +7,7 @@ describe('openaiClient runtime compatibility', () => {
   it('can be imported by tsx runtime (worker context)', () => {
     const tsxCli = path.resolve(process.cwd(), 'node_modules/tsx/dist/cli.mjs');
     const target = pathToFileURL(
-      path.resolve(process.cwd(), 'src/server/ai/openaiClient.ts'),
+      path.resolve(process.cwd(), 'src/server/integrations/ai/openaiClient.ts'),
     ).href;
 
     const result = spawnSync(

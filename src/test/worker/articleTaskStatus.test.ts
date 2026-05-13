@@ -8,17 +8,17 @@ const writeUserOperationStartedLogMock = vi.fn();
 const writeUserOperationSucceededLogMock = vi.fn();
 const writeUserOperationFailedLogMock = vi.fn();
 
-vi.mock('../../server/repositories/articleTasksRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articleTasksRepo', () => ({
   upsertTaskRunning: (...args: unknown[]) => upsertTaskRunningMock(...args),
   upsertTaskSucceeded: (...args: unknown[]) => upsertTaskSucceededMock(...args),
   upsertTaskFailed: (...args: unknown[]) => upsertTaskFailedMock(...args),
 }));
 
-vi.mock('../../server/tasks/errorMapping', () => ({
+vi.mock('@/server/domains/settings/tasks/errorMapping', () => ({
   mapTaskError: (...args: unknown[]) => mapTaskErrorMock(...args),
 }));
 
-vi.mock('../../server/logging/userOperationLogger', () => ({
+vi.mock('@/server/infra/logging/userOperationLogger', () => ({
   writeUserOperationStartedLog: (...args: unknown[]) => writeUserOperationStartedLogMock(...args),
   writeUserOperationSucceededLog: (...args: unknown[]) => writeUserOperationSucceededLogMock(...args),
   writeUserOperationFailedLog: (...args: unknown[]) => writeUserOperationFailedLogMock(...args),

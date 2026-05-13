@@ -2,7 +2,7 @@ import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-type ApiClientModule = typeof import('../../../lib/apiClient');
+type ApiClientModule = typeof import('@/lib/api/apiClient');
 
 class FakeEventSource {
   private listeners = new Map<string, Set<(event: Event) => void>>();
@@ -79,8 +79,8 @@ const idleTasks = {
   },
 };
 
-vi.mock('../../../lib/apiClient', async () => {
-  const actual = await vi.importActual<ApiClientModule>('../../../lib/apiClient');
+vi.mock('@/lib/api/apiClient', async () => {
+  const actual = await vi.importActual<ApiClientModule>('@/lib/api/apiClient');
   return {
     ...actual,
     enqueueArticleFulltext: vi.fn(),
@@ -158,7 +158,7 @@ describe('ArticleView ai translate', () => {
   beforeEach(async () => {
     fakeEventSource = new FakeEventSource();
 
-    const apiClient = await import('../../../lib/apiClient');
+    const apiClient = await import('@/lib/api/apiClient');
     vi.mocked(apiClient.enqueueArticleFulltext).mockReset();
     vi.mocked(apiClient.enqueueArticleAiTranslate).mockReset();
     vi.mocked(apiClient.getArticleAiTranslateSnapshot).mockReset();
@@ -301,7 +301,7 @@ describe('ArticleView ai translate', () => {
   });
 
   it('翻译按钮文案固定为翻译，点击两次触发两次翻译请求', async () => {
-    const apiClient = await import('../../../lib/apiClient');
+    const apiClient = await import('@/lib/api/apiClient');
     const { default: ArticleView } = await import('../../../features/articles/components/ArticleView');
     render(<ArticleView />);
 
@@ -324,7 +324,7 @@ describe('ArticleView ai translate', () => {
   });
 
   it('bodyTranslateEnabled=false 时翻译按钮仍可点击并触发请求', async () => {
-    const apiClient = await import('../../../lib/apiClient');
+    const apiClient = await import('@/lib/api/apiClient');
     await seedArticleViewState({ bodyTranslateEnabled: false });
 
     const { default: ArticleView } = await import('../../../features/articles/components/ArticleView');
@@ -343,7 +343,7 @@ describe('ArticleView ai translate', () => {
   });
 
   it('does not render translate button when bodyTranslationEligible is false', async () => {
-    const apiClient = await import('../../../lib/apiClient');
+    const apiClient = await import('@/lib/api/apiClient');
     await seedArticleViewState({
       article: {
         bodyTranslationEligible: false,
@@ -361,7 +361,7 @@ describe('ArticleView ai translate', () => {
   });
 
   it('does not auto-request translation on open when bodyTranslationEligible is false', async () => {
-    const apiClient = await import('../../../lib/apiClient');
+    const apiClient = await import('@/lib/api/apiClient');
     await seedArticleViewState({
       feed: { bodyTranslateOnOpenEnabled: true },
       article: {
@@ -379,7 +379,7 @@ describe('ArticleView ai translate', () => {
   });
 
   it('全文抓取进行中时翻译按钮仍可点击并展示等待提示', async () => {
-    const apiClient = await import('../../../lib/apiClient');
+    const apiClient = await import('@/lib/api/apiClient');
     vi.mocked(apiClient.getArticleTasks).mockResolvedValue({
       ...idleTasks,
       fulltext: {
@@ -419,7 +419,7 @@ describe('ArticleView ai translate', () => {
   });
 
   it('全文任务排队中时右栏不显示抓取全文按钮', async () => {
-    const apiClient = await import('../../../lib/apiClient');
+    const apiClient = await import('@/lib/api/apiClient');
     vi.mocked(apiClient.getArticleTasks).mockResolvedValue({
       ...idleTasks,
       fulltext: {
@@ -440,7 +440,7 @@ describe('ArticleView ai translate', () => {
   });
 
   it('ai_digest 文章右栏不显示抓取全文和翻译按钮', async () => {
-    const apiClient = await import('../../../lib/apiClient');
+    const apiClient = await import('@/lib/api/apiClient');
     await seedArticleViewState({
       feed: { kind: 'ai_digest' },
     });
@@ -458,7 +458,7 @@ describe('ArticleView ai translate', () => {
   });
 
   it('triggers retry API from delegated retry button inside rendered html', async () => {
-    const apiClient = await import('../../../lib/apiClient');
+    const apiClient = await import('@/lib/api/apiClient');
     const { default: ArticleView } = await import('../../../features/articles/components/ArticleView');
     const { container } = render(<ArticleView />);
 
@@ -489,7 +489,7 @@ describe('ArticleView ai translate', () => {
   it('wraps long ai translate failure messages without squeezing out retry action', async () => {
     const longError =
       '翻译失败：这是一条非常非常长的错误消息🙂 مع رسالة خطأ طويلة للغاية with extra details to verify wrapping behavior';
-    const apiClient = await import('../../../lib/apiClient');
+    const apiClient = await import('@/lib/api/apiClient');
 
     vi.mocked(apiClient.getArticleTasks).mockResolvedValue({
       ...idleTasks,
@@ -515,7 +515,7 @@ describe('ArticleView ai translate', () => {
   });
 
   it('bodyTranslateOnOpenEnabled=true opens article and auto requests translation then auto enters translation view', async () => {
-    const apiClient = await import('../../../lib/apiClient');
+    const apiClient = await import('@/lib/api/apiClient');
     await seedArticleViewState({ bodyTranslateOnOpenEnabled: true });
 
     const { default: ArticleView } = await import('../../../features/articles/components/ArticleView');

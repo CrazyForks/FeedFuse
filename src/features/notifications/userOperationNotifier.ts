@@ -9,7 +9,7 @@ import {
   renderUserOperationStarted,
   renderUserOperationSuccess,
   shouldEmitUserOperationToast,
-} from '../../lib/userOperationCatalog';
+} from '@/lib/userOperationCatalog';
 
 type ToastAdapter = {
   success: (message: string, options?: ToastOptions) => string | void;

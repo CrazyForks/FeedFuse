@@ -3,7 +3,7 @@ import { afterEach, beforeEach, vi } from 'vitest';
 import ReaderLayout from '../../../features/reader/components/ReaderLayout';
 import { ToastHost } from '../../../features/toast/components/ToastHost';
 import { useAppStore } from '../../../store/appStore';
-import { validateRssUrl } from '../../../features/feeds/services/rssValidationService';
+import { validateRssUrl } from '@/features/feeds/utils/rssValidation';
 
 const { runImmediateOperationMock } = vi.hoisted(() => ({
   runImmediateOperationMock: vi.fn(),
@@ -65,7 +65,7 @@ async function getFetchCallJsonBody(
   return {};
 }
 
-vi.mock('../../../features/feeds/services/rssValidationService', () => ({
+vi.mock('@/features/feeds/utils/rssValidation', () => ({
   validateRssUrl: vi.fn(async (url: string) => {
     if (url.includes('success')) {
       return {

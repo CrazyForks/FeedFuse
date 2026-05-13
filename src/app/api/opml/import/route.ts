@@ -1,13 +1,13 @@
-import { requireApiSession } from '@/server/auth/session';
+import { requireApiSession } from '@/server/domains/auth/services/session';
 import { z } from 'zod';
-import { getPool } from '../../../../server/db/pool';
-import { fail, ok } from '../../../../server/http/apiResponse';
-import { ValidationError } from '../../../../server/http/errors';
+import { getPool } from '@/server/infra/db/pool';
+import { fail, ok } from '@/server/infra/http/apiResponse';
+import { ValidationError } from '@/server/infra/http/errors';
 import {
   writeUserOperationFailedLog,
   writeUserOperationSucceededLog,
-} from '../../../../server/logging/userOperationLogger';
-import { importOpml } from '../../../../server/services/opmlService';
+} from '@/server/infra/logging/userOperationLogger';
+import { importOpml } from '@/server/domains/settings/services/opmlService';
 
 const bodySchema = z.object({
   content: z.string().trim().min(1),

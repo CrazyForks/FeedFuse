@@ -1,18 +1,18 @@
-import { requireApiSession } from '@/server/auth/session';
+import { requireApiSession } from '@/server/domains/auth/services/session';
 import { z } from 'zod';
-import { getPool } from '../../../../../server/db/pool';
-import { ok, fail } from '../../../../../server/http/apiResponse';
-import { NotFoundError, ValidationError } from '../../../../../server/http/errors';
-import { numericIdSchema } from '../../../../../server/http/idSchemas';
+import { getPool } from '@/server/infra/db/pool';
+import { ok, fail } from '@/server/infra/http/apiResponse';
+import { NotFoundError, ValidationError } from '@/server/infra/http/errors';
+import { numericIdSchema } from '@/server/infra/http/idSchemas';
 import { normalizePersistedSettings } from '../../../../../features/settings/settingsSchema';
-import { evaluateArticleBodyTranslationEligibility } from '../../../../../server/ai/articleTranslationEligibility';
-import { resolveAiConfigFingerprints } from '../../../../../server/ai/configFingerprints';
+import { evaluateArticleBodyTranslationEligibility } from '@/server/integrations/ai/articleTranslationEligibility';
+import { resolveAiConfigFingerprints } from '@/server/integrations/ai/configFingerprints';
 import {
   isTranslationConfigComplete,
   resolveTranslationConfig,
-} from '../../../../../server/ai/translationConfig';
-import { extractImmersiveSegments, hashSourceHtml } from '../../../../../server/ai/immersiveTranslationSession';
-import { getArticleById, type ArticleRow } from '../../../../../server/repositories/articlesRepo';
+} from '@/server/integrations/ai/translationConfig';
+import { extractImmersiveSegments, hashSourceHtml } from '@/server/integrations/ai/immersiveTranslationSession';
+import { getArticleById, type ArticleRow } from '@/server/domains/articles/repositories/articlesRepo';
 import {
   deleteTranslationEventsBySessionId,
   deleteTranslationSegmentsBySessionId,
@@ -20,29 +20,29 @@ import {
   listTranslationSegmentsBySessionId,
   upsertTranslationSegment,
   upsertTranslationSession,
-} from '../../../../../server/repositories/articleTranslationRepo';
+} from '@/server/domains/articles/repositories/articleTranslationRepo';
 import {
   getArticleTasksByArticleId,
   type ArticleTaskRow,
   upsertTaskQueued,
-} from '../../../../../server/repositories/articleTasksRepo';
+} from '@/server/domains/articles/repositories/articleTasksRepo';
 import {
   getFeedBodyTranslateEnabled,
   getFeedFullTextOnOpenEnabled,
-} from '../../../../../server/repositories/feedsRepo';
+} from '@/server/domains/feeds/repositories/feedsRepo';
 import {
   getAiApiKey,
   getTranslationApiKey,
   getUiSettings,
-} from '../../../../../server/repositories/settingsRepo';
-import { writeUserOperationStartedLog } from '../../../../../server/logging/userOperationLogger';
-import { getQueueSendOptions } from '../../../../../server/queue/contracts';
-import { enqueueWithResult } from '../../../../../server/queue/queue';
-import { JOB_AI_TRANSLATE } from '../../../../../server/queue/jobs';
+} from '@/server/domains/settings/repositories/settingsRepo';
+import { writeUserOperationStartedLog } from '@/server/infra/logging/userOperationLogger';
+import { getQueueSendOptions } from '@/server/infra/queue/contracts';
+import { enqueueWithResult } from '@/server/infra/queue/queue';
+import { JOB_AI_TRANSLATE } from '@/server/infra/queue/jobs';
 import {
   getUsableFulltextHtml,
   isFulltextPending,
-} from '../../../../../server/fulltext/fulltextVerification';
+} from '@/server/integrations/fulltext/fulltextVerification';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

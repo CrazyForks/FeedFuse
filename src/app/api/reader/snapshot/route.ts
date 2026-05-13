@@ -1,9 +1,9 @@
-import { requireApiSession } from '@/server/auth/session';
+import { requireApiSession } from '@/server/domains/auth/services/session';
 import { z } from 'zod';
-import { getPool } from '../../../../server/db/pool';
-import { ok, fail } from '../../../../server/http/apiResponse';
-import { ValidationError } from '../../../../server/http/errors';
-import { getReaderSnapshot } from '../../../../server/services/readerSnapshotService';
+import { getPool } from '@/server/infra/db/pool';
+import { ok, fail } from '@/server/infra/http/apiResponse';
+import { ValidationError } from '@/server/infra/http/errors';
+import { getReaderSnapshot } from '@/server/domains/reader/services/readerSnapshotService';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

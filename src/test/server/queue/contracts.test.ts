@@ -4,7 +4,7 @@ import {
   getQueueCreateOptions,
   getQueueSendOptions,
   getWorkerOptions,
-} from '../../../server/queue/contracts';
+} from '@/server/infra/queue/contracts';
 
 describe('queue contracts', () => {
   it('keeps ai jobs manual retry (retryLimit=0)', () => {

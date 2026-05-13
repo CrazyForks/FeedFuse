@@ -4,11 +4,11 @@ import type { Pool } from 'pg';
 const listCategoriesMock = vi.fn();
 const listFeedsMock = vi.fn();
 
-vi.mock('../../../server/repositories/categoriesRepo', () => ({
+vi.mock('@/server/domains/feeds/repositories/categoriesRepo', () => ({
   listCategories: (...args: unknown[]) => listCategoriesMock(...args),
 }));
 
-vi.mock('../../../server/repositories/feedsRepo', () => ({
+vi.mock('@/server/domains/feeds/repositories/feedsRepo', () => ({
   listFeeds: (...args: unknown[]) => listFeedsMock(...args),
 }));
 
@@ -29,7 +29,7 @@ describe('readerSnapshotService (cursor)', () => {
       .mockResolvedValueOnce({ rows: [{ totalCount: 0 }] });
 
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/services/readerSnapshotService')) as typeof import('../../../server/services/readerSnapshotService');
+    const mod = (await import('@/server/domains/reader/services/readerSnapshotService')) as typeof import('@/server/domains/reader/services/readerSnapshotService');
     await mod.getReaderSnapshot(pool, { view: 'all', limit: 1 });
 
     const articleQuerySql = query.mock.calls
@@ -50,7 +50,7 @@ describe('readerSnapshotService (cursor)', () => {
       .mockResolvedValueOnce({ rows: [{ totalCount: 0 }] });
 
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/services/readerSnapshotService')) as typeof import('../../../server/services/readerSnapshotService');
+    const mod = (await import('@/server/domains/reader/services/readerSnapshotService')) as typeof import('@/server/domains/reader/services/readerSnapshotService');
     await mod.getReaderSnapshot(pool, {
       view: 'all',
       limit: 1,
@@ -125,7 +125,7 @@ describe('readerSnapshotService (cursor)', () => {
       .mockResolvedValueOnce({ rows: [{ totalCount: 2 }] });
 
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/services/readerSnapshotService')) as typeof import('../../../server/services/readerSnapshotService');
+    const mod = (await import('@/server/domains/reader/services/readerSnapshotService')) as typeof import('@/server/domains/reader/services/readerSnapshotService');
     const snapshot = await mod.getReaderSnapshot(pool, { view: 'all', limit: 1 });
 
     expect(mod.decodeCursor(snapshot.articles.nextCursor)).toEqual({

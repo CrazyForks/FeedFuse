@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('db migrations', () => {
   it('adds feed_favicons table and backfills rss icon urls to the internal favicon route', () => {
-    const migrationPath = 'src/server/db/migrations/0027_feed_favicons.sql';
+    const migrationPath = 'src/server/infra/db/migrations/0027_feed_favicons.sql';
     expect(existsSync(migrationPath)).toBe(true);
 
     const sql = readFileSync(migrationPath, 'utf8');

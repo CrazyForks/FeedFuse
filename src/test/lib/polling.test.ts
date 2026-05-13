@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('polling', () => {
   it('exports pollWithBackoff', async () => {
-    const mod = await import('../../lib/polling');
+    const mod = await import('@/lib/api/polling');
     expect(mod.pollWithBackoff).toBeTypeOf('function');
   });
 });

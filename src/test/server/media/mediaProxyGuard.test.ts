@@ -9,7 +9,7 @@ vi.mock('node:dns/promises', () => {
 });
 
 import { lookup } from 'node:dns/promises';
-import { isSafeMediaUrl } from '../../../server/media/mediaProxyGuard';
+import { isSafeMediaUrl } from '@/server/integrations/media/mediaProxyGuard';
 
 describe('mediaProxyGuard', () => {
   const lookupMock = vi.mocked(lookup);

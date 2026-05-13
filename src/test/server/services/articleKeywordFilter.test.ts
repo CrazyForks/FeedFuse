@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('articleKeywordFilter', () => {
   it('returns global keywords only when keyword filtering is enabled', async () => {
-    const mod = await import('../../../server/services/articleKeywordFilter');
+    const mod = await import('@/server/domains/articles/services/articleKeywordFilter');
     expect(
       mod.getArticleKeywordsForFeed(
         {
@@ -24,7 +24,7 @@ describe('articleKeywordFilter', () => {
   });
 
   it('matches keywords against title and summary case-insensitively', async () => {
-    const mod = await import('../../../server/services/articleKeywordFilter');
+    const mod = await import('@/server/domains/articles/services/articleKeywordFilter');
     expect(
       mod.matchesArticleKeywordFilter(
         { title: 'Sponsored Post', summary: 'Weekly digest' },

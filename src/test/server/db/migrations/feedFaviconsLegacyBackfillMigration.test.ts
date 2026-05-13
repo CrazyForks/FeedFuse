@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('db migrations', () => {
   it('backfills legacy feed_favicons tables with status columns and nullable failure shape', () => {
-    const migrationPath = 'src/server/db/migrations/0028_feed_favicons_legacy_backfill.sql';
+    const migrationPath = 'src/server/infra/db/migrations/0028_feed_favicons_legacy_backfill.sql';
     expect(existsSync(migrationPath)).toBe(true);
 
     const sql = readFileSync(migrationPath, 'utf8');

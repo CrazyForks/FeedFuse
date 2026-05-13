@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const getUiSettingsMock = vi.fn();
 const deleteExpiredSystemLogsMock = vi.fn();
 
-vi.mock('../../server/repositories/settingsRepo', () => ({
+vi.mock('@/server/domains/settings/repositories/settingsRepo', () => ({
   getUiSettings: (...args: unknown[]) => getUiSettingsMock(...args),
 }));
 
-vi.mock('../../server/repositories/systemLogsRepo', () => ({
+vi.mock('@/server/domains/settings/repositories/systemLogsRepo', () => ({
   deleteExpiredSystemLogs: (...args: unknown[]) => deleteExpiredSystemLogsMock(...args),
 }));
 

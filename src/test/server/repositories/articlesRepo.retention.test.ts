@@ -5,7 +5,7 @@ describe('articlesRepo (retention)', () => {
   it('pruneFeedArticlesToLimit deletes oldest unstarred rows in a feed', async () => {
     const query = vi.fn().mockResolvedValue({ rowCount: 2 });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/articlesRepo')) as Record<string, unknown>;
+    const mod = (await import('@/server/domains/articles/repositories/articlesRepo')) as Record<string, unknown>;
 
     if (typeof mod.pruneFeedArticlesToLimit !== 'function') {
       expect.fail('pruneFeedArticlesToLimit is not implemented');
@@ -30,7 +30,7 @@ describe('articlesRepo (retention)', () => {
   it('pruneAllFeedsArticlesToLimit partitions deletions by feed and preserves starred rows', async () => {
     const query = vi.fn().mockResolvedValue({ rowCount: 4 });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/articlesRepo')) as Record<string, unknown>;
+    const mod = (await import('@/server/domains/articles/repositories/articlesRepo')) as Record<string, unknown>;
 
     if (typeof mod.pruneAllFeedsArticlesToLimit !== 'function') {
       expect.fail('pruneAllFeedsArticlesToLimit is not implemented');

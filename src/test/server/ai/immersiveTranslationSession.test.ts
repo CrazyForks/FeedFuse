@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractImmersiveSegments, hashSourceHtml } from '../../../server/ai/immersiveTranslationSession';
+import { extractImmersiveSegments, hashSourceHtml } from '@/server/integrations/ai/immersiveTranslationSession';
 
 describe('immersiveTranslationSession', () => {
   it('extracts only p/h1-h6/li/blockquote segments in source order', () => {

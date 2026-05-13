@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const writeSystemLogMock = vi.fn();
 
-vi.mock('../../../server/logging/systemLogger', () => ({
+vi.mock('@/server/infra/logging/systemLogger', () => ({
   writeSystemLog: (...args: unknown[]) => writeSystemLogMock(...args),
 }));
 
@@ -12,7 +12,7 @@ describe('userOperationLogger', () => {
   });
 
   it('writes deferred started logs with shared action metadata', async () => {
-    const mod = await import('../../../server/logging/userOperationLogger');
+    const mod = await import('@/server/infra/logging/userOperationLogger');
 
     await mod.writeUserOperationStartedLog({} as never, {
       actionKey: 'feed.refresh',
@@ -38,7 +38,7 @@ describe('userOperationLogger', () => {
   });
 
   it('writes failed terminal logs with short reason and raw details', async () => {
-    const mod = await import('../../../server/logging/userOperationLogger');
+    const mod = await import('@/server/infra/logging/userOperationLogger');
 
     await mod.writeUserOperationFailedLog({} as never, {
       actionKey: 'article.aiTranslate.retrySegment',

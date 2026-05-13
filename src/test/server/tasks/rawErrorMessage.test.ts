@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { toRawErrorMessage } from '../../../server/tasks/rawErrorMessage';
+import { toRawErrorMessage } from '@/server/domains/settings/tasks/rawErrorMessage';
 
 describe('rawErrorMessage', () => {
   it('redacts bearer tokens', () => {

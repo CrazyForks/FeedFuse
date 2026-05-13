@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { Profiler } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-type ApiClientModule = typeof import('../../../lib/apiClient');
+type ApiClientModule = typeof import('@/lib/api/apiClient');
 
 const idleTasks = {
   fulltext: {
@@ -39,8 +39,8 @@ const idleTasks = {
   },
 };
 
-vi.mock('../../../lib/apiClient', async () => {
-  const actual = await vi.importActual<ApiClientModule>('../../../lib/apiClient');
+vi.mock('@/lib/api/apiClient', async () => {
+  const actual = await vi.importActual<ApiClientModule>('@/lib/api/apiClient');
   return {
     ...actual,
     enqueueArticleFulltext: vi.fn(),
@@ -79,7 +79,7 @@ describe('ArticleView title link', () => {
   beforeEach(async () => {
     resetStores();
 
-    const apiClient = await import('../../../lib/apiClient');
+    const apiClient = await import('@/lib/api/apiClient');
     vi.mocked(apiClient.enqueueArticleFulltext).mockReset();
     vi.mocked(apiClient.getArticleTasks).mockReset();
     vi.mocked(apiClient.enqueueArticleFulltext).mockResolvedValue({
@@ -128,7 +128,7 @@ describe('ArticleView title link', () => {
       await Promise.resolve();
     });
 
-    const apiClient = await import('../../../lib/apiClient');
+    const apiClient = await import('@/lib/api/apiClient');
     await waitFor(() => {
       expect(apiClient.getArticleTasks).toHaveBeenCalledWith('article-1');
     });
@@ -338,7 +338,7 @@ describe('ArticleView title link', () => {
       await Promise.resolve();
     });
 
-    const apiClient = await import('../../../lib/apiClient');
+    const apiClient = await import('@/lib/api/apiClient');
     await waitFor(() => {
       expect(apiClient.getArticleTasks).toHaveBeenCalledWith('article-1');
     });

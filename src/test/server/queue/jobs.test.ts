@@ -10,7 +10,7 @@ import {
   JOB_FEED_FETCH,
   JOB_REFRESH_ALL,
   JOB_SYSTEM_LOG_CLEANUP,
-} from '../../../server/queue/jobs';
+} from '@/server/infra/queue/jobs';
 
 describe('queue jobs', () => {
   it('exports stable job names', () => {

@@ -9,29 +9,29 @@ const sanitizeContentMock = vi.fn();
 const extractFulltextMock = vi.fn();
 const fetchHtmlMock = vi.fn();
 
-vi.mock('../../../server/repositories/articlesRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articlesRepo', () => ({
   getArticleById: (...args: unknown[]) => getArticleByIdMock(...args),
   setArticleFulltext: (...args: unknown[]) => setArticleFulltextMock(...args),
   setArticleFulltextError: (...args: unknown[]) => setArticleFulltextErrorMock(...args),
 }));
 
-vi.mock('../../../server/repositories/settingsRepo', () => ({
+vi.mock('@/server/domains/settings/repositories/settingsRepo', () => ({
   getAppSettings: (...args: unknown[]) => getAppSettingsMock(...args),
 }));
 
-vi.mock('../../../server/rss/ssrfGuard', () => ({
+vi.mock('@/server/integrations/rss/ssrfGuard', () => ({
   isSafeExternalUrl: (...args: unknown[]) => isSafeExternalUrlMock(...args),
 }));
 
-vi.mock('../../../server/rss/sanitizeContent', () => ({
+vi.mock('@/server/integrations/rss/sanitizeContent', () => ({
   sanitizeContent: (...args: unknown[]) => sanitizeContentMock(...args),
 }));
 
-vi.mock('../../../server/fulltext/extractFulltext', () => ({
+vi.mock('@/server/integrations/fulltext/extractFulltext', () => ({
   extractFulltext: (...args: unknown[]) => extractFulltextMock(...args),
 }));
 
-vi.mock('../../../server/http/externalHttpClient', () => ({
+vi.mock('@/server/infra/http/externalHttpClient', () => ({
   fetchHtml: (...args: unknown[]) => fetchHtmlMock(...args),
 }));
 
@@ -93,7 +93,7 @@ describe('fetchFulltextAndStore', () => {
       html: '<html><body><main><p>World</p></main></body></html>',
     });
 
-    const mod = (await import('../../../server/fulltext/fetchFulltextAndStore')) as typeof import('../../../server/fulltext/fetchFulltextAndStore');
+    const mod = (await import('@/server/integrations/fulltext/fetchFulltextAndStore')) as typeof import('@/server/integrations/fulltext/fetchFulltextAndStore');
     await mod.fetchFulltextAndStore(pool as never, 'article-1');
 
     expect(fetchHtmlMock).toHaveBeenCalledWith(
@@ -137,7 +137,7 @@ describe('fetchFulltextAndStore', () => {
       html: challengeHtml,
     });
 
-    const mod = (await import('../../../server/fulltext/fetchFulltextAndStore')) as typeof import('../../../server/fulltext/fetchFulltextAndStore');
+    const mod = (await import('@/server/integrations/fulltext/fetchFulltextAndStore')) as typeof import('@/server/integrations/fulltext/fetchFulltextAndStore');
     await mod.fetchFulltextAndStore(pool as never, 'article-1');
 
     expect(extractFulltextMock).not.toHaveBeenCalled();
@@ -166,7 +166,7 @@ describe('fetchFulltextAndStore', () => {
       html: cloudflareChallengeHtml,
     });
 
-    const mod = (await import('../../../server/fulltext/fetchFulltextAndStore')) as typeof import('../../../server/fulltext/fetchFulltextAndStore');
+    const mod = (await import('@/server/integrations/fulltext/fetchFulltextAndStore')) as typeof import('@/server/integrations/fulltext/fetchFulltextAndStore');
     await mod.fetchFulltextAndStore(pool as never, 'article-1');
 
     expect(extractFulltextMock).not.toHaveBeenCalled();
@@ -200,7 +200,7 @@ describe('fetchFulltextAndStore', () => {
     });
     sanitizeContentMock.mockReturnValue('<p>Recovered</p>');
 
-    const mod = (await import('../../../server/fulltext/fetchFulltextAndStore')) as typeof import('../../../server/fulltext/fetchFulltextAndStore');
+    const mod = (await import('@/server/integrations/fulltext/fetchFulltextAndStore')) as typeof import('@/server/integrations/fulltext/fetchFulltextAndStore');
     await mod.fetchFulltextAndStore(pool as never, 'article-1');
 
     expect(fetchHtmlMock).toHaveBeenCalledTimes(1);

@@ -8,22 +8,22 @@ const updateAuthPasswordMock = vi.fn();
 
 const pool = {};
 
-vi.mock('@/server/auth/session', () => ({
+vi.mock('@/server/domains/auth/services/session', () => ({
   requireApiSession: (...args: unknown[]) => requireApiSessionMock(...args),
   verifyPasswordAgainstAuthConfig: (...args: unknown[]) =>
     verifyPasswordAgainstAuthConfigMock(...args),
   createSessionCookieHeader: (...args: unknown[]) => createSessionCookieHeaderMock(...args),
 }));
 
-vi.mock('@/server/auth/password', () => ({
+vi.mock('@/server/domains/auth/services/password', () => ({
   hashPassword: (...args: unknown[]) => hashPasswordMock(...args),
 }));
 
-vi.mock('@/server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
 
-vi.mock('@/server/repositories/settingsRepo', () => ({
+vi.mock('@/server/domains/settings/repositories/settingsRepo', () => ({
   updateAuthPassword: (...args: unknown[]) => updateAuthPasswordMock(...args),
 }));
 

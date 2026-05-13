@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const loginMock = vi.fn();
 
-vi.mock('@/lib/apiClient', async () => {
-  const actual = await vi.importActual<typeof import('@/lib/apiClient')>('@/lib/apiClient');
+vi.mock('@/lib/api/apiClient', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/api/apiClient')>('@/lib/api/apiClient');
   return {
     ...actual,
     login: (...args: unknown[]) => loginMock(...args),
@@ -33,7 +33,7 @@ describe('LoginPage', () => {
   });
 
   it('shows api error message when login fails', async () => {
-    const { ApiError } = await import('@/lib/apiClient');
+    const { ApiError } = await import('@/lib/api/apiClient');
     loginMock.mockRejectedValue(new ApiError('密码错误，请重试', 'unauthorized'));
 
     const { default: LoginPage } = await import('../../../features/auth/components/LoginPage');

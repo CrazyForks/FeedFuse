@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('db migrations', () => {
   it('adds ai_api_key column to app_settings', () => {
-    const migrationPath = 'src/server/db/migrations/0003_ai_api_key.sql';
+    const migrationPath = 'src/server/infra/db/migrations/0003_ai_api_key.sql';
     expect(existsSync(migrationPath)).toBe(true);
     const sql = readFileSync(migrationPath, 'utf8');
     expect(sql).toContain('ai_api_key');

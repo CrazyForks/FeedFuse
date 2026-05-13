@@ -1,5 +1,5 @@
 import type { Article, Feed, ViewType } from '../../../types';
-import { AI_DIGEST_VIEW_ID } from '../../../lib/view';
+import { AI_DIGEST_VIEW_ID } from '@/lib/reader/view';
 import { getArticleSectionHeading, getLocalDayKey } from '../../../utils/date';
 
 export interface ArticlePreviewImage {

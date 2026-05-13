@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rewriteHtmlImages } from '../../../server/media/rewriteHtmlImages';
+import { rewriteHtmlImages } from '@/server/integrations/media/rewriteHtmlImages';
 
 describe('rewriteHtmlImages', () => {
   it('rewrites img src and srcset without changing node order', () => {

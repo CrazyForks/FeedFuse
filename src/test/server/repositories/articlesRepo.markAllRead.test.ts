@@ -5,7 +5,7 @@ describe('articlesRepo (markAllRead)', () => {
   it('does not limit omitted feedId updates to rss feeds', async () => {
     const query = vi.fn().mockResolvedValue({ rowCount: 0 });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/articlesRepo')) as typeof import('../../../server/repositories/articlesRepo');
+    const mod = (await import('@/server/domains/articles/repositories/articlesRepo')) as typeof import('@/server/domains/articles/repositories/articlesRepo');
 
     await mod.markAllRead(pool, {});
     const sql = String(query.mock.calls[0]?.[0] ?? '');
@@ -15,7 +15,7 @@ describe('articlesRepo (markAllRead)', () => {
   it('does not inject rss-only when feedId is provided', async () => {
     const query = vi.fn().mockResolvedValue({ rowCount: 0 });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/articlesRepo')) as typeof import('../../../server/repositories/articlesRepo');
+    const mod = (await import('@/server/domains/articles/repositories/articlesRepo')) as typeof import('@/server/domains/articles/repositories/articlesRepo');
 
     await mod.markAllRead(pool, { feedId: 'feed-1' });
     const sql = String(query.mock.calls[0]?.[0] ?? '');

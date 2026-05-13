@@ -18,17 +18,17 @@ import {
   patchFeed,
   refreshAllFeeds,
   refreshFeed,
-} from "../../../lib/apiClient";
-import { resolveArticleBriefContent } from "../../../lib/articleSummary";
+} from "@/lib/api/apiClient";
+import { resolveArticleBriefContent } from "@/lib/reader/articleSummary";
 import { useRenderTimeSnapshot } from "../../../hooks";
-import { READER_PANE_HOVER_BACKGROUND_CLASS_NAME } from "@/lib/designSystem";
+import { READER_PANE_HOVER_BACKGROUND_CLASS_NAME } from "@/lib/ui/designSystem";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import {
   AI_DIGEST_VIEW_ID,
   isAggregateView as isAggregateReaderView,
   shouldUseDefaultUnreadOnly,
-} from "@/lib/view";
+} from "@/lib/reader/view";
 import type { ViewType } from "../../../types";
 import ReaderToolbarIconButton from "../../reader/components/ReaderToolbarIconButton";
 import {

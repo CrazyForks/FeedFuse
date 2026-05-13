@@ -1,44 +1,44 @@
 import crypto from 'node:crypto';
 import process from 'node:process';
 import type { PgBoss } from 'pg-boss';
-import { getPool } from '../server/db/pool';
+import { getPool } from '@/server/infra/db/pool';
 import {
   getFeedForFetch,
   listEnabledFeedsForFetch,
   recordFeedFetchResult,
-} from '../server/repositories/feedsRepo';
+} from '@/server/domains/feeds/repositories/feedsRepo';
 import {
   getArticleById,
   insertArticleIgnoreDuplicate,
   pruneFeedArticlesToLimit,
   recordArticleTitleTranslationFailure,
   setArticleTitleTranslation,
-} from '../server/repositories/articlesRepo';
+} from '@/server/domains/articles/repositories/articlesRepo';
 import {
   getAiApiKey,
   getAppSettings,
   getTranslationApiKey,
   getUiSettings,
-} from '../server/repositories/settingsRepo';
-import { fetchFeedXml } from '../server/rss/fetchFeedXml';
-import { parseFeed } from '../server/rss/parseFeed';
-import { sanitizeContent } from '../server/rss/sanitizeContent';
-import { isSafeExternalUrl } from '../server/rss/ssrfGuard';
-import { fetchFulltextAndStore } from '../server/fulltext/fetchFulltextAndStore';
-import { translateSegmentsInBatches } from '../server/ai/bilingualHtmlTranslator';
+} from '@/server/domains/settings/repositories/settingsRepo';
+import { fetchFeedXml } from '@/server/integrations/rss/fetchFeedXml';
+import { parseFeed } from '@/server/integrations/rss/parseFeed';
+import { sanitizeContent } from '@/server/integrations/rss/sanitizeContent';
+import { isSafeExternalUrl } from '@/server/integrations/rss/ssrfGuard';
+import { fetchFulltextAndStore } from '@/server/integrations/fulltext/fetchFulltextAndStore';
+import { translateSegmentsInBatches } from '@/server/integrations/ai/bilingualHtmlTranslator';
 import {
   createConfigFingerprintGuard,
   resolveAiConfigFingerprints,
-} from '../server/ai/configFingerprints';
-import { articleFilterJudge } from '../server/ai/articleFilterJudge';
-import { translateTitle } from '../server/ai/translateTitle';
+} from '@/server/integrations/ai/configFingerprints';
+import { articleFilterJudge } from '@/server/integrations/ai/articleFilterJudge';
+import { translateTitle } from '@/server/integrations/ai/translateTitle';
 import {
   isTranslationConfigComplete,
   resolveTranslationConfig,
-} from '../server/ai/translationConfig';
-import { startBoss } from '../server/queue/boss';
-import { bootstrapQueues } from '../server/queue/bootstrap';
-import { getQueueSendOptions, QUEUE_CONTRACTS } from '../server/queue/contracts';
+} from '@/server/integrations/ai/translationConfig';
+import { startBoss } from '@/server/infra/queue/boss';
+import { bootstrapQueues } from '@/server/infra/queue/bootstrap';
+import { getQueueSendOptions, QUEUE_CONTRACTS } from '@/server/infra/queue/contracts';
 import {
   JOB_AI_DIGEST_GENERATE,
   JOB_AI_DIGEST_TICK,
@@ -50,25 +50,25 @@ import {
   JOB_FEED_FETCH,
   JOB_REFRESH_ALL,
   JOB_SYSTEM_LOG_CLEANUP,
-} from '../server/queue/jobs';
-import { sampleQueueStats } from '../server/queue/observability';
-import { mapFeedFetchError } from '../server/tasks/feedFetchErrorMapping';
-import { normalizePersistedSettings } from '../features/settings/settingsSchema';
-import { registerWorkers } from './workerRegistry';
-import { buildFeedFetchJobData, selectFeedsForRefreshAll } from './refreshAll';
-import { isFeedDue } from './rssScheduler';
-import { runArticleTaskWithStatus } from './articleTaskStatus';
-import { runImmersiveTranslateSession } from './immersiveTranslateWorker';
-import { runAiSummaryStreamWorker } from './aiSummaryStreamWorker';
-import { runAiDigestTick } from './aiDigestTick';
-import { runAiDigestGenerate } from './aiDigestGenerate';
-import { runArticleFilterWorker, type ArticleFilterJobData } from './articleFilterWorker';
-import { runSystemLogCleanup } from './systemLogCleanup';
+} from '@/server/infra/queue/jobs';
+import { sampleQueueStats } from '@/server/infra/queue/observability';
+import { mapFeedFetchError } from '@/server/domains/feeds/tasks/feedFetchErrorMapping';
+import { normalizePersistedSettings } from '@/features/settings/settingsSchema';
+import { registerWorkers } from '@/worker/workerRegistry';
+import { buildFeedFetchJobData, selectFeedsForRefreshAll } from '@/worker/refreshAll';
+import { isFeedDue } from '@/worker/rssScheduler';
+import { runArticleTaskWithStatus } from '@/worker/articleTaskStatus';
+import { runImmersiveTranslateSession } from '@/worker/immersiveTranslateWorker';
+import { runAiSummaryStreamWorker } from '@/worker/aiSummaryStreamWorker';
+import { runAiDigestTick } from '@/worker/aiDigestTick';
+import { runAiDigestGenerate } from '@/worker/aiDigestGenerate';
+import { runArticleFilterWorker, type ArticleFilterJobData } from '@/worker/articleFilterWorker';
+import { runSystemLogCleanup } from '@/worker/systemLogCleanup';
 import {
   attachFeedRefreshRunItems,
   completeFeedRefreshRunItem,
   markFeedRefreshRunItemRunning,
-} from '../server/services/feedRefreshRunService';
+} from '@/server/domains/feeds/services/feedRefreshRunService';
 
 const DEFAULT_TRANSLATION_MODEL = 'gpt-4o-mini';
 const DEFAULT_TRANSLATION_API_BASE_URL = 'https://api.openai.com/v1';

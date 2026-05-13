@@ -1,13 +1,13 @@
 import type { PgBoss } from 'pg-boss';
 import type { Pool } from 'pg';
-import type { ArticleFilterSettings } from '../types';
-import { getQueueSendOptions } from '../server/queue/contracts';
-import { JOB_AI_TRANSLATE_TITLE } from '../server/queue/jobs';
-import { getArticleById, setArticleFilterPending, setArticleFilterResult } from '../server/repositories/articlesRepo';
-import { fetchFulltextAndStore } from '../server/fulltext/fetchFulltextAndStore';
-import { evaluateArticleFilter } from '../server/services/articleFilterService';
-import { evaluateArticleDuplicate, type ArticleDuplicateMatchResult } from '../server/services/articleDuplicateService';
-import { enqueueAutoAiTriggersOnFetch } from './autoAiTriggers';
+import type { ArticleFilterSettings } from '@/types';
+import { getQueueSendOptions } from '@/server/infra/queue/contracts';
+import { JOB_AI_TRANSLATE_TITLE } from '@/server/infra/queue/jobs';
+import { getArticleById, setArticleFilterPending, setArticleFilterResult } from '@/server/domains/articles/repositories/articlesRepo';
+import { fetchFulltextAndStore } from '@/server/integrations/fulltext/fetchFulltextAndStore';
+import { evaluateArticleFilter } from '@/server/domains/articles/services/articleFilterService';
+import { evaluateArticleDuplicate, type ArticleDuplicateMatchResult } from '@/server/domains/articles/services/articleDuplicateService';
+import { enqueueAutoAiTriggersOnFetch } from '@/worker/autoAiTriggers';
 
 export interface ArticleFilterJobData {
   articleId: string;

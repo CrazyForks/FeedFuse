@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { Article, Category, Feed, ViewType } from '../types';
 import { useSettingsStore } from './settingsStore';
-import { AI_DIGEST_VIEW_ID, shouldUseDefaultUnreadOnly } from '../lib/view';
+import { AI_DIGEST_VIEW_ID, shouldUseDefaultUnreadOnly } from '@/lib/reader/view';
 import {
   createAiDigest,
   createFeed,
@@ -17,7 +17,7 @@ import {
   patchFeed,
   patchArticle,
   refreshFeed,
-} from '../lib/apiClient';
+} from '@/lib/api/apiClient';
 import {
   runImmediateFailure,
   runImmediateSuccess,

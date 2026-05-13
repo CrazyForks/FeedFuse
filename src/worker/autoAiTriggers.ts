@@ -1,7 +1,7 @@
 import type { PgBoss } from 'pg-boss';
-import { evaluateArticleBodyTranslationEligibility } from '../server/ai/articleTranslationEligibility';
-import { getQueueSendOptions } from '../server/queue/contracts';
-import { JOB_AI_SUMMARIZE, JOB_AI_TRANSLATE } from '../server/queue/jobs';
+import { evaluateArticleBodyTranslationEligibility } from '@/server/integrations/ai/articleTranslationEligibility';
+import { getQueueSendOptions } from '@/server/infra/queue/contracts';
+import { JOB_AI_SUMMARIZE, JOB_AI_TRANSLATE } from '@/server/infra/queue/jobs';
 
 interface FeedAutoAiTriggerFlags {
   aiSummaryOnFetchEnabled: boolean;

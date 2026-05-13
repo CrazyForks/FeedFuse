@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { isAuthenticated } from '@/server/auth/session';
+import { isAuthenticated } from '@/server/domains/auth/services/session';
 import ReaderApp from './ReaderApp';
 import type { ViewType } from '../../types';
 

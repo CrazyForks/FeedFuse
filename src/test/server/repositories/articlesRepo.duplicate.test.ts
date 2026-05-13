@@ -5,7 +5,7 @@ describe('articlesRepo (duplicate)', () => {
   it('lists duplicate candidates within the 72 hour window', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/articlesRepo')) as typeof import('../../../server/repositories/articlesRepo');
+    const mod = (await import('@/server/domains/articles/repositories/articlesRepo')) as typeof import('@/server/domains/articles/repositories/articlesRepo');
 
     const listArticleDuplicateCandidates = (
       mod as Partial<{
@@ -34,7 +34,7 @@ describe('articlesRepo (duplicate)', () => {
   it('orders duplicate candidates by earliest fetched article first', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/articlesRepo')) as typeof import('../../../server/repositories/articlesRepo');
+    const mod = (await import('@/server/domains/articles/repositories/articlesRepo')) as typeof import('@/server/domains/articles/repositories/articlesRepo');
 
     const listArticleDuplicateCandidates = (
       mod as Partial<{
@@ -62,7 +62,7 @@ describe('articlesRepo (duplicate)', () => {
   it('excludes the current article and newer records from duplicate candidates', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/articlesRepo')) as typeof import('../../../server/repositories/articlesRepo');
+    const mod = (await import('@/server/domains/articles/repositories/articlesRepo')) as typeof import('@/server/domains/articles/repositories/articlesRepo');
 
     const listArticleDuplicateCandidates = (
       mod as Partial<{

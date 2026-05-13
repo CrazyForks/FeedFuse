@@ -1,4 +1,4 @@
-import { DESIGN_BREAKPOINTS } from '@/lib/designSystem';
+import { DESIGN_BREAKPOINTS } from '@/lib/ui/designSystem';
 
 export const READER_LEFT_PANE_MIN_WIDTH = 200;
 export const READER_LEFT_PANE_MAX_WIDTH = 420;

@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_TRANSLATION_PROMPT } from '../../../server/ai/promptTemplates';
+import { DEFAULT_TRANSLATION_PROMPT } from '@/server/integrations/ai/promptTemplates';
 
 const createOpenAIClientMock = vi.hoisted(() => vi.fn());
 const createCompletionMock = vi.hoisted(() => vi.fn());
 
-vi.mock('../../../server/ai/openaiClient', () => ({
+vi.mock('@/server/integrations/ai/openaiClient', () => ({
   createOpenAIClient: (...args: unknown[]) => {
     createOpenAIClientMock(...args);
     return {
@@ -28,7 +28,7 @@ describe('translateTitle', () => {
       choices: [{ message: { content: '你好世界' } }],
     });
 
-    const { translateTitle } = await import('../../../server/ai/translateTitle');
+    const { translateTitle } = await import('@/server/integrations/ai/translateTitle');
     const out = await translateTitle({
       apiBaseUrl: 'https://api.openai.com/v1',
       apiKey: 'sk-test',
@@ -57,7 +57,7 @@ describe('translateTitle', () => {
       choices: [{ message: { content: '你好世界' } }],
     });
 
-    const { translateTitle } = await import('../../../server/ai/translateTitle');
+    const { translateTitle } = await import('@/server/integrations/ai/translateTitle');
     await translateTitle({
       apiBaseUrl: 'https://api.openai.com/v1',
       apiKey: 'sk-test',

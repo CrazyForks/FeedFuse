@@ -3,7 +3,7 @@ import {
   buildImageProxyUrl,
   getImageProxySecret,
   hasValidImageProxySignature,
-} from '../../../server/media/imageProxyUrl';
+} from '@/server/integrations/media/imageProxyUrl';
 
 describe('imageProxyUrl', () => {
   it('builds a signed proxy url and rejects tampering', () => {

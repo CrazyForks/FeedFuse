@@ -6,15 +6,15 @@ const updateAiDigestWithCategoryResolutionMock = vi.fn();
 const writeUserOperationSucceededLogMock = vi.fn();
 const writeUserOperationFailedLogMock = vi.fn();
 
-vi.mock('../../../../../server/db/pool', () => ({ getPool: () => pool }));
-vi.mock('../../../../../server/repositories/aiDigestRepo', () => ({
+vi.mock('@/server/infra/db/pool', () => ({ getPool: () => pool }));
+vi.mock('@/server/domains/ai-digests/repositories/aiDigestRepo', () => ({
   getAiDigestConfigByFeedId: (...args: unknown[]) => getAiDigestConfigByFeedIdMock(...args),
 }));
-vi.mock('../../../../../server/services/aiDigestLifecycleService', () => ({
+vi.mock('@/server/domains/ai-digests/services/aiDigestLifecycleService', () => ({
   updateAiDigestWithCategoryResolution: (...args: unknown[]) =>
     updateAiDigestWithCategoryResolutionMock(...args),
 }));
-vi.mock('../../../../../server/logging/userOperationLogger', () => ({
+vi.mock('@/server/infra/logging/userOperationLogger', () => ({
   writeUserOperationSucceededLog: (...args: unknown[]) =>
     writeUserOperationSucceededLogMock(...args),
   writeUserOperationFailedLog: (...args: unknown[]) =>

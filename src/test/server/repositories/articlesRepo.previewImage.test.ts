@@ -5,7 +5,7 @@ describe('articlesRepo (preview image)', () => {
   it('inserts preview_image_url when provided', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/articlesRepo')) as typeof import('../../../server/repositories/articlesRepo');
+    const mod = (await import('@/server/domains/articles/repositories/articlesRepo')) as typeof import('@/server/domains/articles/repositories/articlesRepo');
 
     await mod.insertArticleIgnoreDuplicate(
       pool,

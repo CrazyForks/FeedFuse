@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ConflictError, NotFoundError, ValidationError } from '../../../server/http/errors';
+import { ConflictError, NotFoundError, ValidationError } from '@/server/infra/http/errors';
 
 describe('errors', () => {
   it('serializes validation fields', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildOpmlDocument, parseOpmlDocument } from '../../../server/opml/opmlDocument';
+import { buildOpmlDocument, parseOpmlDocument } from '@/server/integrations/opml/opmlDocument';
 
 describe('parseOpmlDocument', () => {
   it('uses the nearest outline ancestor as category and falls back title to xmlUrl', () => {

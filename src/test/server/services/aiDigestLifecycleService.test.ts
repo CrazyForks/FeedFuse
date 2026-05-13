@@ -11,17 +11,17 @@ const createAiDigestFeedMock = vi.fn();
 const createAiDigestConfigMock = vi.fn();
 const updateFeedMock = vi.fn();
 
-vi.mock('../../../server/repositories/categoriesRepo', () => ({
+vi.mock('@/server/domains/feeds/repositories/categoriesRepo', () => ({
   findCategoryByNormalizedName: (...args: unknown[]) =>
     findCategoryByNormalizedNameMock(...args),
   getNextCategoryPosition: (...args: unknown[]) => getNextCategoryPositionMock(...args),
   createCategory: (...args: unknown[]) => createCategoryMock(...args),
 }));
-vi.mock('../../../server/repositories/feedsRepo', () => ({
+vi.mock('@/server/domains/feeds/repositories/feedsRepo', () => ({
   createAiDigestFeed: (...args: unknown[]) => createAiDigestFeedMock(...args),
   updateFeed: (...args: unknown[]) => updateFeedMock(...args),
 }));
-vi.mock('../../../server/repositories/aiDigestRepo', () => ({
+vi.mock('@/server/domains/ai-digests/repositories/aiDigestRepo', () => ({
   createAiDigestConfig: (...args: unknown[]) => createAiDigestConfigMock(...args),
 }));
 
@@ -54,7 +54,7 @@ describe('aiDigestLifecycleService', () => {
     });
 
     const pool = { connect: connectMock };
-    const { createAiDigestWithCategoryResolution } = await import('../../../server/services/aiDigestLifecycleService');
+    const { createAiDigestWithCategoryResolution } = await import('@/server/domains/ai-digests/services/aiDigestLifecycleService');
 
     await expect(
       createAiDigestWithCategoryResolution(pool as never, {
@@ -100,7 +100,7 @@ describe('aiDigestLifecycleService', () => {
     });
 
     const pool = { connect: connectMock };
-    const { createAiDigestWithCategoryResolution } = await import('../../../server/services/aiDigestLifecycleService');
+    const { createAiDigestWithCategoryResolution } = await import('@/server/domains/ai-digests/services/aiDigestLifecycleService');
 
     await expect(
       createAiDigestWithCategoryResolution(pool as never, {

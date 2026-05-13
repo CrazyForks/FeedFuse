@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { ApiError } from "@/lib/apiClient";
-import { mapApiErrorToUserMessage } from "@/lib/mapApiErrorToUserMessage";
+import { ApiError } from "@/lib/api/apiClient";
+import { mapApiErrorToUserMessage } from "@/lib/api/mapApiErrorToUserMessage";
 import type { Category, Feed } from "../../../types";
 import { useAppStore } from "../../../store/appStore";
 import { runImmediateOperation } from "../../notifications/userOperationNotifier";

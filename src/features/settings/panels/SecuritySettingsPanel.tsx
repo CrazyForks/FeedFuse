@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ApiError, changePassword, logout } from '@/lib/apiClient';
+import { ApiError, changePassword, logout } from '@/lib/api/apiClient';
 import SettingTooltipLabel from '../components/SettingTooltipLabel';
 
 export default function SecuritySettingsPanel() {

@@ -1,16 +1,16 @@
-import { requireApiSession } from '@/server/auth/session';
+import { requireApiSession } from '@/server/domains/auth/services/session';
 import { z } from 'zod';
-import { getPool } from '../../../../../server/db/pool';
-import { ok, fail } from '../../../../../server/http/apiResponse';
-import { NotFoundError, ValidationError } from '../../../../../server/http/errors';
-import { numericIdSchema } from '../../../../../server/http/idSchemas';
-import { getArticleById } from '../../../../../server/repositories/articlesRepo';
-import { upsertTaskQueued } from '../../../../../server/repositories/articleTasksRepo';
-import { getFeedFullTextOnOpenEnabled } from '../../../../../server/repositories/feedsRepo';
-import { getQueueSendOptions } from '../../../../../server/queue/contracts';
-import { enqueueWithResult } from '../../../../../server/queue/queue';
-import { JOB_ARTICLE_FULLTEXT_FETCH } from '../../../../../server/queue/jobs';
-import { getUsableFulltextHtml } from '../../../../../server/fulltext/fulltextVerification';
+import { getPool } from '@/server/infra/db/pool';
+import { ok, fail } from '@/server/infra/http/apiResponse';
+import { NotFoundError, ValidationError } from '@/server/infra/http/errors';
+import { numericIdSchema } from '@/server/infra/http/idSchemas';
+import { getArticleById } from '@/server/domains/articles/repositories/articlesRepo';
+import { upsertTaskQueued } from '@/server/domains/articles/repositories/articleTasksRepo';
+import { getFeedFullTextOnOpenEnabled } from '@/server/domains/feeds/repositories/feedsRepo';
+import { getQueueSendOptions } from '@/server/infra/queue/contracts';
+import { enqueueWithResult } from '@/server/infra/queue/queue';
+import { JOB_ARTICLE_FULLTEXT_FETCH } from '@/server/infra/queue/jobs';
+import { getUsableFulltextHtml } from '@/server/integrations/fulltext/fulltextVerification';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

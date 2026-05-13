@@ -1,8 +1,8 @@
-import { requireApiSession } from '@/server/auth/session';
+import { requireApiSession } from '@/server/domains/auth/services/session';
 import Parser from 'rss-parser';
-import { ok } from '../../../../server/http/apiResponse';
-import { fetchRssXml } from '../../../../server/http/externalHttpClient';
-import { isSafeExternalUrl } from '../../../../server/rss/ssrfGuard';
+import { ok } from '@/server/infra/http/apiResponse';
+import { fetchRssXml } from '@/server/infra/http/externalHttpClient';
+import { isSafeExternalUrl } from '@/server/integrations/rss/ssrfGuard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

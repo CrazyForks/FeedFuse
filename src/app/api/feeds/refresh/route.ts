@@ -1,10 +1,10 @@
-import { requireApiSession } from '@/server/auth/session';
-import { ok, fail } from '../../../../server/http/apiResponse';
-import { getQueueSendOptions } from '../../../../server/queue/contracts';
-import { JOB_REFRESH_ALL } from '../../../../server/queue/jobs';
-import { enqueueWithResult } from '../../../../server/queue/queue';
-import { getPool } from '../../../../server/db/pool';
-import { initializeFeedRefreshRun } from '../../../../server/services/feedRefreshRunService';
+import { requireApiSession } from '@/server/domains/auth/services/session';
+import { ok, fail } from '@/server/infra/http/apiResponse';
+import { getQueueSendOptions } from '@/server/infra/queue/contracts';
+import { JOB_REFRESH_ALL } from '@/server/infra/queue/jobs';
+import { enqueueWithResult } from '@/server/infra/queue/queue';
+import { getPool } from '@/server/infra/db/pool';
+import { initializeFeedRefreshRun } from '@/server/domains/feeds/services/feedRefreshRunService';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

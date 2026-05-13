@@ -7,13 +7,13 @@ const getArticleByIdMock = vi.fn();
 const getActiveAiSummarySessionByArticleIdMock = vi.fn();
 const listAiSummaryEventsAfterMock = vi.fn();
 
-vi.mock('../../../../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
-vi.mock('../../../../../../../server/repositories/articlesRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articlesRepo', () => ({
   getArticleById: (...args: unknown[]) => getArticleByIdMock(...args),
 }));
-vi.mock('../../../../../../../server/repositories/articleAiSummaryRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articleAiSummaryRepo', () => ({
   getActiveAiSummarySessionByArticleId: (...args: unknown[]) =>
     getActiveAiSummarySessionByArticleIdMock(...args),
   listAiSummaryEventsAfter: (...args: unknown[]) => listAiSummaryEventsAfterMock(...args),

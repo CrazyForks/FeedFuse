@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('db migrations', () => {
   it('adds article_tasks table', () => {
-    const migrationPath = 'src/server/db/migrations/0013_article_tasks.sql';
+    const migrationPath = 'src/server/infra/db/migrations/0013_article_tasks.sql';
     expect(existsSync(migrationPath)).toBe(true);
     const sql = readFileSync(migrationPath, 'utf8');
     expect(sql).toContain('create table if not exists article_tasks');

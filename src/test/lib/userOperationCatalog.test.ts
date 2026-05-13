@@ -4,7 +4,7 @@ import {
   renderUserOperationFailure,
   renderUserOperationSuccess,
   shouldEmitUserOperationToast,
-} from '../../lib/userOperationCatalog';
+} from '@/lib/userOperationCatalog';
 
 describe('userOperationCatalog', () => {
   it('renders success without reason and error with short reason', () => {

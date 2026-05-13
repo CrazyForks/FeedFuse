@@ -1,24 +1,24 @@
-import { requireApiSession } from '@/server/auth/session';
-import { getPool } from '../../../server/db/pool';
-import { ok, fail } from '../../../server/http/apiResponse';
-import { cleanupAiRuntimeState } from '../../../server/ai/cleanupAiRuntimeState';
+import { requireApiSession } from '@/server/domains/auth/services/session';
+import { getPool } from '@/server/infra/db/pool';
+import { ok, fail } from '@/server/infra/http/apiResponse';
+import { cleanupAiRuntimeState } from '@/server/integrations/ai/cleanupAiRuntimeState';
 import {
   hasAiCleanupScopes,
   resolveAiCleanupScopesForInputs,
-} from '../../../server/ai/configFingerprints';
-import { writeSystemLog } from '../../../server/logging/systemLogger';
+} from '@/server/integrations/ai/configFingerprints';
+import { writeSystemLog } from '@/server/infra/logging/systemLogger';
 import {
   writeUserOperationFailedLog,
   writeUserOperationSucceededLog,
-} from '../../../server/logging/userOperationLogger';
-import { pruneAllFeedsArticlesToLimit } from '../../../server/repositories/articlesRepo';
+} from '@/server/infra/logging/userOperationLogger';
+import { pruneAllFeedsArticlesToLimit } from '@/server/domains/articles/repositories/articlesRepo';
 import {
   getAiApiKey,
   getTranslationApiKey,
   getUiSettings,
   updateUiSettings,
-} from '../../../server/repositories/settingsRepo';
-import { updateAllFeedsFetchIntervalMinutes } from '../../../server/repositories/feedsRepo';
+} from '@/server/domains/settings/repositories/settingsRepo';
+import { updateAllFeedsFetchIntervalMinutes } from '@/server/domains/feeds/repositories/feedsRepo';
 import { normalizePersistedSettings } from '../../../features/settings/settingsSchema';
 
 export const runtime = 'nodejs';

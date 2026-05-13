@@ -5,7 +5,7 @@ describe('articlesRepo (ai translation)', () => {
   it('getArticleById selects ai translation fields', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/articlesRepo')) as typeof import('../../../server/repositories/articlesRepo');
+    const mod = (await import('@/server/domains/articles/repositories/articlesRepo')) as typeof import('@/server/domains/articles/repositories/articlesRepo');
 
     await mod.getArticleById(pool, 'a1');
 
@@ -19,7 +19,7 @@ describe('articlesRepo (ai translation)', () => {
   it('setArticleAiTranslationZh updates ai translation fields', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/articlesRepo')) as typeof import('../../../server/repositories/articlesRepo');
+    const mod = (await import('@/server/domains/articles/repositories/articlesRepo')) as typeof import('@/server/domains/articles/repositories/articlesRepo');
 
     const setArticleAiTranslationZh = (
       mod as Partial<{
@@ -48,7 +48,7 @@ describe('articlesRepo (ai translation)', () => {
   it('setArticleAiTranslationBilingual updates bilingual ai translation fields', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/articlesRepo')) as typeof import('../../../server/repositories/articlesRepo');
+    const mod = (await import('@/server/domains/articles/repositories/articlesRepo')) as typeof import('@/server/domains/articles/repositories/articlesRepo');
 
     const setArticleAiTranslationBilingual = (
       mod as Partial<{

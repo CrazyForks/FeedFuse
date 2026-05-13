@@ -1,7 +1,7 @@
 import type { Pool, PoolClient } from 'pg';
-import { normalizePersistedSettings } from '../features/settings/settingsSchema';
-import { getUiSettings } from '../server/repositories/settingsRepo';
-import { deleteExpiredSystemLogs } from '../server/repositories/systemLogsRepo';
+import { normalizePersistedSettings } from '@/features/settings/settingsSchema';
+import { getUiSettings } from '@/server/domains/settings/repositories/settingsRepo';
+import { deleteExpiredSystemLogs } from '@/server/domains/settings/repositories/systemLogsRepo';
 
 type Queryable = Pool | PoolClient;
 

@@ -1,7 +1,7 @@
 import type { PgBoss } from 'pg-boss';
 import { describe, expect, it, vi } from 'vitest';
-import { getQueueSendOptions } from '../../server/queue/contracts';
-import { JOB_AI_SUMMARIZE, JOB_AI_TRANSLATE } from '../../server/queue/jobs';
+import { getQueueSendOptions } from '@/server/infra/queue/contracts';
+import { JOB_AI_SUMMARIZE, JOB_AI_TRANSLATE } from '@/server/infra/queue/jobs';
 
 describe('auto ai triggers', () => {
   it('enqueues ai_summary and ai_translate after insert when feed on-fetch flags are enabled', async () => {

@@ -19,11 +19,11 @@ vi.mock('openai', () => ({
   },
 }));
 
-vi.mock('../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
 
-vi.mock('../../../server/logging/systemLogger', () => ({
+vi.mock('@/server/infra/logging/systemLogger', () => ({
   writeSystemLog: (...args: unknown[]) => writeSystemLogMock(...args),
 }));
 
@@ -35,7 +35,7 @@ describe('openaiClient', () => {
   });
 
   it('normalizes baseURL by trimming trailing slash only', async () => {
-    const mod = await import('../../../server/ai/openaiClient');
+    const mod = await import('@/server/integrations/ai/openaiClient');
     expect(mod.normalizeBaseUrl('https://api.openai.com/v1/')).toBe('https://api.openai.com/v1');
     expect(mod.normalizeBaseUrl('https://api.openai.com/v1')).toBe('https://api.openai.com/v1');
   });
@@ -46,7 +46,7 @@ describe('openaiClient', () => {
       .mockResolvedValueOnce({
         choices: [{ message: { content: 'ok' } }],
       });
-    const mod = await import('../../../server/ai/openaiClient');
+    const mod = await import('@/server/integrations/ai/openaiClient');
 
     const client = mod.createOpenAIClient({
       apiBaseUrl: 'http://localhost:8317/v1/',
@@ -95,7 +95,7 @@ describe('openaiClient', () => {
     createCompletionMock.mockResolvedValue({
       choices: [{ message: { content: 'ok' } }],
     });
-    const mod = await import('../../../server/ai/openaiClient');
+    const mod = await import('@/server/integrations/ai/openaiClient');
 
     const client = mod.createOpenAIClient({
       apiBaseUrl: 'https://api.openai.com/v1/',
@@ -132,7 +132,7 @@ describe('openaiClient', () => {
 
   it('writes failure logs with details text', async () => {
     createCompletionMock.mockRejectedValue(new Error('Rate limit exceeded'));
-    const mod = await import('../../../server/ai/openaiClient');
+    const mod = await import('@/server/integrations/ai/openaiClient');
 
     const client = mod.createOpenAIClient({
       apiBaseUrl: 'https://api.openai.com/v1/',

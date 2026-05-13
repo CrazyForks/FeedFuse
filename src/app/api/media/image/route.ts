@@ -1,11 +1,11 @@
-import { requireApiSession } from '@/server/auth/session';
+import { requireApiSession } from '@/server/domains/auth/services/session';
 import { z } from 'zod';
-import { getServerEnv } from '../../../../server/env';
-import { fetchImageStream } from '../../../../server/http/externalHttpClient';
+import { getServerEnv } from '@/server/infra/env';
+import { fetchImageStream } from '@/server/infra/http/externalHttpClient';
 import {
   getImageProxySecret,
   hasValidImageProxySignature,
-} from '../../../../server/media/imageProxyUrl';
+} from '@/server/integrations/media/imageProxyUrl';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

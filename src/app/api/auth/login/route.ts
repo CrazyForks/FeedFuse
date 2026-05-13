@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { ok, fail } from '@/server/http/apiResponse';
-import { ServiceUnavailableError, UnauthorizedError, ValidationError } from '@/server/http/errors';
-import { AUTH_INITIAL_PASSWORD_SETUP_MESSAGE } from '@/server/auth/shared';
-import { createSessionCookieHeader, verifyPasswordAgainstAuthConfig } from '@/server/auth/session';
+import { ok, fail } from '@/server/infra/http/apiResponse';
+import { ServiceUnavailableError, UnauthorizedError, ValidationError } from '@/server/infra/http/errors';
+import { AUTH_INITIAL_PASSWORD_SETUP_MESSAGE } from '@/server/domains/auth/services/shared';
+import { createSessionCookieHeader, verifyPasswordAgainstAuthConfig } from '@/server/domains/auth/services/session';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

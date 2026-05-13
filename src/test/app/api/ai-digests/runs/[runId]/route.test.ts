@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const pool = {};
 const getAiDigestRunByIdMock = vi.fn();
 
-vi.mock('../../../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
 
-vi.mock('../../../../../../server/repositories/aiDigestRepo', () => ({
+vi.mock('@/server/domains/ai-digests/repositories/aiDigestRepo', () => ({
   getAiDigestRunById: (...args: unknown[]) => getAiDigestRunByIdMock(...args),
 }));
 

@@ -1,7 +1,7 @@
-import { requireApiSession } from '@/server/auth/session';
-import { getPool } from '../../../../../server/db/pool';
-import { numericIdSchema } from '../../../../../server/http/idSchemas';
-import { getOrFetchFeedFavicon } from '../../../../../server/services/feedFaviconService';
+import { requireApiSession } from '@/server/domains/auth/services/session';
+import { getPool } from '@/server/infra/db/pool';
+import { numericIdSchema } from '@/server/infra/http/idSchemas';
+import { getOrFetchFeedFavicon } from '@/server/domains/feeds/services/feedFaviconService';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

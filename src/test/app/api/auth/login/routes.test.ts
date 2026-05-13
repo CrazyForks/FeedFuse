@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const verifyPasswordAgainstAuthConfigMock = vi.fn();
 const createSessionCookieHeaderMock = vi.fn();
 
-vi.mock('@/server/auth/session', () => ({
+vi.mock('@/server/domains/auth/services/session', () => ({
   verifyPasswordAgainstAuthConfig: (...args: unknown[]) =>
     verifyPasswordAgainstAuthConfigMock(...args),
   createSessionCookieHeader: (...args: unknown[]) => createSessionCookieHeaderMock(...args),

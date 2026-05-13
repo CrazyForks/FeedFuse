@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('db migrations', () => {
   it('adds article title translation and bilingual body columns', () => {
-    const migrationPath = 'src/server/db/migrations/0011_article_bilingual_translation.sql';
+    const migrationPath = 'src/server/infra/db/migrations/0011_article_bilingual_translation.sql';
     expect(existsSync(migrationPath)).toBe(true);
     const sql = readFileSync(migrationPath, 'utf8');
     expect(sql).toContain('title_original');

@@ -2,7 +2,7 @@
 
 import { LoaderCircle, Search } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { searchArticles, type ArticleSearchItemDto } from '@/lib/apiClient';
+import { searchArticles, type ArticleSearchItemDto } from '@/lib/api/apiClient';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,

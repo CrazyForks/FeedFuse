@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { clearApiErrorNotifier, setApiErrorNotifier } from '@/lib/apiErrorNotifier';
-import { validateRssUrl } from '../../../../features/feeds/services/rssValidationService';
+import { clearApiErrorNotifier, setApiErrorNotifier } from '@/lib/api/apiErrorNotifier';
+import { validateRssUrl } from '@/features/feeds/utils/rssValidation';
 
 describe('validateRssUrl', () => {
   let fetchMock: ReturnType<typeof vi.fn>;

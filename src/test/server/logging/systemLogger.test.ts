@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const getUiSettingsMock = vi.fn();
 const insertSystemLogMock = vi.fn();
 
-vi.mock('../../../server/repositories/settingsRepo', () => ({
+vi.mock('@/server/domains/settings/repositories/settingsRepo', () => ({
   getUiSettings: (...args: unknown[]) => getUiSettingsMock(...args),
 }));
 
-vi.mock('../../../server/repositories/systemLogsRepo', () => ({
+vi.mock('@/server/domains/settings/repositories/systemLogsRepo', () => ({
   insertSystemLog: (...args: unknown[]) => insertSystemLogMock(...args),
 }));
 
@@ -20,7 +20,7 @@ describe('systemLogger', () => {
   it('skips insert when logging is disabled', async () => {
     getUiSettingsMock.mockResolvedValue({ logging: { enabled: false, retentionDays: 7, minLevel: 'info' } });
 
-    const mod = await import('../../../server/logging/systemLogger');
+    const mod = await import('@/server/infra/logging/systemLogger');
     const result = await mod.writeSystemLog(
       {} as never,
       { level: 'info', category: 'settings', source: 'route', message: 'x' },
@@ -33,7 +33,7 @@ describe('systemLogger', () => {
   it('skips info logs when minLevel is warning', async () => {
     getUiSettingsMock.mockResolvedValue({ logging: { enabled: true, retentionDays: 7, minLevel: 'warning' } });
 
-    const mod = await import('../../../server/logging/systemLogger');
+    const mod = await import('@/server/infra/logging/systemLogger');
     const result = await mod.writeSystemLog(
       {} as never,
       { level: 'info', category: 'settings', source: 'route', message: 'x' },
@@ -46,7 +46,7 @@ describe('systemLogger', () => {
   it('force writes boundary logs even when logging is disabled', async () => {
     getUiSettingsMock.mockResolvedValue({ logging: { enabled: false, retentionDays: 7, minLevel: 'error' } });
 
-    const mod = await import('../../../server/logging/systemLogger');
+    const mod = await import('@/server/infra/logging/systemLogger');
     const result = await mod.writeSystemLog(
       {} as never,
       { level: 'info', category: 'settings', source: 'route', message: 'Logging enabled' },

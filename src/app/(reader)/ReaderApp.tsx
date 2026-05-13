@@ -6,7 +6,7 @@ import { useTheme } from '../../hooks';
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '../../store/appStore';
 import { useSettingsStore } from '../../store/settingsStore';
-import { shouldUseDefaultUnreadOnly } from '../../lib/view';
+import { shouldUseDefaultUnreadOnly } from '@/lib/reader/view';
 import type { ViewType } from '../../types';
 
 const AUTO_SNAPSHOT_REFRESH_INTERVAL_MS = 5 * 60 * 1000;

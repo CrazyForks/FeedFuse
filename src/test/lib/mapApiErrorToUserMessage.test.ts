@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ApiError } from '../../lib/apiClient';
-import { mapApiErrorToUserMessage } from '../../lib/mapApiErrorToUserMessage';
+import { ApiError } from '@/lib/api/apiClient';
+import { mapApiErrorToUserMessage } from '@/lib/api/mapApiErrorToUserMessage';
 
 describe('mapApiErrorToUserMessage', () => {
   it('returns ApiError message directly when present', () => {

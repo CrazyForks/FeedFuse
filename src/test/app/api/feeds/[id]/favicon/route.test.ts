@@ -2,15 +2,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getOrFetchFeedFaviconMock = vi.fn();
 
-vi.mock('@/server/auth/session', () => ({
+vi.mock('@/server/domains/auth/services/session', () => ({
   requireApiSession: vi.fn().mockResolvedValue(null),
 }));
 
-vi.mock('../../../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: vi.fn(() => ({})),
 }));
 
-vi.mock('../../../../../../server/services/feedFaviconService', () => ({
+vi.mock('@/server/domains/feeds/services/feedFaviconService', () => ({
   getOrFetchFeedFavicon: (...args: unknown[]) => getOrFetchFeedFaviconMock(...args),
 }));
 

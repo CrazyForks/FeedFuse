@@ -5,7 +5,7 @@ import { useAppStore } from '../../../store/appStore';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { defaultPersistedSettings } from '../../../features/settings/settingsSchema';
 
-type ApiClientModule = typeof import('../../../lib/apiClient');
+type ApiClientModule = typeof import('@/lib/api/apiClient');
 
 const idleTasks = {
   fulltext: {
@@ -43,8 +43,8 @@ const idleTasks = {
   },
 };
 
-vi.mock('../../../lib/apiClient', async () => {
-  const actual = await vi.importActual<ApiClientModule>('../../../lib/apiClient');
+vi.mock('@/lib/api/apiClient', async () => {
+  const actual = await vi.importActual<ApiClientModule>('@/lib/api/apiClient');
   return {
     ...actual,
     enqueueArticleAiSummary: vi.fn(),
@@ -96,7 +96,7 @@ describe('ArticleView scroll assist', () => {
     resizeObserver = setupResizeObserverMock();
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1280 });
 
-    const apiClient = await import('../../../lib/apiClient');
+    const apiClient = await import('@/lib/api/apiClient');
     vi.mocked(apiClient.enqueueArticleAiSummary).mockReset();
     vi.mocked(apiClient.enqueueArticleFulltext).mockReset();
     vi.mocked(apiClient.getArticleTasks).mockReset();

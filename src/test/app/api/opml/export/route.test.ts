@@ -6,14 +6,14 @@ const pool = {};
 const writeUserOperationSucceededLogMock = vi.fn();
 const writeUserOperationFailedLogMock = vi.fn();
 
-vi.mock('../../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => getPoolMock(),
 }));
 
-vi.mock('../../../../../server/services/opmlService', () => ({
+vi.mock('@/server/domains/settings/services/opmlService', () => ({
   exportOpml: (...args: unknown[]) => exportOpmlMock(...args),
 }));
-vi.mock('../../../../../server/logging/userOperationLogger', () => ({
+vi.mock('@/server/infra/logging/userOperationLogger', () => ({
   writeUserOperationSucceededLog: (...args: unknown[]) =>
     writeUserOperationSucceededLogMock(...args),
   writeUserOperationFailedLog: (...args: unknown[]) =>

@@ -10,21 +10,21 @@ const setAiApiKeyMock = vi.fn();
 const clearAiApiKeyMock = vi.fn();
 const cleanupAiRuntimeStateMock = vi.fn();
 
-vi.mock('../../../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
-vi.mock('../../../../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
 
-vi.mock('../../../../../../server/repositories/settingsRepo', () => ({
+vi.mock('@/server/domains/settings/repositories/settingsRepo', () => ({
   getAiApiKey: (...args: unknown[]) => getAiApiKeyMock(...args),
   getUiSettings: (...args: unknown[]) => getUiSettingsMock(...args),
   getTranslationApiKey: (...args: unknown[]) => getTranslationApiKeyMock(...args),
   setAiApiKey: (...args: unknown[]) => setAiApiKeyMock(...args),
   clearAiApiKey: (...args: unknown[]) => clearAiApiKeyMock(...args),
 }));
-vi.mock('../../../../../../../server/repositories/settingsRepo', () => ({
+vi.mock('@/server/domains/settings/repositories/settingsRepo', () => ({
   getAiApiKey: (...args: unknown[]) => getAiApiKeyMock(...args),
   getUiSettings: (...args: unknown[]) => getUiSettingsMock(...args),
   getTranslationApiKey: (...args: unknown[]) => getTranslationApiKeyMock(...args),
@@ -32,10 +32,10 @@ vi.mock('../../../../../../../server/repositories/settingsRepo', () => ({
   clearAiApiKey: (...args: unknown[]) => clearAiApiKeyMock(...args),
 }));
 
-vi.mock('../../../../../../server/ai/cleanupAiRuntimeState', () => ({
+vi.mock('@/server/integrations/ai/cleanupAiRuntimeState', () => ({
   cleanupAiRuntimeState: (...args: unknown[]) => cleanupAiRuntimeStateMock(...args),
 }));
-vi.mock('../../../../../../../server/ai/cleanupAiRuntimeState', () => ({
+vi.mock('@/server/integrations/ai/cleanupAiRuntimeState', () => ({
   cleanupAiRuntimeState: (...args: unknown[]) => cleanupAiRuntimeStateMock(...args),
 }));
 

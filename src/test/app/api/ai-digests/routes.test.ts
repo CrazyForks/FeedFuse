@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getQueueSendOptions } from '../../../../server/queue/contracts';
-import { JOB_AI_DIGEST_GENERATE } from '../../../../server/queue/jobs';
+import { getQueueSendOptions } from '@/server/infra/queue/contracts';
+import { JOB_AI_DIGEST_GENERATE } from '@/server/infra/queue/jobs';
 
 const pool = { connect: vi.fn(), query: vi.fn() };
 const createAiDigestWithCategoryResolutionMock = vi.fn();
@@ -17,51 +17,51 @@ const writeUserOperationStartedLogMock = vi.fn();
 const writeUserOperationSucceededLogMock = vi.fn();
 const writeUserOperationFailedLogMock = vi.fn();
 
-vi.mock('../../../../server/db/pool', () => ({ getPool: () => pool }));
-vi.mock('../../../../../server/db/pool', () => ({ getPool: () => pool }));
-vi.mock('../../../../../../server/db/pool', () => ({ getPool: () => pool }));
+vi.mock('@/server/infra/db/pool', () => ({ getPool: () => pool }));
+vi.mock('@/server/infra/db/pool', () => ({ getPool: () => pool }));
+vi.mock('@/server/infra/db/pool', () => ({ getPool: () => pool }));
 
-vi.mock('../../../../server/services/aiDigestLifecycleService', () => ({
+vi.mock('@/server/domains/ai-digests/services/aiDigestLifecycleService', () => ({
   createAiDigestWithCategoryResolution: (...args: unknown[]) =>
     createAiDigestWithCategoryResolutionMock(...args),
   updateAiDigestWithCategoryResolution: (...args: unknown[]) =>
     updateAiDigestWithCategoryResolutionMock(...args),
 }));
-vi.mock('../../../../../server/services/aiDigestLifecycleService', () => ({
+vi.mock('@/server/domains/ai-digests/services/aiDigestLifecycleService', () => ({
   createAiDigestWithCategoryResolution: (...args: unknown[]) =>
     createAiDigestWithCategoryResolutionMock(...args),
   updateAiDigestWithCategoryResolution: (...args: unknown[]) =>
     updateAiDigestWithCategoryResolutionMock(...args),
 }));
 
-vi.mock('../../../../server/repositories/settingsRepo', () => ({
+vi.mock('@/server/domains/settings/repositories/settingsRepo', () => ({
   getAiApiKey: (...args: unknown[]) => getAiApiKeyMock(...args),
   getUiSettings: (...args: unknown[]) => getUiSettingsMock(...args),
 }));
-vi.mock('../../../../../server/repositories/settingsRepo', () => ({
+vi.mock('@/server/domains/settings/repositories/settingsRepo', () => ({
   getAiApiKey: (...args: unknown[]) => getAiApiKeyMock(...args),
   getUiSettings: (...args: unknown[]) => getUiSettingsMock(...args),
 }));
-vi.mock('../../../../../../server/repositories/settingsRepo', () => ({
+vi.mock('@/server/domains/settings/repositories/settingsRepo', () => ({
   getAiApiKey: (...args: unknown[]) => getAiApiKeyMock(...args),
   getUiSettings: (...args: unknown[]) => getUiSettingsMock(...args),
 }));
 
-vi.mock('../../../../server/repositories/aiDigestRepo', () => ({
+vi.mock('@/server/domains/ai-digests/repositories/aiDigestRepo', () => ({
   getAiDigestConfigByFeedId: (...args: unknown[]) => getAiDigestConfigByFeedIdMock(...args),
   createAiDigestRun: (...args: unknown[]) => createAiDigestRunMock(...args),
   getAiDigestRunByFeedIdAndWindowStartAt: (...args: unknown[]) =>
     getAiDigestRunByFeedIdAndWindowStartAtMock(...args),
   updateAiDigestRun: (...args: unknown[]) => updateAiDigestRunMock(...args),
 }));
-vi.mock('../../../../../server/repositories/aiDigestRepo', () => ({
+vi.mock('@/server/domains/ai-digests/repositories/aiDigestRepo', () => ({
   getAiDigestConfigByFeedId: (...args: unknown[]) => getAiDigestConfigByFeedIdMock(...args),
   createAiDigestRun: (...args: unknown[]) => createAiDigestRunMock(...args),
   getAiDigestRunByFeedIdAndWindowStartAt: (...args: unknown[]) =>
     getAiDigestRunByFeedIdAndWindowStartAtMock(...args),
   updateAiDigestRun: (...args: unknown[]) => updateAiDigestRunMock(...args),
 }));
-vi.mock('../../../../../../server/repositories/aiDigestRepo', () => ({
+vi.mock('@/server/domains/ai-digests/repositories/aiDigestRepo', () => ({
   getAiDigestConfigByFeedId: (...args: unknown[]) => getAiDigestConfigByFeedIdMock(...args),
   createAiDigestRun: (...args: unknown[]) => createAiDigestRunMock(...args),
   getAiDigestRunByFeedIdAndWindowStartAt: (...args: unknown[]) =>
@@ -69,30 +69,30 @@ vi.mock('../../../../../../server/repositories/aiDigestRepo', () => ({
   updateAiDigestRun: (...args: unknown[]) => updateAiDigestRunMock(...args),
 }));
 
-vi.mock('../../../../server/queue/queue', () => ({
+vi.mock('@/server/infra/queue/queue', () => ({
   enqueueWithResult: (...args: unknown[]) => enqueueWithResultMock(...args),
 }));
-vi.mock('../../../../../server/queue/queue', () => ({
+vi.mock('@/server/infra/queue/queue', () => ({
   enqueueWithResult: (...args: unknown[]) => enqueueWithResultMock(...args),
 }));
-vi.mock('../../../../../../server/queue/queue', () => ({
+vi.mock('@/server/infra/queue/queue', () => ({
   enqueueWithResult: (...args: unknown[]) => enqueueWithResultMock(...args),
 }));
-vi.mock('../../../../server/logging/userOperationLogger', () => ({
+vi.mock('@/server/infra/logging/userOperationLogger', () => ({
   writeUserOperationStartedLog: (...args: unknown[]) =>
     writeUserOperationStartedLogMock(...args),
   writeUserOperationSucceededLog: (...args: unknown[]) =>
     writeUserOperationSucceededLogMock(...args),
   writeUserOperationFailedLog: (...args: unknown[]) => writeUserOperationFailedLogMock(...args),
 }));
-vi.mock('../../../../../server/logging/userOperationLogger', () => ({
+vi.mock('@/server/infra/logging/userOperationLogger', () => ({
   writeUserOperationStartedLog: (...args: unknown[]) =>
     writeUserOperationStartedLogMock(...args),
   writeUserOperationSucceededLog: (...args: unknown[]) =>
     writeUserOperationSucceededLogMock(...args),
   writeUserOperationFailedLog: (...args: unknown[]) => writeUserOperationFailedLogMock(...args),
 }));
-vi.mock('../../../../../../server/logging/userOperationLogger', () => ({
+vi.mock('@/server/infra/logging/userOperationLogger', () => ({
   writeUserOperationStartedLog: (...args: unknown[]) =>
     writeUserOperationStartedLogMock(...args),
   writeUserOperationSucceededLog: (...args: unknown[]) =>

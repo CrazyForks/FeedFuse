@@ -1,21 +1,21 @@
-import { requireApiSession } from '@/server/auth/session';
+import { requireApiSession } from '@/server/domains/auth/services/session';
 import { z } from 'zod';
-import { resolveAiConfigFingerprints } from '../../../../../server/ai/configFingerprints';
-import { getPool } from '../../../../../server/db/pool';
-import { ok, fail } from '../../../../../server/http/apiResponse';
-import { NotFoundError, ValidationError } from '../../../../../server/http/errors';
-import { numericIdSchema } from '../../../../../server/http/idSchemas';
-import { getAiApiKey, getUiSettings } from '../../../../../server/repositories/settingsRepo';
+import { resolveAiConfigFingerprints } from '@/server/integrations/ai/configFingerprints';
+import { getPool } from '@/server/infra/db/pool';
+import { ok, fail } from '@/server/infra/http/apiResponse';
+import { NotFoundError, ValidationError } from '@/server/infra/http/errors';
+import { numericIdSchema } from '@/server/infra/http/idSchemas';
+import { getAiApiKey, getUiSettings } from '@/server/domains/settings/repositories/settingsRepo';
 import {
   createAiDigestRun,
   getAiDigestConfigByFeedId,
   getAiDigestRunByFeedIdAndWindowStartAt,
   updateAiDigestRun,
-} from '../../../../../server/repositories/aiDigestRepo';
-import { getQueueSendOptions } from '../../../../../server/queue/contracts';
-import { enqueueWithResult } from '../../../../../server/queue/queue';
-import { JOB_AI_DIGEST_GENERATE } from '../../../../../server/queue/jobs';
-import { writeUserOperationStartedLog } from '../../../../../server/logging/userOperationLogger';
+} from '@/server/domains/ai-digests/repositories/aiDigestRepo';
+import { getQueueSendOptions } from '@/server/infra/queue/contracts';
+import { enqueueWithResult } from '@/server/infra/queue/queue';
+import { JOB_AI_DIGEST_GENERATE } from '@/server/infra/queue/jobs';
+import { writeUserOperationStartedLog } from '@/server/infra/logging/userOperationLogger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

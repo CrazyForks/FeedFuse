@@ -3,12 +3,12 @@ import {
   extractTranslatableSegments,
   reconstructBilingualHtml,
   translateSegmentsInBatches,
-} from '../../../server/ai/bilingualHtmlTranslator';
+} from '@/server/integrations/ai/bilingualHtmlTranslator';
 
 const createOpenAIClientMock = vi.hoisted(() => vi.fn());
 const createCompletionMock = vi.hoisted(() => vi.fn());
 
-vi.mock('../../../server/ai/openaiClient', () => ({
+vi.mock('@/server/integrations/ai/openaiClient', () => ({
   createOpenAIClient: (...args: unknown[]) => {
     createOpenAIClientMock(...args);
     return {

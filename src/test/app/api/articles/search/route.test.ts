@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const pool = { query: vi.fn() };
 const searchArticlesMock = vi.fn();
 
-vi.mock('../../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
 
-vi.mock('../../../../../server/repositories/articlesRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articlesRepo', () => ({
   searchArticles: (...args: unknown[]) => searchArticlesMock(...args),
 }));
 

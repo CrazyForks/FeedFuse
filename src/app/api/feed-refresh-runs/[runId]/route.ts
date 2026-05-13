@@ -1,10 +1,10 @@
-import { requireApiSession } from '@/server/auth/session';
+import { requireApiSession } from '@/server/domains/auth/services/session';
 import { z } from 'zod';
-import { getPool } from '../../../../server/db/pool';
-import { fail, ok } from '../../../../server/http/apiResponse';
-import { NotFoundError, ValidationError } from '../../../../server/http/errors';
-import { numericIdSchema } from '../../../../server/http/idSchemas';
-import { getFeedRefreshRunById } from '../../../../server/repositories/feedRefreshRunRepo';
+import { getPool } from '@/server/infra/db/pool';
+import { fail, ok } from '@/server/infra/http/apiResponse';
+import { NotFoundError, ValidationError } from '@/server/infra/http/errors';
+import { numericIdSchema } from '@/server/infra/http/idSchemas';
+import { getFeedRefreshRunById } from '@/server/domains/feeds/repositories/feedRefreshRunRepo';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

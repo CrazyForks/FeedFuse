@@ -1,4 +1,4 @@
-import { isFeedDue } from './rssScheduler';
+import { isFeedDue } from '@/worker/rssScheduler';
 
 export interface RefreshAllFeedRow {
   id: string;

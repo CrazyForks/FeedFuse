@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 describe('feed ai trigger flags migration', () => {
   it('adds summary/translate on-fetch and translate on-open columns', () => {
     const sql = readFileSync(
-      resolve(process.cwd(), 'src/server/db/migrations/0015_feed_ai_trigger_flags.sql'),
+      resolve(process.cwd(), 'src/server/infra/db/migrations/0015_feed_ai_trigger_flags.sql'),
       'utf8',
     );
 

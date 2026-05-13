@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Article, Feed } from '../../../types';
-import { AI_DIGEST_VIEW_ID } from '../../../lib/view';
+import { AI_DIGEST_VIEW_ID } from '@/lib/reader/view';
 import {
   ARTICLE_CARD_ROW_HEIGHT,
   ARTICLE_LIST_ROW_HEIGHT,

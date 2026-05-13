@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const createOpenAIClientMock = vi.hoisted(() => vi.fn());
 const createCompletionMock = vi.hoisted(() => vi.fn());
 
-vi.mock('../../../server/ai/openaiClient', () => ({
+vi.mock('@/server/integrations/ai/openaiClient', () => ({
   createOpenAIClient: (...args: unknown[]) => {
     createOpenAIClientMock(...args);
     return {
@@ -27,7 +27,7 @@ describe('aiDigestRerank', () => {
       choices: [{ message: { content: '```json\n["a1","a2"]\n```' } }],
     });
 
-    const { aiDigestRerank } = await import('../../../server/ai/aiDigestRerank');
+    const { aiDigestRerank } = await import('@/server/integrations/ai/aiDigestRerank');
     const out = await aiDigestRerank({
       apiBaseUrl: 'https://api.openai.com/v1',
       apiKey: 'sk-test',

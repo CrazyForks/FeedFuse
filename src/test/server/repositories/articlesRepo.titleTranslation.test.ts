@@ -5,7 +5,7 @@ describe('articlesRepo (title translation)', () => {
   it('getArticleById selects title translation fields', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/articlesRepo')) as typeof import('../../../server/repositories/articlesRepo');
+    const mod = (await import('@/server/domains/articles/repositories/articlesRepo')) as typeof import('@/server/domains/articles/repositories/articlesRepo');
 
     await mod.getArticleById(pool, 'a1');
 
@@ -21,7 +21,7 @@ describe('articlesRepo (title translation)', () => {
   it('setArticleTitleTranslation updates translated title metadata', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/articlesRepo')) as typeof import('../../../server/repositories/articlesRepo');
+    const mod = (await import('@/server/domains/articles/repositories/articlesRepo')) as typeof import('@/server/domains/articles/repositories/articlesRepo');
 
     const setArticleTitleTranslation = (
       mod as Partial<{
@@ -53,7 +53,7 @@ describe('articlesRepo (title translation)', () => {
       rows: [{ titleTranslationAttempts: 2 }],
     });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/articlesRepo')) as typeof import('../../../server/repositories/articlesRepo');
+    const mod = (await import('@/server/domains/articles/repositories/articlesRepo')) as typeof import('@/server/domains/articles/repositories/articlesRepo');
 
     const recordFailure = (
       mod as Partial<{

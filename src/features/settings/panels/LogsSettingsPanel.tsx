@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { deleteSystemLogs, getSystemLogs } from '@/lib/apiClient';
+import { deleteSystemLogs, getSystemLogs } from '@/lib/api/apiClient';
 import type { SettingsDraft } from '../../../store/settingsStore';
 import type { LoggingRetentionDays, SystemLogLevel, SystemLogsPage } from '../../../types';
 import SettingTooltipLabel from '../components/SettingTooltipLabel';

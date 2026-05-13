@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getQueueSendOptions } from '../../../../server/queue/contracts';
-import { JOB_REFRESH_ALL } from '../../../../server/queue/jobs';
+import { getQueueSendOptions } from '@/server/infra/queue/contracts';
+import { JOB_REFRESH_ALL } from '@/server/infra/queue/jobs';
 
 const pool = {
   query: vi.fn(),
@@ -20,24 +20,24 @@ const writeUserOperationSucceededLogMock = vi.fn();
 const writeUserOperationFailedLogMock = vi.fn();
 const initializeFeedRefreshRunMock = vi.fn();
 
-vi.mock('../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
-vi.mock('../../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
-vi.mock('../../../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
 
-vi.mock('../../../../server/repositories/feedsRepo', () => ({
+vi.mock('@/server/domains/feeds/repositories/feedsRepo', () => ({
   listFeeds: (...args: unknown[]) => listFeedsMock(...args),
 }));
-vi.mock('../../../../../server/repositories/feedsRepo', () => ({
+vi.mock('@/server/domains/feeds/repositories/feedsRepo', () => ({
   listFeeds: (...args: unknown[]) => listFeedsMock(...args),
 }));
 
-vi.mock('../../../../server/services/feedCategoryLifecycleService', () => ({
+vi.mock('@/server/domains/feeds/services/feedCategoryLifecycleService', () => ({
   createFeedWithCategoryResolution: (...args: unknown[]) =>
     createFeedWithCategoryResolutionMock(...args),
   updateFeedWithCategoryResolution: (...args: unknown[]) =>
@@ -45,7 +45,7 @@ vi.mock('../../../../server/services/feedCategoryLifecycleService', () => ({
   deleteFeedAndCleanupCategory: (...args: unknown[]) =>
     deleteFeedAndCleanupCategoryMock(...args),
 }));
-vi.mock('../../../../../server/services/feedCategoryLifecycleService', () => ({
+vi.mock('@/server/domains/feeds/services/feedCategoryLifecycleService', () => ({
   createFeedWithCategoryResolution: (...args: unknown[]) =>
     createFeedWithCategoryResolutionMock(...args),
   updateFeedWithCategoryResolution: (...args: unknown[]) =>
@@ -56,51 +56,51 @@ vi.mock('../../../../../server/services/feedCategoryLifecycleService', () => ({
 
 
 
-vi.mock('../../../../server/repositories/settingsRepo', () => ({
+vi.mock('@/server/domains/settings/repositories/settingsRepo', () => ({
   getUiSettings: (...args: unknown[]) => getUiSettingsMock(...args),
   updateUiSettings: (...args: unknown[]) => updateUiSettingsMock(...args),
 }));
 
-vi.mock('../../../../../server/repositories/settingsRepo', () => ({
+vi.mock('@/server/domains/settings/repositories/settingsRepo', () => ({
   getUiSettings: (...args: unknown[]) => getUiSettingsMock(...args),
   updateUiSettings: (...args: unknown[]) => updateUiSettingsMock(...args),
 }));
 
-vi.mock('../../../../server/queue/queue', () => ({
+vi.mock('@/server/infra/queue/queue', () => ({
   enqueue: (...args: unknown[]) => enqueueMock(...args),
   enqueueWithResult: (...args: unknown[]) => enqueueWithResultMock(...args),
 }));
-vi.mock('../../../../../../server/queue/queue', () => ({
+vi.mock('@/server/infra/queue/queue', () => ({
   enqueue: (...args: unknown[]) => enqueueMock(...args),
   enqueueWithResult: (...args: unknown[]) => enqueueWithResultMock(...args),
 }));
-vi.mock('../../../../../server/queue/queue', () => ({
+vi.mock('@/server/infra/queue/queue', () => ({
   enqueue: (...args: unknown[]) => enqueueMock(...args),
   enqueueWithResult: (...args: unknown[]) => enqueueWithResultMock(...args),
 }));
-vi.mock('../../../../server/rss/ssrfGuard', () => ({
+vi.mock('@/server/integrations/rss/ssrfGuard', () => ({
   isSafeExternalUrl: (...args: unknown[]) => isSafeExternalUrlMock(...args),
 }));
-vi.mock('../../../../../server/rss/ssrfGuard', () => ({
+vi.mock('@/server/integrations/rss/ssrfGuard', () => ({
   isSafeExternalUrl: (...args: unknown[]) => isSafeExternalUrlMock(...args),
 }));
-vi.mock('../../../../server/logging/userOperationLogger', () => ({
+vi.mock('@/server/infra/logging/userOperationLogger', () => ({
   writeUserOperationSucceededLog: (...args: unknown[]) =>
     writeUserOperationSucceededLogMock(...args),
   writeUserOperationFailedLog: (...args: unknown[]) => writeUserOperationFailedLogMock(...args),
 }));
-vi.mock('../../../../../server/logging/userOperationLogger', () => ({
+vi.mock('@/server/infra/logging/userOperationLogger', () => ({
   writeUserOperationSucceededLog: (...args: unknown[]) =>
     writeUserOperationSucceededLogMock(...args),
   writeUserOperationFailedLog: (...args: unknown[]) => writeUserOperationFailedLogMock(...args),
 }));
-vi.mock('../../../../server/services/feedRefreshRunService', () => ({
+vi.mock('@/server/domains/feeds/services/feedRefreshRunService', () => ({
   initializeFeedRefreshRun: (...args: unknown[]) => initializeFeedRefreshRunMock(...args),
 }));
-vi.mock('../../../../../server/services/feedRefreshRunService', () => ({
+vi.mock('@/server/domains/feeds/services/feedRefreshRunService', () => ({
   initializeFeedRefreshRun: (...args: unknown[]) => initializeFeedRefreshRunMock(...args),
 }));
-vi.mock('../../../../../../server/services/feedRefreshRunService', () => ({
+vi.mock('@/server/domains/feeds/services/feedRefreshRunService', () => ({
   initializeFeedRefreshRun: (...args: unknown[]) => initializeFeedRefreshRunMock(...args),
 }));
 

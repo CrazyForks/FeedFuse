@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 describe('articleFilterService', () => {
   it('filters immediately when summary keywords match', async () => {
     const judgeAi = vi.fn();
-    const { evaluateArticleFilter } = await import('../../../server/services/articleFilterService');
+    const { evaluateArticleFilter } = await import('@/server/domains/articles/services/articleFilterService');
 
     const result = await evaluateArticleFilter({
       article: {
@@ -24,7 +24,7 @@ describe('articleFilterService', () => {
 
   it('uses fulltext for second-stage keyword matching when available', async () => {
     const judgeAi = vi.fn();
-    const { evaluateArticleFilter } = await import('../../../server/services/articleFilterService');
+    const { evaluateArticleFilter } = await import('@/server/domains/articles/services/articleFilterService');
 
     const result = await evaluateArticleFilter({
       article: {
@@ -51,7 +51,7 @@ describe('articleFilterService', () => {
       matched: true,
       errorMessage: null,
     });
-    const { evaluateArticleFilter } = await import('../../../server/services/articleFilterService');
+    const { evaluateArticleFilter } = await import('@/server/domains/articles/services/articleFilterService');
 
     const result = await evaluateArticleFilter({
       article: {
@@ -75,7 +75,7 @@ describe('articleFilterService', () => {
       matched: false,
       errorMessage: 'timeout',
     });
-    const { evaluateArticleFilter } = await import('../../../server/services/articleFilterService');
+    const { evaluateArticleFilter } = await import('@/server/domains/articles/services/articleFilterService');
 
     const result = await evaluateArticleFilter({
       article: {
@@ -100,7 +100,7 @@ describe('articleFilterService', () => {
       matched: true,
       errorMessage: null,
     });
-    const { evaluateArticleFilter } = await import('../../../server/services/articleFilterService');
+    const { evaluateArticleFilter } = await import('@/server/domains/articles/services/articleFilterService');
 
     const result = await evaluateArticleFilter({
       article: {

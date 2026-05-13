@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { discoverFeedFavicon, extractFeedFaviconCandidates } from '../../../server/rss/discoverFeedFavicon';
+import { discoverFeedFavicon, extractFeedFaviconCandidates } from '@/server/integrations/rss/discoverFeedFavicon';
 
 const fetchHtmlMock = vi.fn();
 const fetchImageStreamMock = vi.fn();
 
-vi.mock('../../../server/http/externalHttpClient', () => ({
+vi.mock('@/server/infra/http/externalHttpClient', () => ({
   fetchHtml: (...args: unknown[]) => fetchHtmlMock(...args),
   fetchImageStream: (...args: unknown[]) => fetchImageStreamMock(...args),
 }));

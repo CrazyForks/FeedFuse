@@ -219,7 +219,7 @@ describe('ReaderApp', () => {
       render(<ReaderApp />);
     });
 
-    const { createFeed } = await import('../../../lib/apiClient');
+    const { createFeed } = await import('@/lib/api/apiClient');
     await act(async () => {
       await expect(
         createFeed({ title: 'A', url: 'https://example.com/rss.xml' }),

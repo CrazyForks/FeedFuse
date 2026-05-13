@@ -1,21 +1,21 @@
-import { requireApiSession } from '@/server/auth/session';
+import { requireApiSession } from '@/server/domains/auth/services/session';
 import { z } from 'zod';
-import { getPool } from '../../../../server/db/pool';
-import { ok, fail } from '../../../../server/http/apiResponse';
-import { numericIdSchema } from '../../../../server/http/idSchemas';
+import { getPool } from '@/server/infra/db/pool';
+import { ok, fail } from '@/server/infra/http/apiResponse';
+import { numericIdSchema } from '@/server/infra/http/idSchemas';
 import {
   ConflictError,
   NotFoundError,
   ValidationError,
-} from '../../../../server/http/errors';
+} from '@/server/infra/http/errors';
 import {
   deleteCategory,
   updateCategory,
-} from '../../../../server/repositories/categoriesRepo';
+} from '@/server/domains/feeds/repositories/categoriesRepo';
 import {
   writeUserOperationFailedLog,
   writeUserOperationSucceededLog,
-} from '../../../../server/logging/userOperationLogger';
+} from '@/server/infra/logging/userOperationLogger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

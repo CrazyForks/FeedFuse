@@ -1,12 +1,12 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ArticleSearchItemDto } from '@/lib/apiClient';
+import type { ArticleSearchItemDto } from '@/lib/api/apiClient';
 import GlobalSearchDialog from '../../../features/reader/components/GlobalSearchDialog';
 
 const searchArticlesMock = vi.fn();
 
-vi.mock('@/lib/apiClient', async () => {
-  const actual = await vi.importActual<typeof import('@/lib/apiClient')>('@/lib/apiClient');
+vi.mock('@/lib/api/apiClient', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/api/apiClient')>('@/lib/api/apiClient');
   return {
     ...actual,
     searchArticles: (...args: unknown[]) => searchArticlesMock(...args),

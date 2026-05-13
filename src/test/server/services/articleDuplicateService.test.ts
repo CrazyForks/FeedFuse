@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Pool } from 'pg';
-import type { ArticleRow } from '../../../server/repositories/articlesRepo';
+import type { ArticleRow } from '@/server/domains/articles/repositories/articlesRepo';
 
 function makeArticle(overrides: Partial<ArticleRow> = {}): ArticleRow {
   return {
@@ -56,7 +56,7 @@ function makeArticle(overrides: Partial<ArticleRow> = {}): ArticleRow {
 
 describe('articleDuplicateService', () => {
   it('matches same normalized url before content comparison', async () => {
-    const { findDuplicateCandidate } = await import('../../../server/services/articleDuplicateService');
+    const { findDuplicateCandidate } = await import('@/server/domains/articles/services/articleDuplicateService');
     const article = makeArticle({
       link: 'https://example.com/post?id=42&utm_source=rss&utm_medium=email',
       title: 'Breaking: duplicate filter arrives',
@@ -90,7 +90,7 @@ describe('articleDuplicateService', () => {
   });
 
   it('matches same normalized title when links differ', async () => {
-    const { findDuplicateCandidate } = await import('../../../server/services/articleDuplicateService');
+    const { findDuplicateCandidate } = await import('@/server/domains/articles/services/articleDuplicateService');
     const article = makeArticle({
       title: 'OpenAI, launches duplicate filters!!!',
       link: 'https://example.com/source-a',
@@ -119,7 +119,7 @@ describe('articleDuplicateService', () => {
   });
 
   it('matches similar content after url and title checks miss', async () => {
-    const { findDuplicateCandidate } = await import('../../../server/services/articleDuplicateService');
+    const { findDuplicateCandidate } = await import('@/server/domains/articles/services/articleDuplicateService');
     const article = makeArticle({
       title: 'Vendor ships the rollout to more feeds',
       link: 'https://example.com/source-a',
@@ -147,7 +147,7 @@ describe('articleDuplicateService', () => {
   });
 
   it('skips similar_content when normalized text is too short', async () => {
-    const { findDuplicateCandidate } = await import('../../../server/services/articleDuplicateService');
+    const { findDuplicateCandidate } = await import('@/server/domains/articles/services/articleDuplicateService');
 
     const result = findDuplicateCandidate({
       article: makeArticle({
@@ -172,7 +172,7 @@ describe('articleDuplicateService', () => {
   });
 
   it('returns unmatched when the earlier-article candidate window is empty', async () => {
-    const { evaluateArticleDuplicate } = await import('../../../server/services/articleDuplicateService');
+    const { evaluateArticleDuplicate } = await import('@/server/domains/articles/services/articleDuplicateService');
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
 

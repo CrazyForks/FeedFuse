@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildFeedFaviconPath } from '../../../server/rss/feedFaviconUrl';
+import { buildFeedFaviconPath } from '@/server/integrations/rss/feedFaviconUrl';
 
 describe('buildFeedFaviconPath', () => {
   it('builds the internal feed favicon route from the feed id', () => {

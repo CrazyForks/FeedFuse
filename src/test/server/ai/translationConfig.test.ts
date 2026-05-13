@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveTranslationConfig } from '../../../server/ai/translationConfig';
+import { resolveTranslationConfig } from '@/server/integrations/ai/translationConfig';
 
 describe('resolveTranslationConfig', () => {
   it('uses shared AI settings when translation.useSharedAi = true', () => {

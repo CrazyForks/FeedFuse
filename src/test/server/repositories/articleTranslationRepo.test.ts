@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 describe('articleTranslationRepo', () => {
   it('upsertSession stores running session with hash and counters', async () => {
     const pool = { query: vi.fn().mockResolvedValue({ rows: [] }) };
-    const mod = await import('../../../server/repositories/articleTranslationRepo');
+    const mod = await import('@/server/domains/articles/repositories/articleTranslationRepo');
     await mod.upsertTranslationSession(pool as never, {
       articleId: 'a1',
       sourceHtmlHash: 'hash-1',
@@ -19,7 +19,7 @@ describe('articleTranslationRepo', () => {
 
   it('upsertSegment stores raw_error_message for failed segments', async () => {
     const pool = { query: vi.fn().mockResolvedValue({ rows: [] }) };
-    const mod = await import('../../../server/repositories/articleTranslationRepo');
+    const mod = await import('@/server/domains/articles/repositories/articleTranslationRepo');
 
     await mod.upsertTranslationSegment(pool as never, {
       sessionId: 'session-1',

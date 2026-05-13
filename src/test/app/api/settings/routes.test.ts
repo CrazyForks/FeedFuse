@@ -20,65 +20,65 @@ const cleanupAiRuntimeStateMock = vi.fn();
 const writeUserOperationSucceededLogMock = vi.fn();
 const writeUserOperationFailedLogMock = vi.fn();
 
-vi.mock('../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
-vi.mock('../../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
 
-vi.mock('../../../../server/repositories/settingsRepo', () => ({
+vi.mock('@/server/domains/settings/repositories/settingsRepo', () => ({
   getUiSettings: (...args: unknown[]) => getUiSettingsMock(...args),
   updateUiSettings: (...args: unknown[]) => updateUiSettingsMock(...args),
   getAiApiKey: (...args: unknown[]) => getAiApiKeyMock(...args),
   getTranslationApiKey: (...args: unknown[]) => getTranslationApiKeyMock(...args),
 }));
-vi.mock('../../../../../server/repositories/settingsRepo', () => ({
+vi.mock('@/server/domains/settings/repositories/settingsRepo', () => ({
   getUiSettings: (...args: unknown[]) => getUiSettingsMock(...args),
   updateUiSettings: (...args: unknown[]) => updateUiSettingsMock(...args),
   getAiApiKey: (...args: unknown[]) => getAiApiKeyMock(...args),
   getTranslationApiKey: (...args: unknown[]) => getTranslationApiKeyMock(...args),
 }));
 
-vi.mock('../../../../server/repositories/feedsRepo', () => ({
+vi.mock('@/server/domains/feeds/repositories/feedsRepo', () => ({
   updateAllFeedsFetchIntervalMinutes: (...args: unknown[]) =>
     updateAllFeedsFetchIntervalMinutesMock(...args),
 }));
-vi.mock('../../../../../server/repositories/feedsRepo', () => ({
+vi.mock('@/server/domains/feeds/repositories/feedsRepo', () => ({
   updateAllFeedsFetchIntervalMinutes: (...args: unknown[]) =>
     updateAllFeedsFetchIntervalMinutesMock(...args),
 }));
 
-vi.mock('../../../../server/repositories/articlesRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articlesRepo', () => ({
   pruneAllFeedsArticlesToLimit: (...args: unknown[]) => pruneAllFeedsArticlesToLimitMock(...args),
 }));
-vi.mock('../../../../../server/repositories/articlesRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articlesRepo', () => ({
   pruneAllFeedsArticlesToLimit: (...args: unknown[]) => pruneAllFeedsArticlesToLimitMock(...args),
 }));
 
-vi.mock('../../../../server/logging/systemLogger', () => ({
+vi.mock('@/server/infra/logging/systemLogger', () => ({
   writeSystemLog: (...args: unknown[]) => writeSystemLogMock(...args),
 }));
-vi.mock('../../../../../server/logging/systemLogger', () => ({
+vi.mock('@/server/infra/logging/systemLogger', () => ({
   writeSystemLog: (...args: unknown[]) => writeSystemLogMock(...args),
 }));
-vi.mock('../../../../server/logging/userOperationLogger', () => ({
+vi.mock('@/server/infra/logging/userOperationLogger', () => ({
   writeUserOperationSucceededLog: (...args: unknown[]) =>
     writeUserOperationSucceededLogMock(...args),
   writeUserOperationFailedLog: (...args: unknown[]) =>
     writeUserOperationFailedLogMock(...args),
 }));
-vi.mock('../../../../../server/logging/userOperationLogger', () => ({
+vi.mock('@/server/infra/logging/userOperationLogger', () => ({
   writeUserOperationSucceededLog: (...args: unknown[]) =>
     writeUserOperationSucceededLogMock(...args),
   writeUserOperationFailedLog: (...args: unknown[]) =>
     writeUserOperationFailedLogMock(...args),
 }));
 
-vi.mock('../../../../server/ai/cleanupAiRuntimeState', () => ({
+vi.mock('@/server/integrations/ai/cleanupAiRuntimeState', () => ({
   cleanupAiRuntimeState: (...args: unknown[]) => cleanupAiRuntimeStateMock(...args),
 }));
-vi.mock('../../../../../server/ai/cleanupAiRuntimeState', () => ({
+vi.mock('@/server/integrations/ai/cleanupAiRuntimeState', () => ({
   cleanupAiRuntimeState: (...args: unknown[]) => cleanupAiRuntimeStateMock(...args),
 }));
 

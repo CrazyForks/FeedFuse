@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateArticleBodyTranslationEligibility } from '../../../server/ai/articleTranslationEligibility';
+import { evaluateArticleBodyTranslationEligibility } from '@/server/integrations/ai/articleTranslationEligibility';
 
 describe('articleTranslationEligibility', () => {
   it('blocks translation for strong simplified Chinese metadata', () => {

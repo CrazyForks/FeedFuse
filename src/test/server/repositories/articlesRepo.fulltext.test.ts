@@ -5,7 +5,7 @@ describe('articlesRepo (fulltext)', () => {
   it('writes fulltext html and error fields', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/articlesRepo')) as typeof import('../../../server/repositories/articlesRepo');
+    const mod = (await import('@/server/domains/articles/repositories/articlesRepo')) as typeof import('@/server/domains/articles/repositories/articlesRepo');
 
     if (typeof mod.setArticleFulltext !== 'function') {
       expect.fail('setArticleFulltext is not implemented');

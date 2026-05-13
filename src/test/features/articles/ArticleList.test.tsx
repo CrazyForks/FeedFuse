@@ -2,7 +2,7 @@ import React from 'react';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ViewType } from '../../../types';
-import { AI_DIGEST_VIEW_ID } from '../../../lib/view';
+import { AI_DIGEST_VIEW_ID } from '@/lib/reader/view';
 
 type ArticleListModule = typeof import('../../../features/articles/components/ArticleList');
 type AppStoreModule = typeof import('../../../store/appStore');

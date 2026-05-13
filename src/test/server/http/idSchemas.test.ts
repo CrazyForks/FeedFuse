@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { numericIdSchema } from '../../../server/http/idSchemas';
+import { numericIdSchema } from '@/server/infra/http/idSchemas';
 
 describe('numericIdSchema', () => {
   it('accepts positive integer strings', () => {

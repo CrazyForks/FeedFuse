@@ -1,29 +1,29 @@
-import { requireApiSession } from '@/server/auth/session';
+import { requireApiSession } from '@/server/domains/auth/services/session';
 import { z } from 'zod';
-import { evaluateArticleBodyTranslationEligibility } from '../../../../server/ai/articleTranslationEligibility';
-import { getPool } from '../../../../server/db/pool';
-import { getServerEnv } from '../../../../server/env';
-import { ok, fail } from '../../../../server/http/apiResponse';
-import { NotFoundError, ValidationError } from '../../../../server/http/errors';
-import { numericIdSchema } from '../../../../server/http/idSchemas';
-import { getActiveAiSummarySessionByArticleId } from '../../../../server/repositories/articleAiSummaryRepo';
+import { evaluateArticleBodyTranslationEligibility } from '@/server/integrations/ai/articleTranslationEligibility';
+import { getPool } from '@/server/infra/db/pool';
+import { getServerEnv } from '@/server/infra/env';
+import { ok, fail } from '@/server/infra/http/apiResponse';
+import { NotFoundError, ValidationError } from '@/server/infra/http/errors';
+import { numericIdSchema } from '@/server/infra/http/idSchemas';
+import { getActiveAiSummarySessionByArticleId } from '@/server/domains/articles/repositories/articleAiSummaryRepo';
 import {
   getArticleById,
   setArticleRead,
   setArticleStarred,
   type ArticleRow,
-} from '../../../../server/repositories/articlesRepo';
-import { listAiDigestRunSourcesByArticleId } from '../../../../server/repositories/aiDigestRepo';
+} from '@/server/domains/articles/repositories/articlesRepo';
+import { listAiDigestRunSourcesByArticleId } from '@/server/domains/ai-digests/repositories/aiDigestRepo';
 import {
   buildImageProxyUrl,
   getOptionalImageProxySecret,
-} from '../../../../server/media/imageProxyUrl';
-import { rewriteHtmlImages } from '../../../../server/media/rewriteHtmlImages';
-import { getUsableFulltextHtml } from '../../../../server/fulltext/fulltextVerification';
+} from '@/server/integrations/media/imageProxyUrl';
+import { rewriteHtmlImages } from '@/server/integrations/media/rewriteHtmlImages';
+import { getUsableFulltextHtml } from '@/server/integrations/fulltext/fulltextVerification';
 import {
   writeUserOperationFailedLog,
   writeUserOperationSucceededLog,
-} from '../../../../server/logging/userOperationLogger';
+} from '@/server/infra/logging/userOperationLogger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

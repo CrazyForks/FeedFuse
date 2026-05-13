@@ -5,7 +5,7 @@ describe('aiDigestRepo', () => {
   it('lists due configs only for enabled ai_digest feeds', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/aiDigestRepo')) as typeof import('../../../server/repositories/aiDigestRepo');
+    const mod = (await import('@/server/domains/ai-digests/repositories/aiDigestRepo')) as typeof import('@/server/domains/ai-digests/repositories/aiDigestRepo');
 
     await mod.listDueAiDigestConfigFeedIds(pool, { now: new Date('2026-03-14T00:00:00.000Z') });
     const sql = String(query.mock.calls[0]?.[0] ?? '');
@@ -18,7 +18,7 @@ describe('aiDigestRepo', () => {
   it('queries candidate articles by fetched_at window', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/aiDigestRepo')) as typeof import('../../../server/repositories/aiDigestRepo');
+    const mod = (await import('@/server/domains/ai-digests/repositories/aiDigestRepo')) as typeof import('@/server/domains/ai-digests/repositories/aiDigestRepo');
 
     await mod.listAiDigestCandidateArticles(pool, {
       targetFeedIds: ['00000000-0000-0000-0000-000000000000'],
@@ -38,7 +38,7 @@ describe('aiDigestRepo', () => {
   it('replaces run sources by run id and preserves position order', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/aiDigestRepo')) as typeof import('../../../server/repositories/aiDigestRepo');
+    const mod = (await import('@/server/domains/ai-digests/repositories/aiDigestRepo')) as typeof import('@/server/domains/ai-digests/repositories/aiDigestRepo');
 
     await mod.replaceAiDigestRunSources(pool, {
       runId: 'run-1',
@@ -57,7 +57,7 @@ describe('aiDigestRepo', () => {
   it('creates digest run with returning id payload', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/aiDigestRepo')) as typeof import('../../../server/repositories/aiDigestRepo');
+    const mod = (await import('@/server/domains/ai-digests/repositories/aiDigestRepo')) as typeof import('@/server/domains/ai-digests/repositories/aiDigestRepo');
 
     await mod.createAiDigestRun(pool, {
       feedId: '1001',
@@ -74,7 +74,7 @@ describe('aiDigestRepo', () => {
   it('lists run sources by digest article id ordered by position', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
-    const mod = (await import('../../../server/repositories/aiDigestRepo')) as typeof import('../../../server/repositories/aiDigestRepo');
+    const mod = (await import('@/server/domains/ai-digests/repositories/aiDigestRepo')) as typeof import('@/server/domains/ai-digests/repositories/aiDigestRepo');
 
     await mod.listAiDigestRunSourcesByArticleId(pool, 'article-1');
     const sql = String(query.mock.calls[0]?.[0] ?? '');

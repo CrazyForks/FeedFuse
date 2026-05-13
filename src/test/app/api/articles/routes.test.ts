@@ -38,82 +38,82 @@ const challengeSourceUrl =
 const challengeContentHtml =
   '<div><h2>环境异常</h2><p>当前环境异常，完成验证后即可继续访问。</p><p><a>去验证</a></p></div>';
 
-vi.mock('../../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
-vi.mock('../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
-vi.mock('../../../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
-vi.mock('../../../../../../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
-vi.mock('../../../../../../../../../server/db/pool', () => ({
+vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
 }));
 
-vi.mock('../../../../../server/repositories/articlesRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articlesRepo', () => ({
   getArticleById: (...args: unknown[]) => getArticleByIdMock(...args),
   setArticleRead: (...args: unknown[]) => setArticleReadMock(...args),
   setArticleStarred: (...args: unknown[]) => setArticleStarredMock(...args),
   markAllRead: (...args: unknown[]) => markAllReadMock(...args),
 }));
-vi.mock('../../../../server/repositories/articlesRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articlesRepo', () => ({
   getArticleById: (...args: unknown[]) => getArticleByIdMock(...args),
   setArticleRead: (...args: unknown[]) => setArticleReadMock(...args),
   setArticleStarred: (...args: unknown[]) => setArticleStarredMock(...args),
   markAllRead: (...args: unknown[]) => markAllReadMock(...args),
 }));
-vi.mock('../../../../../../server/repositories/articlesRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articlesRepo', () => ({
   getArticleById: (...args: unknown[]) => getArticleByIdMock(...args),
   setArticleRead: (...args: unknown[]) => setArticleReadMock(...args),
   setArticleStarred: (...args: unknown[]) => setArticleStarredMock(...args),
   markAllRead: (...args: unknown[]) => markAllReadMock(...args),
 }));
-vi.mock('../../../../../../../../../server/repositories/articlesRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articlesRepo', () => ({
   getArticleById: (...args: unknown[]) => getArticleByIdMock(...args),
   setArticleRead: (...args: unknown[]) => setArticleReadMock(...args),
   setArticleStarred: (...args: unknown[]) => setArticleStarredMock(...args),
   markAllRead: (...args: unknown[]) => markAllReadMock(...args),
 }));
-vi.mock('../../../../../../../../../server/repositories/articlesRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articlesRepo', () => ({
   getArticleById: (...args: unknown[]) => getArticleByIdMock(...args),
   setArticleRead: (...args: unknown[]) => setArticleReadMock(...args),
   setArticleStarred: (...args: unknown[]) => setArticleStarredMock(...args),
   markAllRead: (...args: unknown[]) => markAllReadMock(...args),
 }));
-vi.mock('../../../../server/repositories/feedsRepo', () => ({
+vi.mock('@/server/domains/feeds/repositories/feedsRepo', () => ({
   getFeedFullTextOnOpenEnabled: (...args: unknown[]) => getFeedFullTextOnOpenEnabledMock(...args),
   getFeedBodyTranslateEnabled: (...args: unknown[]) => getFeedBodyTranslateEnabledMock(...args),
 }));
-vi.mock('../../../../../../server/repositories/feedsRepo', () => ({
+vi.mock('@/server/domains/feeds/repositories/feedsRepo', () => ({
   getFeedFullTextOnOpenEnabled: (...args: unknown[]) => getFeedFullTextOnOpenEnabledMock(...args),
   getFeedBodyTranslateEnabled: (...args: unknown[]) => getFeedBodyTranslateEnabledMock(...args),
 }));
 
-vi.mock('../../../../server/repositories/settingsRepo', () => ({
+vi.mock('@/server/domains/settings/repositories/settingsRepo', () => ({
   getAiApiKey: (...args: unknown[]) => getAiApiKeyMock(...args),
   getTranslationApiKey: (...args: unknown[]) => getTranslationApiKeyMock(...args),
   getUiSettings: (...args: unknown[]) => getUiSettingsMock(...args),
 }));
-vi.mock('../../../../../../server/repositories/settingsRepo', () => ({
+vi.mock('@/server/domains/settings/repositories/settingsRepo', () => ({
   getAiApiKey: (...args: unknown[]) => getAiApiKeyMock(...args),
   getTranslationApiKey: (...args: unknown[]) => getTranslationApiKeyMock(...args),
   getUiSettings: (...args: unknown[]) => getUiSettingsMock(...args),
 }));
 
-vi.mock('../../../../server/logging/systemLogger', () => ({
+vi.mock('@/server/infra/logging/systemLogger', () => ({
   writeSystemLog: (...args: unknown[]) => writeSystemLogMock(...args),
 }));
-vi.mock('../../../../../../server/logging/systemLogger', () => ({
+vi.mock('@/server/infra/logging/systemLogger', () => ({
   writeSystemLog: (...args: unknown[]) => writeSystemLogMock(...args),
 }));
-vi.mock('../../../../../../../../../server/logging/systemLogger', () => ({
+vi.mock('@/server/infra/logging/systemLogger', () => ({
   writeSystemLog: (...args: unknown[]) => writeSystemLogMock(...args),
 }));
-vi.mock('../../../../server/logging/userOperationLogger', () => ({
+vi.mock('@/server/infra/logging/userOperationLogger', () => ({
   writeUserOperationStartedLog: (...args: unknown[]) =>
     writeUserOperationStartedLogMock(...args),
   writeUserOperationSucceededLog: (...args: unknown[]) =>
@@ -121,7 +121,7 @@ vi.mock('../../../../server/logging/userOperationLogger', () => ({
   writeUserOperationFailedLog: (...args: unknown[]) =>
     writeUserOperationFailedLogMock(...args),
 }));
-vi.mock('../../../../../../server/logging/userOperationLogger', () => ({
+vi.mock('@/server/infra/logging/userOperationLogger', () => ({
   writeUserOperationStartedLog: (...args: unknown[]) =>
     writeUserOperationStartedLogMock(...args),
   writeUserOperationSucceededLog: (...args: unknown[]) =>
@@ -129,7 +129,7 @@ vi.mock('../../../../../../server/logging/userOperationLogger', () => ({
   writeUserOperationFailedLog: (...args: unknown[]) =>
     writeUserOperationFailedLogMock(...args),
 }));
-vi.mock('../../../../../../../../../server/logging/userOperationLogger', () => ({
+vi.mock('@/server/infra/logging/userOperationLogger', () => ({
   writeUserOperationStartedLog: (...args: unknown[]) =>
     writeUserOperationStartedLogMock(...args),
   writeUserOperationSucceededLog: (...args: unknown[]) =>
@@ -137,7 +137,7 @@ vi.mock('../../../../../../../../../server/logging/userOperationLogger', () => (
   writeUserOperationFailedLog: (...args: unknown[]) =>
     writeUserOperationFailedLogMock(...args),
 }));
-vi.mock('../../../../../../../../../server/logging/userOperationLogger', () => ({
+vi.mock('@/server/infra/logging/userOperationLogger', () => ({
   writeUserOperationStartedLog: (...args: unknown[]) =>
     writeUserOperationStartedLogMock(...args),
   writeUserOperationSucceededLog: (...args: unknown[]) =>
@@ -146,28 +146,28 @@ vi.mock('../../../../../../../../../server/logging/userOperationLogger', () => (
     writeUserOperationFailedLogMock(...args),
 }));
 
-vi.mock('../../../../server/queue/queue', () => ({
+vi.mock('@/server/infra/queue/queue', () => ({
   enqueue: (...args: unknown[]) => enqueueMock(...args),
   enqueueWithResult: (...args: unknown[]) => enqueueWithResultMock(...args),
 }));
-vi.mock('../../../../../../server/queue/queue', () => ({
+vi.mock('@/server/infra/queue/queue', () => ({
   enqueue: (...args: unknown[]) => enqueueMock(...args),
   enqueueWithResult: (...args: unknown[]) => enqueueWithResultMock(...args),
 }));
-vi.mock('../../../../../../../../../server/queue/queue', () => ({
+vi.mock('@/server/infra/queue/queue', () => ({
   enqueue: (...args: unknown[]) => enqueueMock(...args),
   enqueueWithResult: (...args: unknown[]) => enqueueWithResultMock(...args),
 }));
-vi.mock('../../../../../../../../../server/queue/queue', () => ({
+vi.mock('@/server/infra/queue/queue', () => ({
   enqueue: (...args: unknown[]) => enqueueMock(...args),
   enqueueWithResult: (...args: unknown[]) => enqueueWithResultMock(...args),
 }));
 
-vi.mock('../../../../server/repositories/articleTasksRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articleTasksRepo', () => ({
   getArticleTasksByArticleId: (...args: unknown[]) => getArticleTasksByArticleIdMock(...args),
   upsertTaskQueued: (...args: unknown[]) => upsertTaskQueuedMock(...args),
 }));
-vi.mock('../../../../../../server/repositories/articleTranslationRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articleTranslationRepo', () => ({
   getTranslationSessionByArticleId: (...args: unknown[]) =>
     getTranslationSessionByArticleIdMock(...args),
   upsertTranslationSession: (...args: unknown[]) => upsertTranslationSessionMock(...args),
@@ -180,7 +180,7 @@ vi.mock('../../../../../../server/repositories/articleTranslationRepo', () => ({
   deleteTranslationEventsBySessionId: (...args: unknown[]) =>
     deleteTranslationEventsBySessionIdMock(...args),
 }));
-vi.mock('../../../../../../../../../server/repositories/articleTranslationRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articleTranslationRepo', () => ({
   getTranslationSessionByArticleId: (...args: unknown[]) =>
     getTranslationSessionByArticleIdMock(...args),
   upsertTranslationSession: (...args: unknown[]) => upsertTranslationSessionMock(...args),
@@ -193,7 +193,7 @@ vi.mock('../../../../../../../../../server/repositories/articleTranslationRepo',
   deleteTranslationEventsBySessionId: (...args: unknown[]) =>
     deleteTranslationEventsBySessionIdMock(...args),
 }));
-vi.mock('../../../../../../../../../server/repositories/articleTranslationRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articleTranslationRepo', () => ({
   getTranslationSessionByArticleId: (...args: unknown[]) =>
     getTranslationSessionByArticleIdMock(...args),
   upsertTranslationSession: (...args: unknown[]) => upsertTranslationSessionMock(...args),
@@ -206,7 +206,7 @@ vi.mock('../../../../../../../../../server/repositories/articleTranslationRepo',
   deleteTranslationEventsBySessionId: (...args: unknown[]) =>
     deleteTranslationEventsBySessionIdMock(...args),
 }));
-vi.mock('../../../../server/repositories/articleTranslationRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articleTranslationRepo', () => ({
   getTranslationSessionByArticleId: (...args: unknown[]) =>
     getTranslationSessionByArticleIdMock(...args),
   upsertTranslationSession: (...args: unknown[]) => upsertTranslationSessionMock(...args),
@@ -219,39 +219,39 @@ vi.mock('../../../../server/repositories/articleTranslationRepo', () => ({
   deleteTranslationEventsBySessionId: (...args: unknown[]) =>
     deleteTranslationEventsBySessionIdMock(...args),
 }));
-vi.mock('../../../../server/repositories/articleAiSummaryRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articleAiSummaryRepo', () => ({
   getActiveAiSummarySessionByArticleId: (...args: unknown[]) =>
     getActiveAiSummarySessionByArticleIdMock(...args),
   upsertAiSummarySession: (...args: unknown[]) => upsertAiSummarySessionMock(...args),
   markAiSummarySessionSuperseded: (...args: unknown[]) =>
     markAiSummarySessionSupersededMock(...args),
 }));
-vi.mock('../../../../../../server/repositories/articleAiSummaryRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articleAiSummaryRepo', () => ({
   getActiveAiSummarySessionByArticleId: (...args: unknown[]) =>
     getActiveAiSummarySessionByArticleIdMock(...args),
   upsertAiSummarySession: (...args: unknown[]) => upsertAiSummarySessionMock(...args),
   markAiSummarySessionSuperseded: (...args: unknown[]) =>
     markAiSummarySessionSupersededMock(...args),
 }));
-vi.mock('../../../../../../../../../server/repositories/articleAiSummaryRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articleAiSummaryRepo', () => ({
   getActiveAiSummarySessionByArticleId: (...args: unknown[]) =>
     getActiveAiSummarySessionByArticleIdMock(...args),
   upsertAiSummarySession: (...args: unknown[]) => upsertAiSummarySessionMock(...args),
   markAiSummarySessionSuperseded: (...args: unknown[]) =>
     markAiSummarySessionSupersededMock(...args),
 }));
-vi.mock('../../../../../../../../../server/repositories/articleAiSummaryRepo', () => ({
+vi.mock('@/server/domains/articles/repositories/articleAiSummaryRepo', () => ({
   getActiveAiSummarySessionByArticleId: (...args: unknown[]) =>
     getActiveAiSummarySessionByArticleIdMock(...args),
   upsertAiSummarySession: (...args: unknown[]) => upsertAiSummarySessionMock(...args),
   markAiSummarySessionSuperseded: (...args: unknown[]) =>
     markAiSummarySessionSupersededMock(...args),
 }));
-vi.mock('../../../../../../server/ai/immersiveTranslationSession', () => ({
+vi.mock('@/server/integrations/ai/immersiveTranslationSession', () => ({
   extractImmersiveSegments: (...args: unknown[]) => extractImmersiveSegmentsMock(...args),
   hashSourceHtml: (...args: unknown[]) => hashSourceHtmlMock(...args),
 }));
-vi.mock('../../../../server/ai/immersiveTranslationSession', () => ({
+vi.mock('@/server/integrations/ai/immersiveTranslationSession', () => ({
   extractImmersiveSegments: (...args: unknown[]) => extractImmersiveSegmentsMock(...args),
   hashSourceHtml: (...args: unknown[]) => hashSourceHtmlMock(...args),
 }));

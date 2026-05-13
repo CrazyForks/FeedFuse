@@ -2,7 +2,7 @@ import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-type ApiClientModule = typeof import('../../../lib/apiClient');
+type ApiClientModule = typeof import('@/lib/api/apiClient');
 type ArticleViewModule = typeof import('../../../features/articles/components/ArticleView');
 type AppStoreModule = typeof import('../../../store/appStore');
 type SettingsStoreModule = typeof import('../../../store/settingsStore');
@@ -86,8 +86,8 @@ class FakeEventSource {
   }
 }
 
-vi.mock('../../../lib/apiClient', async () => {
-  const actual = await vi.importActual<ApiClientModule>('../../../lib/apiClient');
+vi.mock('@/lib/api/apiClient', async () => {
+  const actual = await vi.importActual<ApiClientModule>('@/lib/api/apiClient');
   return {
     ...actual,
     enqueueArticleFulltext: vi.fn(),
@@ -166,7 +166,7 @@ describe('ArticleView ai summary', () => {
     vi.useRealTimers();
     fakeEventSource = new FakeEventSource();
 
-    const apiClient = await import('../../../lib/apiClient');
+    const apiClient = await import('@/lib/api/apiClient');
     enqueueArticleFulltextMock = vi.mocked(apiClient.enqueueArticleFulltext);
     enqueueArticleAiSummaryMock = vi.mocked(apiClient.enqueueArticleAiSummary);
     getArticleAiSummarySnapshotMock = vi.mocked(apiClient.getArticleAiSummarySnapshot);

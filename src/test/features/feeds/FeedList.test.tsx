@@ -54,8 +54,8 @@ import ReaderLayout from '../../../features/reader/components/ReaderLayout';
 import FeedList from '../../../features/feeds/components/FeedList';
 import { ToastHost } from '../../../features/toast/components/ToastHost';
 import { useAppStore } from '../../../store/appStore';
-import { READER_PANE_ACTIVE_ITEM_CLASS_NAME } from '../../../lib/designSystem';
-import { AI_DIGEST_VIEW_ID } from '../../../lib/view';
+import { READER_PANE_ACTIVE_ITEM_CLASS_NAME } from '@/lib/ui/designSystem';
+import { AI_DIGEST_VIEW_ID } from '@/lib/reader/view';
 
 const LEFT_RAIL_UNREAD_BADGE_CLASS_NAME =
   'bg-[color-mix(in_oklab,var(--color-background)_86%,white_14%)]';

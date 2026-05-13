@@ -1,6 +1,6 @@
 import type { PgBoss } from 'pg-boss';
 import { describe, expect, it, vi } from 'vitest';
-import { attachBossObservers } from '../../../server/queue/observability';
+import { attachBossObservers } from '@/server/infra/queue/observability';
 
 describe('attachBossObservers', () => {
   it('attaches error/warning/stopped listeners', () => {

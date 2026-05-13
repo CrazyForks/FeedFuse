@@ -8,12 +8,12 @@ const getAiDigestRunByFeedIdAndWindowStartAtMock = vi.fn();
 const createAiDigestRunMock = vi.fn();
 const updateAiDigestRunMock = vi.fn();
 
-vi.mock('../../server/repositories/settingsRepo', () => ({
+vi.mock('@/server/domains/settings/repositories/settingsRepo', () => ({
   getAiApiKey: (...args: unknown[]) => getAiApiKeyMock(...args),
   getUiSettings: (...args: unknown[]) => getUiSettingsMock(...args),
 }));
 
-vi.mock('../../server/repositories/aiDigestRepo', () => ({
+vi.mock('@/server/domains/ai-digests/repositories/aiDigestRepo', () => ({
   listDueAiDigestConfigFeedIds: (...args: unknown[]) => listDueAiDigestConfigFeedIdsMock(...args),
   getAiDigestConfigByFeedId: (...args: unknown[]) => getAiDigestConfigByFeedIdMock(...args),
   getAiDigestRunByFeedIdAndWindowStartAt: (...args: unknown[]) =>

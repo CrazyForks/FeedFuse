@@ -1,5 +1,5 @@
 import type { PgBoss } from 'pg-boss';
-import { getWorkerOptions } from '../server/queue/contracts';
+import { getWorkerOptions } from '@/server/infra/queue/contracts';
 
 type BossWorkerRegistrationSource = Pick<PgBoss, 'work'>;
 

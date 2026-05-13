@@ -1,4 +1,4 @@
-import { ok } from '../../../server/http/apiResponse';
+import { ok } from '@/server/infra/http/apiResponse';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

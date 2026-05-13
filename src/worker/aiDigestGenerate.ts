@@ -1,19 +1,19 @@
 import type { Pool } from 'pg';
-import { normalizePersistedSettings } from '../features/settings/settingsSchema';
-import { resolveArticleBriefContent } from '../lib/articleSummary';
-import { aiDigestCompose, type AiDigestComposeArticle } from '../server/ai/aiDigestCompose';
-import { aiDigestRerank, type AiDigestRerankItem } from '../server/ai/aiDigestRerank';
+import { normalizePersistedSettings } from '@/features/settings/settingsSchema';
+import { resolveArticleBriefContent } from '@/lib/reader/articleSummary';
+import { aiDigestCompose, type AiDigestComposeArticle } from '@/server/integrations/ai/aiDigestCompose';
+import { aiDigestRerank, type AiDigestRerankItem } from '@/server/integrations/ai/aiDigestRerank';
 import {
   AI_CONFIG_CHANGED_ERROR_CODE,
   AI_CONFIG_CHANGED_ERROR_MESSAGE,
   AI_CONFIG_CHANGED_RAW_ERROR,
   createConfigFingerprintGuard,
   resolveAiConfigFingerprints,
-} from '../server/ai/configFingerprints';
+} from '@/server/integrations/ai/configFingerprints';
 import {
   insertArticleIgnoreDuplicate,
   pruneFeedArticlesToLimit,
-} from '../server/repositories/articlesRepo';
+} from '@/server/domains/articles/repositories/articlesRepo';
 import {
   getAiDigestConfigByFeedId,
   getAiDigestRunById,
@@ -24,15 +24,15 @@ import {
   type AiDigestCandidateArticleRow,
   type AiDigestConfigRow,
   type AiDigestRunRow,
-} from '../server/repositories/aiDigestRepo';
-import { listFeeds } from '../server/repositories/feedsRepo';
+} from '@/server/domains/ai-digests/repositories/aiDigestRepo';
+import { listFeeds } from '@/server/domains/feeds/repositories/feedsRepo';
 import {
   writeUserOperationFailedLog,
   writeUserOperationStartedLog,
   writeUserOperationSucceededLog,
-} from '../server/logging/userOperationLogger';
-import { getAiApiKey, getUiSettings } from '../server/repositories/settingsRepo';
-import { sanitizeContent } from '../server/rss/sanitizeContent';
+} from '@/server/infra/logging/userOperationLogger';
+import { getAiApiKey, getUiSettings } from '@/server/domains/settings/repositories/settingsRepo';
+import { sanitizeContent } from '@/server/integrations/rss/sanitizeContent';
 
 const DEFAULT_DIGEST_MODEL = 'gpt-4o-mini';
 const DEFAULT_DIGEST_API_BASE_URL = 'https://api.openai.com/v1';

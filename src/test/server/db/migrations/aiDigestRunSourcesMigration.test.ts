@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('db migrations', () => {
   it('adds ai_digest_run_sources mapping table and indexes', () => {
-    const migrationPath = 'src/server/db/migrations/0020_ai_digest_run_sources.sql';
+    const migrationPath = 'src/server/infra/db/migrations/0020_ai_digest_run_sources.sql';
     expect(existsSync(migrationPath)).toBe(true);
 
     const sql = readFileSync(migrationPath, 'utf8');

@@ -3,8 +3,8 @@
 import * as RadixToast from '@radix-ui/react-toast';
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
 import { useLayoutEffect } from 'react';
-import { clearApiErrorNotifier, setApiErrorNotifier } from '@/lib/apiErrorNotifier';
-import { TOP_MESSAGE_VIEWPORT_CLASS_NAME } from '@/lib/designSystem';
+import { clearApiErrorNotifier, setApiErrorNotifier } from '@/lib/api/apiErrorNotifier';
+import { TOP_MESSAGE_VIEWPORT_CLASS_NAME } from '@/lib/ui/designSystem';
 import { cn } from '@/lib/utils';
 import { toast } from '../toast';
 import { toastStore, type ToastTone } from '../toastStore';

@@ -25,6 +25,7 @@ import {
 
 const READER_SELECTION_VIEW_PARAM = 'view';
 const READER_SELECTION_ARTICLE_PARAM = 'article';
+const READER_UNREAD_ONLY_BY_VIEW_STORAGE_KEY = 'feedfuse.reader.unreadOnlyByView.v1';
 type ReaderSelectionHistoryMode = 'replace' | 'push' | 'none';
 type FeedUpdateOptions = {
   syncInBackground?: boolean;
@@ -90,6 +91,50 @@ function persistReaderSelectionToUrl(
   }
 }
 
+function readUnreadOnlyByViewFromStorage(): Record<string, boolean> {
+  if (typeof window === 'undefined') return {};
+
+  try {
+    const raw = window.localStorage.getItem(READER_UNREAD_ONLY_BY_VIEW_STORAGE_KEY);
+    if (!raw) return {};
+
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) return {};
+
+    return Object.fromEntries(
+      Object.entries(parsed).filter((entry): entry is [string, boolean] => {
+        const [view, value] = entry;
+        return typeof view === 'string' && view.trim().length > 0 && typeof value === 'boolean';
+      }),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function persistUnreadOnlyByViewToStorage(unreadOnlyByView: Record<string, boolean>): void {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.localStorage.setItem(
+      READER_UNREAD_ONLY_BY_VIEW_STORAGE_KEY,
+      JSON.stringify(unreadOnlyByView),
+    );
+  } catch {
+    // 忽略隐私模式或受限浏览环境中的存储写入失败。
+  }
+}
+
+function resolveUnreadOnlyForView(
+  view: ViewType,
+  unreadOnlyByView: Record<string, boolean>,
+): boolean {
+  if (!shouldUseDefaultUnreadOnly(view)) return false;
+  const persisted = unreadOnlyByView[view];
+  if (typeof persisted === 'boolean') return persisted;
+  return useSettingsStore.getState().persistedSettings.general.defaultUnreadOnlyInAll;
+}
+
 interface AppState {
   feeds: Feed[];
   categories: Category[];
@@ -101,6 +146,7 @@ interface AppState {
   selectedArticleId: string | null;
   sidebarCollapsed: boolean;
   showUnreadOnly: boolean;
+  unreadOnlyByView: Record<string, boolean>;
   snapshotLoading: boolean;
   articleListNextCursor: string | null;
   articleListHasMore: boolean;
@@ -542,6 +588,7 @@ function preserveSelectedArticleInVisibleSnapshot(
 }
 
 const initialReaderSelection = readReaderSelectionFromUrl();
+const initialUnreadOnlyByView = readUnreadOnlyByViewFromStorage();
 
 export const useAppStore = create<AppState>((set, get) => ({
   feeds: [],
@@ -554,16 +601,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedView: initialReaderSelection.selectedView,
   selectedArticleId: initialReaderSelection.selectedArticleId,
   sidebarCollapsed: false,
-  showUnreadOnly: false,
+  showUnreadOnly: resolveUnreadOnlyForView(initialReaderSelection.selectedView, initialUnreadOnlyByView),
+  unreadOnlyByView: initialUnreadOnlyByView,
   snapshotLoading: false,
   ...INITIAL_ARTICLE_LIST_SESSION,
 
   setSelectedView: (view, options) => {
     queueReaderSelectionHistoryMode(options?.history ?? 'replace');
     set(() => {
-      const defaultUnreadOnlyInAll = useSettingsStore.getState().persistedSettings.general.defaultUnreadOnlyInAll;
-      const showUnreadOnly = shouldUseDefaultUnreadOnly(view) ? defaultUnreadOnlyInAll : false;
       const state = get();
+      const showUnreadOnly = resolveUnreadOnlyForView(view, state.unreadOnlyByView);
       const articleSnapshotCache = {
         ...state.articleSnapshotCache,
         [state.selectedView]: state.articles,
@@ -621,10 +668,26 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().setSelectedArticle(articleId, { history: articleHistory });
   },
   toggleShowUnreadOnly: () => {
-    set((state) => ({
-      showUnreadOnly: !state.showUnreadOnly,
-      ...INITIAL_ARTICLE_LIST_SESSION,
-    }));
+    set((state) => {
+      const nextShowUnreadOnly = !state.showUnreadOnly;
+      const nextUnreadOnlyByView = shouldUseDefaultUnreadOnly(state.selectedView)
+        ? {
+            ...state.unreadOnlyByView,
+            // 保存中栏按钮在当前选中项上的选择，优先级高于全局默认设置。
+            [state.selectedView]: nextShowUnreadOnly,
+          }
+        : state.unreadOnlyByView;
+
+      if (nextUnreadOnlyByView !== state.unreadOnlyByView) {
+        persistUnreadOnlyByViewToStorage(nextUnreadOnlyByView);
+      }
+
+      return {
+        showUnreadOnly: nextShowUnreadOnly,
+        unreadOnlyByView: nextUnreadOnlyByView,
+        ...INITIAL_ARTICLE_LIST_SESSION,
+      };
+    });
 
     const view = get().selectedView;
     if (!shouldUseDefaultUnreadOnly(view)) {

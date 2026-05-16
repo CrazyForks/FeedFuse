@@ -510,6 +510,56 @@ describe('appStore api integration', () => {
     expect(useAppStore.getState().showUnreadOnly).toBe(false);
   });
 
+  it('keeps feed unread-only preference above the global default after switching views', async () => {
+    const { useSettingsStore } = await import('../../store/settingsStore');
+    const snapshotUrls: string[] = [];
+
+    useSettingsStore.setState((state) => ({
+      persistedSettings: {
+        ...state.persistedSettings,
+        general: {
+          ...state.persistedSettings.general,
+          defaultUnreadOnlyInAll: true,
+        },
+      },
+    }));
+
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(getFetchCallUrl(input), 'https://example.com');
+      const method = getFetchCallMethod(input, init);
+
+      if (url.pathname === '/api/reader/snapshot' && method === 'GET') {
+        snapshotUrls.push(url.toString());
+        return jsonResponse({
+          ok: true,
+          data: createSnapshotPage({
+            feeds: [createSnapshotFeed('feed-1', 'Feed One', 1)],
+            items: [createSnapshotArticle('art-1', 'feed-1', 'Unread Article')],
+            nextCursor: null,
+            totalCount: 1,
+          }),
+        });
+      }
+
+      throw new Error(`Unexpected fetch: ${method} ${url.pathname}`);
+    });
+
+    useAppStore.getState().setSelectedView('feed-1');
+    useAppStore.getState().toggleShowUnreadOnly();
+    await flushPromises();
+
+    expect(useAppStore.getState().showUnreadOnly).toBe(false);
+
+    useAppStore.getState().setSelectedView('all');
+    expect(useAppStore.getState().showUnreadOnly).toBe(true);
+
+    useAppStore.getState().setSelectedView('feed-1');
+    await useAppStore.getState().loadSnapshot({ view: 'feed-1' });
+
+    expect(useAppStore.getState().showUnreadOnly).toBe(false);
+    expect(new URL(snapshotUrls.at(-1) ?? '').searchParams.get('unreadOnly')).toBeNull();
+  });
+
   it('drops stale load-more responses when a newer snapshot request wins', async () => {
     const delayedLoadMore = createDeferred<Response>();
     let rootSnapshotCalls = 0;

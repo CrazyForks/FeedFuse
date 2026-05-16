@@ -132,6 +132,67 @@ describe('ReaderApp', () => {
     expect(refreshRequests).toBe(0);
   });
 
+  it('keeps per-view unread-only preference when switching feeds in the mounted reader app', async () => {
+    const remoteSettings = structuredClone(defaultPersistedSettings);
+    remoteSettings.general.defaultUnreadOnlyInAll = true;
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = getFetchCallUrl(input);
+        const method = getFetchCallMethod(input, init);
+        if (url.includes('/api/settings/ai/api-key')) {
+          return jsonResponse({ ok: true, data: { hasApiKey: false } });
+        }
+        if (url.includes('/api/settings/translation/api-key')) {
+          return jsonResponse({ ok: true, data: { hasApiKey: false } });
+        }
+        if (url.includes('/api/settings')) {
+          return jsonResponse({ ok: true, data: remoteSettings });
+        }
+        if (url.includes('/api/reader/snapshot') && method === 'GET') {
+          return jsonResponse({
+            ok: true,
+            data: {
+              categories: [],
+              feeds: [],
+              articles: { items: [], nextCursor: null },
+            },
+          });
+        }
+        throw new Error(`Unexpected fetch: ${method} ${url}`);
+      }),
+    );
+
+    useSettingsStore.setState((state) => ({
+      persistedSettings: {
+        ...state.persistedSettings,
+        general: {
+          ...state.persistedSettings.general,
+          defaultUnreadOnlyInAll: true,
+        },
+      },
+    }));
+    useAppStore.setState({
+      selectedView: 'all',
+      showUnreadOnly: true,
+      unreadOnlyByView: { 'feed-1': false },
+    });
+
+    await act(async () => {
+      render(<ReaderApp />);
+    });
+
+    act(() => {
+      useAppStore.getState().setSelectedView('feed-1');
+    });
+
+    await waitFor(() => {
+      expect(useAppStore.getState().selectedView).toBe('feed-1');
+      expect(useAppStore.getState().showUnreadOnly).toBe(false);
+    });
+  });
+
   it('limits automatic visible refreshes to once every five minutes', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-09T10:00:00.000Z'));

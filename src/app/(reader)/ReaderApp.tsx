@@ -6,7 +6,6 @@ import { useTheme } from '../../hooks';
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '../../store/appStore';
 import { useSettingsStore } from '../../store/settingsStore';
-import { shouldUseDefaultUnreadOnly } from '@/lib/reader/view';
 import type { ViewType } from '../../types';
 
 const AUTO_SNAPSHOT_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
@@ -21,7 +20,6 @@ export default function ReaderApp({ renderedAt, initialSelectedView }: ReaderApp
   const selectedView = useAppStore((state) => state.selectedView);
   const loadSnapshot = useAppStore((state) => state.loadSnapshot);
   const hydratePersistedSettings = useSettingsStore((state) => state.hydratePersistedSettings);
-  const defaultUnreadOnlyInAll = useSettingsStore((state) => state.persistedSettings.general.defaultUnreadOnlyInAll);
   const lastAutoSnapshotAtRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -56,12 +54,6 @@ export default function ReaderApp({ renderedAt, initialSelectedView }: ReaderApp
   useEffect(() => {
     void hydratePersistedSettings();
   }, [hydratePersistedSettings]);
-
-  useEffect(() => {
-    useAppStore.setState({
-      showUnreadOnly: shouldUseDefaultUnreadOnly(selectedView) ? defaultUnreadOnlyInAll : false,
-    });
-  }, [defaultUnreadOnlyInAll, selectedView]);
 
   return (
     <>

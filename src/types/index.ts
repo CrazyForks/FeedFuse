@@ -23,6 +23,7 @@ export interface Feed {
   fetchStatus: number | null;
   fetchError: string | null;
   fetchRawError?: string | null;
+  isPodcast?: boolean;
 }
 
 export interface Category {

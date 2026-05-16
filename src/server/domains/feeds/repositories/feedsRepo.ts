@@ -26,6 +26,7 @@ export interface FeedRow {
   lastFetchStatus: number | null;
   lastFetchError: string | null;
   lastFetchRawError: string | null;
+  isPodcast: boolean;
 }
 
 export async function listFeeds(db: DbClient): Promise<FeedRow[]> {
@@ -51,7 +52,14 @@ export async function listFeeds(db: DbClient): Promise<FeedRow[]> {
       fetch_interval_minutes as "fetchIntervalMinutes",
       last_fetch_status as "lastFetchStatus",
       last_fetch_error as "lastFetchError",
-      last_fetch_raw_error as "lastFetchRawError"
+      last_fetch_raw_error as "lastFetchRawError",
+      exists (
+        select 1
+        from articles
+        join article_media_attachments on article_media_attachments.article_id = articles.id
+        where articles.feed_id = feeds.id
+        limit 1
+      ) as "isPodcast"
     from feeds
     order by created_at asc, id asc
   `);

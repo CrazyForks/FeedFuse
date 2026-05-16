@@ -160,6 +160,7 @@ export interface ReaderSnapshotFeed {
   lastFetchError: string | null;
   lastFetchRawError: string | null;
   unreadCount: number;
+  isPodcast: boolean;
 }
 
 export interface ReaderSnapshot {

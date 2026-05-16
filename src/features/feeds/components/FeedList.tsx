@@ -514,6 +514,7 @@ export default function FeedList({
                       const fetchErrorText = feed.fetchRawError || feed.fetchError;
                       const isFeedErrored = Boolean(fetchErrorText);
                       const isRssFeed = (feed.kind ?? 'rss') === 'rss';
+                      const showTextAutomationPolicies = isRssFeed && !feed.isPodcast;
                       const showFilteredArticles = Boolean(showFilteredByFeedId[feed.id]);
                       const errorDescriptionId = `feed-error-${feed.id}`;
                       const feedButton = (
@@ -696,36 +697,40 @@ export default function FeedList({
                           {isRssFeed ? (
                             <>
                               <ContextMenuSeparator />
-                              <ContextMenuItem
-                                onSelect={() => {
-                                  setFulltextPolicyFeedId(feed.id);
-                                }}
-                              >
-                                <ContextMenuItemIcon aria-hidden="true">
-                                  <FileText className="h-3.5 w-3.5" />
-                                </ContextMenuItemIcon>
-                                <ContextMenuItemLabel>全文抓取配置</ContextMenuItemLabel>
-                              </ContextMenuItem>
-                              <ContextMenuItem
-                                onSelect={() => {
-                                  setSummaryPolicyFeedId(feed.id);
-                                }}
-                              >
-                                <ContextMenuItemIcon aria-hidden="true">
-                                  <Sparkles className="h-3.5 w-3.5" />
-                                </ContextMenuItemIcon>
-                                <ContextMenuItemLabel>AI摘要配置</ContextMenuItemLabel>
-                              </ContextMenuItem>
-                              <ContextMenuItem
-                                onSelect={() => {
-                                  setTranslationPolicyFeedId(feed.id);
-                                }}
-                              >
-                                <ContextMenuItemIcon aria-hidden="true">
-                                  <Languages className="h-3.5 w-3.5" />
-                                </ContextMenuItemIcon>
-                                <ContextMenuItemLabel>翻译配置</ContextMenuItemLabel>
-                              </ContextMenuItem>
+                              {showTextAutomationPolicies ? (
+                                <>
+                                  <ContextMenuItem
+                                    onSelect={() => {
+                                      setFulltextPolicyFeedId(feed.id);
+                                    }}
+                                  >
+                                    <ContextMenuItemIcon aria-hidden="true">
+                                      <FileText className="h-3.5 w-3.5" />
+                                    </ContextMenuItemIcon>
+                                    <ContextMenuItemLabel>全文抓取配置</ContextMenuItemLabel>
+                                  </ContextMenuItem>
+                                  <ContextMenuItem
+                                    onSelect={() => {
+                                      setSummaryPolicyFeedId(feed.id);
+                                    }}
+                                  >
+                                    <ContextMenuItemIcon aria-hidden="true">
+                                      <Sparkles className="h-3.5 w-3.5" />
+                                    </ContextMenuItemIcon>
+                                    <ContextMenuItemLabel>AI摘要配置</ContextMenuItemLabel>
+                                  </ContextMenuItem>
+                                  <ContextMenuItem
+                                    onSelect={() => {
+                                      setTranslationPolicyFeedId(feed.id);
+                                    }}
+                                  >
+                                    <ContextMenuItemIcon aria-hidden="true">
+                                      <Languages className="h-3.5 w-3.5" />
+                                    </ContextMenuItemIcon>
+                                    <ContextMenuItemLabel>翻译配置</ContextMenuItemLabel>
+                                  </ContextMenuItem>
+                                </>
+                              ) : null}
                               <ContextMenuItem
                                 onSelect={() => {
                                   void toggleFilteredArticlesVisibility(feed.id);

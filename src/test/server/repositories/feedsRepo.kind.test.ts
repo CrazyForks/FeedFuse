@@ -12,6 +12,18 @@ describe('feedsRepo (kind)', () => {
     expect(sql).toContain('kind');
   });
 
+  it('listFeeds derives podcast flag from media attachments', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    const pool = { query } as unknown as Pool;
+    const mod = (await import('@/server/domains/feeds/repositories/feedsRepo')) as typeof import('@/server/domains/feeds/repositories/feedsRepo');
+
+    await mod.listFeeds(pool);
+    const sql = String(query.mock.calls[0]?.[0] ?? '');
+
+    expect(sql).toContain('article_media_attachments');
+    expect(sql).toContain('as "isPodcast"');
+  });
+
   it('rss fetch helpers only select rss feeds', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;
@@ -37,4 +49,3 @@ describe('feedsRepo (kind)', () => {
     expect(sql).toContain("where kind = 'rss'");
   });
 });
-

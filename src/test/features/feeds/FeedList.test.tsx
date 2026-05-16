@@ -908,6 +908,31 @@ describe('FeedList manage', () => {
     expect(screen.getByRole('menuitem', { name: '翻译配置' })).toBeInTheDocument();
   });
 
+  it('hides text automation policy items in feed context menu for podcast RSS feeds', async () => {
+    useAppStore.setState((state) => ({
+      ...state,
+      feeds: [
+        {
+          ...state.feeds[0],
+          title: 'My Podcast',
+          isPodcast: true,
+        },
+      ],
+      selectedView: 'feed-1',
+    }));
+
+    renderWithNotifications();
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: /My Podcast.*2/ }));
+
+    await screen.findByRole('menuitem', { name: '移动到分类' });
+
+    expect(screen.queryByRole('menuitem', { name: '全文抓取配置' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'AI摘要配置' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: '翻译配置' })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: '查看已过滤文章' })).toBeInTheDocument();
+  });
+
   it('hides RSS-only items in feed context menu for ai_digest feeds', async () => {
     useAppStore.setState((state) => ({
       ...state,

@@ -29,3 +29,4 @@
 - `fullTextOnOpenEnabled` 只影响打开文章时的全文等待与按钮可用性；AI 摘要和翻译仍通过各自 enqueue 接口进入 worker。
 - `Feed.kind === 'ai_digest'` 的文章不触发全文抓取和翻译操作，避免对智能报告二次处理。
 - 带 `mediaAttachments` 的播客文章在 `ArticleView` 中渲染原生音视频播放器，并隐藏全文抓取、AI 摘要和翻译入口；自动打开触发也必须跳过。
+- `Feed.isPodcast` 由后端 snapshot 从 `article_media_attachments` 推导；播客 RSS 源在左栏右键菜单中不显示全文抓取、AI 摘要和翻译配置项。

@@ -422,6 +422,7 @@ export interface ReaderSnapshotDto {
     lastFetchError: string | null;
     lastFetchRawError: string | null;
     unreadCount: number;
+    isPodcast?: boolean;
   }>;
   articles: {
     items: Array<{
@@ -651,6 +652,7 @@ export interface FeedRowDto {
   articleListDisplayMode: 'card' | 'list';
   categoryId: string | null;
   fetchIntervalMinutes: number;
+  isPodcast?: boolean;
 }
 
 type FeedDtoLike =
@@ -1202,6 +1204,7 @@ export function mapFeedDto(dto: FeedDtoLike, categories: Category[]): Feed {
     fetchStatus: ('lastFetchStatus' in dto ? dto.lastFetchStatus : null) ?? null,
     fetchError: ('lastFetchError' in dto ? dto.lastFetchError : null) ?? null,
     fetchRawError: ('lastFetchRawError' in dto ? dto.lastFetchRawError : null) ?? null,
+    isPodcast: Boolean(dto.isPodcast),
   };
 }
 

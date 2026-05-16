@@ -147,6 +147,37 @@ describe('mapFeedDto', () => {
     expect(mapped.fetchRawError).toBe('HTTP 403 from upstream');
   });
 
+  it('maps podcast flag from snapshot feeds', () => {
+    const mapped = mapFeedDto(
+      {
+        id: 'feed-podcast',
+        kind: 'rss',
+        title: 'Podcast',
+        url: 'https://pod.example.com/rss.xml',
+        siteUrl: null,
+        iconUrl: null,
+        enabled: true,
+        fullTextOnOpenEnabled: false,
+        aiSummaryOnOpenEnabled: false,
+        aiSummaryOnFetchEnabled: false,
+        bodyTranslateOnFetchEnabled: false,
+        bodyTranslateOnOpenEnabled: false,
+        titleTranslateEnabled: false,
+        bodyTranslateEnabled: false,
+        articleListDisplayMode: 'card',
+        categoryId: null,
+        fetchIntervalMinutes: 30,
+        unreadCount: 0,
+        lastFetchStatus: null,
+        lastFetchError: null,
+        isPodcast: true,
+      },
+      [],
+    );
+
+    expect(mapped.isPodcast).toBe(true);
+  });
+
   it('defaults missing fetch result fields to null for create/edit payloads', () => {
     const mapped = mapFeedDto(
       {

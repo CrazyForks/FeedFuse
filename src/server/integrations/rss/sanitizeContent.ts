@@ -1,13 +1,35 @@
 import sanitizeHtml from 'sanitize-html';
 
-const allowedTags = [...sanitizeHtml.defaults.allowedTags, 'img'];
+const HTTP_PROTOCOLS = ['http:', 'https:'] as const;
+const SANITIZE_HTML_HTTP_SCHEMES = ['http', 'https'];
+const TRACK_KINDS = ['subtitles', 'captions', 'descriptions', 'chapters', 'metadata'] as const;
+const VIDEO_PRELOAD_VALUES = ['none', 'metadata', 'auto'] as const;
+const VIDEO_CROSSORIGIN_VALUES = ['anonymous', 'use-credentials'] as const;
+const VIDEO_CONTROLS_LIST_TOKENS = new Set(['nodownload', 'nofullscreen', 'noremoteplayback']);
+
+const allowedTags = [...sanitizeHtml.defaults.allowedTags, 'img', 'video', 'source', 'track'];
 
 const allowedAttributes: sanitizeHtml.IOptions['allowedAttributes'] = {
   ...sanitizeHtml.defaults.allowedAttributes,
   a: ['href', 'name', 'target', 'rel'],
   img: ['src', 'srcset', 'alt', 'title', 'width', 'height', 'loading', 'decoding'],
+  source: ['src', 'type'],
   td: ['colspan', 'rowspan'],
   th: ['colspan', 'rowspan'],
+  track: ['src', 'kind', 'srclang', 'label', 'default'],
+  video: [
+    'src',
+    'poster',
+    'width',
+    'height',
+    'controls',
+    'preload',
+    'playsinline',
+    'muted',
+    'loop',
+    'controlslist',
+    'crossorigin',
+  ],
 };
 
 function parseUrl(value: string): URL | null {
@@ -59,7 +81,7 @@ function normalizeSrcset(value: string, base: URL | null): string | null {
       if (!rawUrl) return null;
       const url = normalizeUrl(rawUrl, base);
       if (!url) return null;
-      if (!isAllowedScheme(url, ['http:', 'https:'])) return null;
+      if (!isAllowedScheme(url, HTTP_PROTOCOLS)) return null;
 
       const descriptor = descriptorParts.join(' ').trim();
       return descriptor ? `${url.toString()} ${descriptor}` : url.toString();
@@ -75,6 +97,38 @@ function normalizeNumeric(value: string | undefined): string | undefined {
   return /^\d+$/.test(trimmed) ? trimmed : undefined;
 }
 
+function normalizeBooleanAttribute(
+  value: string | undefined,
+  attributeName: string,
+): string | undefined {
+  if (value === undefined) return undefined;
+  const trimmed = value.trim().toLowerCase();
+  return !trimmed || trimmed === attributeName || trimmed === 'true' ? attributeName : undefined;
+}
+
+function normalizeToken(value: string | undefined, allowed: readonly string[]): string | undefined {
+  const trimmed = value?.trim().toLowerCase();
+  return trimmed && allowed.includes(trimmed) ? trimmed : undefined;
+}
+
+function normalizeMediaUrlAttribute(
+  value: string | undefined,
+  base: URL | null,
+): string | undefined {
+  const url = value?.trim() ? normalizeUrl(value, base) : null;
+  return url && isAllowedScheme(url, HTTP_PROTOCOLS) ? url.toString() : undefined;
+}
+
+function normalizeControlsList(value: string | undefined): string | undefined {
+  const normalized = value
+    ?.split(/\s+/)
+    .map((token) => token.trim().toLowerCase())
+    .filter((token) => VIDEO_CONTROLS_LIST_TOKENS.has(token))
+    .join(' ');
+
+  return normalized || undefined;
+}
+
 export function sanitizeContent(
   html: string | null | undefined,
   options: { baseUrl: string } | undefined = undefined,
@@ -88,10 +142,17 @@ export function sanitizeContent(
     allowedAttributes,
     allowedSchemes: ['http', 'https', 'mailto'],
     allowedSchemesByTag: {
-      img: ['http', 'https'],
+      img: SANITIZE_HTML_HTTP_SCHEMES,
+      source: SANITIZE_HTML_HTTP_SCHEMES,
+      track: SANITIZE_HTML_HTTP_SCHEMES,
+      video: SANITIZE_HTML_HTTP_SCHEMES,
     },
     allowProtocolRelative: false,
-    exclusiveFilter: (frame) => frame.tag === 'img' && !frame.attribs.src,
+    exclusiveFilter: (frame) =>
+      (frame.tag === 'img' && !frame.attribs.src) ||
+      (frame.tag === 'source' && !frame.attribs.src) ||
+      (frame.tag === 'track' && !frame.attribs.src) ||
+      (frame.tag === 'video' && !frame.attribs.src && !frame.mediaChildren.includes('source')),
     transformTags: {
       a: (tagName: string, attribs: sanitizeHtml.Attributes) => {
         const href = attribs.href?.trim();
@@ -113,7 +174,7 @@ export function sanitizeContent(
           return { tagName, attribs: rest };
         }
 
-        if (!isAllowedScheme(url, ['http:', 'https:', 'mailto:'])) {
+        if (!isAllowedScheme(url, [...HTTP_PROTOCOLS, 'mailto:'])) {
           const rest: sanitizeHtml.Attributes = { ...attribs };
           delete rest['href'];
           return { tagName, attribs: rest };
@@ -140,7 +201,7 @@ export function sanitizeContent(
         const rawSrc = (attribs.src ?? attribs['data-src'] ?? '').trim();
         const srcUrl = rawSrc ? normalizeUrl(rawSrc, base) : null;
         const src =
-          srcUrl && isAllowedScheme(srcUrl, ['http:', 'https:']) ? srcUrl.toString() : undefined;
+          srcUrl && isAllowedScheme(srcUrl, HTTP_PROTOCOLS) ? srcUrl.toString() : undefined;
 
         const rawSrcset = (attribs.srcset ?? attribs['data-srcset'] ?? '').trim();
         const srcset = rawSrcset ? normalizeSrcset(rawSrcset, base) ?? undefined : undefined;
@@ -159,6 +220,64 @@ export function sanitizeContent(
             ...(height ? { height } : {}),
             loading: attribs.loading?.trim() ? attribs.loading : 'lazy',
             decoding: attribs.decoding?.trim() ? attribs.decoding : 'async',
+          },
+        };
+      },
+      source: (tagName: string, attribs: sanitizeHtml.Attributes) => {
+        const src = normalizeMediaUrlAttribute(attribs.src, base);
+
+        return {
+          tagName,
+          attribs: {
+            ...(src ? { src } : {}),
+            ...(attribs.type?.trim() ? { type: attribs.type.trim() } : {}),
+          },
+        };
+      },
+      track: (tagName: string, attribs: sanitizeHtml.Attributes) => {
+        const src = normalizeMediaUrlAttribute(attribs.src, base);
+        const kind = normalizeToken(attribs.kind, TRACK_KINDS);
+        const srclang = attribs.srclang?.trim();
+        const label = attribs.label?.trim();
+        const defaultValue = normalizeBooleanAttribute(attribs.default, 'default');
+
+        return {
+          tagName,
+          attribs: {
+            ...(src ? { src } : {}),
+            ...(kind ? { kind } : {}),
+            ...(srclang ? { srclang } : {}),
+            ...(label ? { label } : {}),
+            ...(defaultValue ? { default: defaultValue } : {}),
+          },
+        };
+      },
+      video: (tagName: string, attribs: sanitizeHtml.Attributes) => {
+        const src = normalizeMediaUrlAttribute(attribs.src, base);
+        const poster = normalizeMediaUrlAttribute(attribs.poster, base);
+        const width = normalizeNumeric(attribs.width);
+        const height = normalizeNumeric(attribs.height);
+        const preload = normalizeToken(attribs.preload, VIDEO_PRELOAD_VALUES);
+        const playsinline = normalizeBooleanAttribute(attribs.playsinline, 'playsinline');
+        const muted = normalizeBooleanAttribute(attribs.muted, 'muted');
+        const loop = normalizeBooleanAttribute(attribs.loop, 'loop');
+        const controlsList = normalizeControlsList(attribs.controlslist);
+        const crossorigin = normalizeToken(attribs.crossorigin, VIDEO_CROSSORIGIN_VALUES);
+
+        return {
+          tagName,
+          attribs: {
+            ...(src ? { src } : {}),
+            ...(poster ? { poster } : {}),
+            ...(width ? { width } : {}),
+            ...(height ? { height } : {}),
+            controls: 'controls',
+            ...(preload ? { preload } : {}),
+            ...(playsinline ? { playsinline } : {}),
+            ...(muted ? { muted } : {}),
+            ...(loop ? { loop } : {}),
+            ...(controlsList ? { controlslist: controlsList } : {}),
+            ...(crossorigin ? { crossorigin } : {}),
           },
         };
       },

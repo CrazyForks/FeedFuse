@@ -730,6 +730,13 @@ export default function ArticleView({
       node.setAttribute("aria-label", label);
       node.classList.add("cursor-zoom-in");
     }
+
+    for (const node of container.querySelectorAll("video")) {
+      if (!(node instanceof HTMLVideoElement)) continue;
+
+      // 文章正文视频来自已清洗 HTML，这里只补齐阅读器内的响应式呈现样式。
+      node.classList.add("my-5", "w-full", "max-w-full", "rounded-lg", "bg-black");
+    }
   }, [highlightedBodyHtml]);
 
   useEffect(() => {
@@ -1204,7 +1211,7 @@ export default function ArticleView({
               ref={articleContentRef}
               className={cn(
                 // Tighten article typography contrast without making the surrounding UI feel heavier.
-                "prose max-w-none prose-headings:text-foreground/94 prose-headings:font-semibold prose-p:text-foreground/84 prose-p:font-[450] prose-li:text-foreground/84 prose-li:font-[450] prose-strong:text-foreground/96 prose-blockquote:border-border/90 prose-blockquote:text-foreground/84 prose-figcaption:text-muted-foreground prose-a:text-foreground/94 prose-a:decoration-primary/45 dark:prose-invert",
+                "prose max-w-none prose-headings:text-foreground/94 prose-headings:font-semibold prose-p:text-foreground/84 prose-p:font-[450] prose-li:text-foreground/84 prose-li:font-[450] prose-strong:text-foreground/96 prose-blockquote:border-border/90 prose-blockquote:text-foreground/84 prose-figcaption:text-muted-foreground prose-a:text-foreground/94 prose-a:decoration-primary/45 prose-video:my-5 prose-video:w-full prose-video:max-w-full prose-video:rounded-lg prose-video:bg-black dark:prose-invert",
                 fontSizeClass,
                 lineHeightClass,
                 fontFamilyClass,

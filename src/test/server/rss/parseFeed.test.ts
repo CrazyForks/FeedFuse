@@ -118,4 +118,44 @@ describe('rss parsing', () => {
     expect(cleaned).not.toContain('style=');
     expect(cleaned).not.toContain('class=');
   });
+
+  it('preserves safe article videos and normalizes media sources', () => {
+    const cleaned = sanitizeContent(
+      [
+        '<video src="/media/story.mp4" poster="/media/poster.jpg" width="1280" height="720" autoplay muted loop playsinline preload="metadata" controls controlslist="nodownload" crossorigin="anonymous">',
+        '<source src="/media/story.webm" type="video/webm" />',
+        '<track src="/media/captions.vtt" kind="captions" srclang="zh" label="中文" default />',
+        '</video>',
+        '<video src="javascript:alert(1)" poster="javascript:alert(2)" autoplay="false"></video>',
+        '<source src="data:text/html;base64,abc" type="video/mp4" />',
+        '<track src="ftp://example.com/captions.vtt" kind="captions" />',
+      ].join(''),
+      { baseUrl: 'https://example.com/articles/1' },
+    );
+
+    expect(cleaned).toContain('<video');
+    expect(cleaned).toContain('src="https://example.com/media/story.mp4"');
+    expect(cleaned).toContain('poster="https://example.com/media/poster.jpg"');
+    expect(cleaned).toContain('width="1280"');
+    expect(cleaned).toContain('height="720"');
+    expect(cleaned).toContain('controls="controls"');
+    expect(cleaned).toContain('preload="metadata"');
+    expect(cleaned).toContain('playsinline="playsinline"');
+    expect(cleaned).toContain('muted="muted"');
+    expect(cleaned).toContain('loop="loop"');
+    expect(cleaned).toContain('controlslist="nodownload"');
+    expect(cleaned).toContain('crossorigin="anonymous"');
+    expect(cleaned).toContain('<source src="https://example.com/media/story.webm"');
+    expect(cleaned).toContain('type="video/webm"');
+    expect(cleaned).toContain('<track src="https://example.com/media/captions.vtt"');
+    expect(cleaned).toContain('kind="captions"');
+    expect(cleaned).toContain('srclang="zh"');
+    expect(cleaned).toContain('label="中文"');
+    expect(cleaned).toContain('default="default"');
+    expect(cleaned).not.toContain('autoplay');
+    expect(cleaned).not.toContain('javascript:');
+    expect(cleaned).not.toContain('data:text/html');
+    expect(cleaned).not.toContain('ftp://');
+    expect(cleaned).not.toContain('<video controls="controls"></video>');
+  });
 });

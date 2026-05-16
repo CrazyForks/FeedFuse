@@ -215,6 +215,26 @@ describe('ArticleView image preview', () => {
     expect(screen.queryByRole('dialog', { name: '图片预览' })).not.toBeInTheDocument();
   });
 
+  it('renders playable article videos without image preview affordances', async () => {
+    await renderArticleViewWithContent(
+      '<p>Intro</p><video src="https://cdn.example.com/story.mp4" poster="https://cdn.example.com/poster.jpg" controls="controls"><source src="https://cdn.example.com/story.webm" type="video/webm" /></video>',
+    );
+
+    const content = screen.getByTestId('article-html-content');
+    const video = content.querySelector('video');
+    const source = content.querySelector('source');
+
+    expect(video).toBeInstanceOf(HTMLVideoElement);
+    expect(video).toHaveAttribute('src', 'https://cdn.example.com/story.mp4');
+    expect(video).toHaveAttribute('poster', 'https://cdn.example.com/poster.jpg');
+    expect(video).toHaveAttribute('controls');
+    expect(video).toHaveClass('rounded-lg');
+    expect(video).toHaveClass('bg-black');
+    expect(source).toHaveAttribute('src', 'https://cdn.example.com/story.webm');
+    expect(source).toHaveAttribute('type', 'video/webm');
+    expect(video).not.toHaveClass('cursor-zoom-in');
+  });
+
   it('makes article images keyboard focusable and opens preview with Enter', async () => {
     await renderArticleViewWithContent(
       '<img src="https://example.com/cover.jpg" alt="封面图" />',

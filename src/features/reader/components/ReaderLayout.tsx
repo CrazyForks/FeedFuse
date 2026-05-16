@@ -9,7 +9,7 @@ import {
   useState,
 } from 'react';
 import ArticleList from '../../articles/components/ArticleList';
-import ArticleView from '../../articles/components/ArticleView';
+import ArticleView, { dispatchReaderArticleCommand } from '../../articles/components/ArticleView';
 import FeedList from '../../feeds/components/FeedList';
 import ResizeHandle from './ResizeHandle';
 import GlobalSearchDialog from './GlobalSearchDialog';
@@ -17,6 +17,13 @@ import { getSelectedArticleFromState, useAppStore } from '../../../store/appStor
 import { useSettingsStore } from '../../../store/settingsStore';
 import type { ViewType } from '../../../types';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import {
   FROSTED_HEADER_CLASS_NAME,
@@ -24,6 +31,7 @@ import {
   READER_TABLET_ARTICLE_PANE_CLASS_NAME,
 } from '@/lib/ui/designSystem';
 import { cn } from '@/lib/utils';
+import { AI_DIGEST_VIEW_ID } from '@/lib/reader/view';
 import {
   normalizeReaderPaneWidth,
   READER_LEFT_PANE_MAX_WIDTH,
@@ -45,6 +53,46 @@ const MOBILE_SMART_VIEW_LABELS: Record<string, string> = {
   'ai-digest': '智能报告',
 };
 const GLOBAL_SEARCH_SHORTCUT_KEY = 'f';
+const READER_VIEW_SHORTCUTS: Record<string, ViewType> = {
+  a: 'all',
+  u: AI_DIGEST_VIEW_ID,
+  s: 'starred',
+};
+const READER_SHORTCUT_GROUPS: Array<{
+  title: string;
+  shortcuts: Array<{ keys: string[]; label: string }>;
+}> = [
+  {
+    title: '导航',
+    shortcuts: [
+      { keys: ['j', 'n'], label: '下一篇文章' },
+      { keys: ['k', 'p'], label: '上一篇文章' },
+      { keys: ['g', 'a'], label: '全部文章' },
+      { keys: ['g', 'u'], label: '智能报告' },
+      { keys: ['g', 's'], label: '收藏文章' },
+    ],
+  },
+  {
+    title: '操作',
+    shortcuts: [
+      { keys: ['m'], label: '标记当前文章为已读' },
+      { keys: ['s'], label: '收藏或取消收藏' },
+      { keys: ['a'], label: '生成摘要' },
+      { keys: ['t'], label: '翻译文章' },
+      { keys: ['r'], label: '刷新当前视图' },
+      { keys: ['u'], label: '切换中栏未读过滤' },
+      { keys: ['/'], label: '全局搜索' },
+      { keys: ['['], label: '折叠或展开侧栏' },
+    ],
+  },
+  {
+    title: '帮助',
+    shortcuts: [
+      { keys: ['?'], label: '显示键盘快捷键' },
+      { keys: ['Esc'], label: '关闭快捷键帮助' },
+    ],
+  },
+];
 
 function isEditableShortcutTarget(target: EventTarget | null) {
   let currentNode = target instanceof Node ? target : null;
@@ -70,6 +118,54 @@ function isEditableShortcutTarget(target: EventTarget | null) {
   }
 
   return false;
+}
+
+function hasActiveDialogOutsideShortcutHelp() {
+  const dialogs = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]'));
+  return dialogs.some((dialog) => dialog.dataset.readerShortcutHelp !== 'true');
+}
+
+function getNextReaderArticleId(input: {
+  articles: Array<{ id: string }>;
+  selectedArticleId: string | null;
+  direction: 1 | -1;
+}) {
+  const { articles, selectedArticleId, direction } = input;
+  if (articles.length === 0) return null;
+
+  const currentIndex = selectedArticleId
+    ? articles.findIndex((article) => article.id === selectedArticleId)
+    : -1;
+
+  if (currentIndex < 0) {
+    return articles[0]?.id ?? null;
+  }
+
+  const nextIndex = Math.min(Math.max(currentIndex + direction, 0), articles.length - 1);
+  return articles[nextIndex]?.id ?? null;
+}
+
+function isShortcutHelpKey(event: KeyboardEvent) {
+  return event.key === '?' || (event.shiftKey && event.key === '/');
+}
+
+function renderShortcutKeys(shortcut: { keys: string[]; label: string }) {
+  return shortcut.keys.map((key) => (
+    <kbd
+      key={`${shortcut.label}-${key}`}
+      className="min-w-6 rounded-md border border-border/75 bg-muted/70 px-1.5 py-0.5 text-center text-[11px] font-semibold leading-5 text-foreground shadow-sm dark:border-white/[0.08] dark:bg-white/[0.04]"
+    >
+      {key}
+    </kbd>
+  ));
+}
+
+function focusReaderArticleButton(articleId: string) {
+  const buttons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>('button[data-article-nav="true"]'),
+  );
+  const button = buttons.find((item) => item.dataset.articleId === articleId);
+  button?.focus();
 }
 
 const MemoizedFeedList = memo(FeedList);
@@ -104,6 +200,7 @@ export default function ReaderLayout({ renderedAt, initialSelectedView }: Reader
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [activeSearchHighlightQuery, setActiveSearchHighlightQuery] = useState('');
   const selectionKey = `${selectedView}:${selectedArticleId ?? ''}`;
   const [feedSheetState, setFeedSheetState] = useState(() => ({
@@ -125,6 +222,7 @@ export default function ReaderLayout({ renderedAt, initialSelectedView }: Reader
       }
     | null
   >(null);
+  const pendingGoShortcutRef = useRef(false);
 
   const isDesktop = viewportWidth >= READER_RESIZE_DESKTOP_MIN_WIDTH;
   const isTablet =
@@ -253,30 +351,158 @@ export default function ReaderLayout({ renderedAt, initialSelectedView }: Reader
   }, [clearDraggingState, handlePointerMove, handlePointerUp]);
 
   useEffect(() => {
-    // Reader-level shortcuts live here because this layout owns the search dialog state.
+    // 阅读器级快捷键集中在布局层，避免不同面板重复抢键盘事件。
     const handleGlobalShortcuts = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.altKey || event.shiftKey) {
+      if (event.defaultPrevented || event.altKey) {
         return;
       }
 
-      if ((!event.metaKey && !event.ctrlKey) || event.key.toLowerCase() !== GLOBAL_SEARCH_SHORTCUT_KEY) {
+      const normalizedKey = event.key.toLowerCase();
+      const commandOrControlSearch =
+        (event.metaKey || event.ctrlKey) &&
+        !event.shiftKey &&
+        normalizedKey === GLOBAL_SEARCH_SHORTCUT_KEY;
+
+      if (!commandOrControlSearch && (event.metaKey || event.ctrlKey)) {
         return;
       }
 
-      // Avoid stealing browser find shortcuts while the user is actively typing.
       if (isEditableShortcutTarget(event.target)) {
         return;
       }
 
-      event.preventDefault();
-      setSearchOpen(true);
+      if (shortcutHelpOpen) {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          setShortcutHelpOpen(false);
+        }
+        return;
+      }
+
+      if (hasActiveDialogOutsideShortcutHelp()) {
+        return;
+      }
+
+      if (commandOrControlSearch) {
+        event.preventDefault();
+        setSearchOpen(true);
+        return;
+      }
+
+      if (event.shiftKey && !isShortcutHelpKey(event)) {
+        return;
+      }
+
+      const state = useAppStore.getState();
+
+      if (pendingGoShortcutRef.current) {
+        pendingGoShortcutRef.current = false;
+        const nextView = READER_VIEW_SHORTCUTS[normalizedKey];
+        if (!nextView) {
+          return;
+        }
+
+        event.preventDefault();
+        state.setSelectedView(nextView);
+        return;
+      }
+
+      if (normalizedKey === 'g') {
+        event.preventDefault();
+        pendingGoShortcutRef.current = true;
+        return;
+      }
+
+      const selectArticleByDirection = (direction: 1 | -1) => {
+        const nextArticleId = getNextReaderArticleId({
+          articles: state.articles,
+          selectedArticleId: state.selectedArticleId,
+          direction,
+        });
+
+        if (!nextArticleId || nextArticleId === state.selectedArticleId) {
+          return;
+        }
+
+        event.preventDefault();
+        state.setSelectedArticle(nextArticleId);
+        // 全局 j/k 导航也要同步焦点，否则旧文章会保留 focus-visible 边框。
+        focusReaderArticleButton(nextArticleId);
+      };
+
+      if (isShortcutHelpKey(event)) {
+        event.preventDefault();
+        setShortcutHelpOpen(true);
+        return;
+      }
+
+      if (normalizedKey === '/') {
+        event.preventDefault();
+        setSearchOpen(true);
+        return;
+      }
+
+      if (normalizedKey === 'j' || normalizedKey === 'n') {
+        selectArticleByDirection(1);
+        return;
+      }
+
+      if (normalizedKey === 'k' || normalizedKey === 'p') {
+        selectArticleByDirection(-1);
+        return;
+      }
+
+      if (normalizedKey === 'm') {
+        if (!state.selectedArticleId) return;
+        event.preventDefault();
+        state.markAsRead(state.selectedArticleId);
+        return;
+      }
+
+      if (normalizedKey === 's') {
+        if (!state.selectedArticleId) return;
+        event.preventDefault();
+        state.toggleStar(state.selectedArticleId);
+        return;
+      }
+
+      if (normalizedKey === 'a') {
+        if (!state.selectedArticleId) return;
+        event.preventDefault();
+        dispatchReaderArticleCommand('ai-summary');
+        return;
+      }
+
+      if (normalizedKey === 't') {
+        if (!state.selectedArticleId) return;
+        event.preventDefault();
+        dispatchReaderArticleCommand('ai-translate');
+        return;
+      }
+
+      if (normalizedKey === 'u') {
+        event.preventDefault();
+        state.toggleShowUnreadOnly();
+        return;
+      }
+
+      if (normalizedKey === 'r') {
+        event.preventDefault();
+        void state.loadSnapshot({ view: state.selectedView });
+        return;
+      }
+
+      if (event.key === '[') {
+        event.preventDefault();
+        state.toggleSidebar();
+      }
     };
 
     window.addEventListener('keydown', handleGlobalShortcuts);
     return () => {
       window.removeEventListener('keydown', handleGlobalShortcuts);
     };
-  }, []);
+  }, [shortcutHelpOpen]);
 
   const isResizeTargetActive = (target: ResizeTarget) => visibleResizeTarget === target;
 
@@ -570,6 +796,42 @@ export default function ReaderLayout({ renderedAt, initialSelectedView }: Reader
           });
         }}
       />
+
+      <Dialog open={shortcutHelpOpen} onOpenChange={setShortcutHelpOpen}>
+        <DialogContent
+          closeLabel="关闭键盘快捷键"
+          className="max-h-[min(86vh,44rem)] max-w-xl overflow-y-auto p-0"
+          data-reader-shortcut-help="true"
+        >
+          <DialogHeader className="border-b border-border/70 px-5 pb-4 pt-5">
+            <DialogTitle>键盘快捷键</DialogTitle>
+            <DialogDescription>
+              常用阅读操作可直接用键盘完成，输入框和弹窗内不会触发这些快捷键。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-5 px-5 py-5 sm:grid-cols-3">
+            {READER_SHORTCUT_GROUPS.map((group) => (
+              <section key={group.title} className="min-w-0">
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  {group.title}
+                </h3>
+                <dl className="space-y-2.5">
+                  {group.shortcuts.map((shortcut) => (
+                    <div key={`${group.title}-${shortcut.label}`} className="flex items-start justify-between gap-3">
+                      <dt className="flex min-w-0 flex-wrap gap-1">
+                        {renderShortcutKeys(shortcut)}
+                      </dt>
+                      <dd className="min-w-0 flex-1 text-right text-sm leading-6 text-muted-foreground">
+                        {shortcut.label}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {settingsOpen && <SettingsCenterModal onClose={() => setSettingsOpen(false)} />}
     </div>

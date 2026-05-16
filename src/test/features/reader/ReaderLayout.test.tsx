@@ -3,13 +3,8 @@ import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { vi } from 'vitest';
 
-vi.mock('../../../features/articles/components/ArticleList', () => ({
-  default: function MockArticleList() {
-    return <div data-testid="mock-article-list" />;
-  },
-}));
-
 vi.mock('../../../features/articles/components/ArticleView', () => ({
+  dispatchReaderArticleCommand: vi.fn(),
   default: function MockArticleView({
     onOpenSettings,
     reserveTopSpace = true,
@@ -34,6 +29,7 @@ vi.mock('../../../features/articles/components/ArticleView', () => ({
 }));
 
 import ReaderLayout from '../../../features/reader/components/ReaderLayout';
+import { dispatchReaderArticleCommand } from '../../../features/articles/components/ArticleView';
 import { ToastHost } from '../../../features/toast/components/ToastHost';
 import {
   READER_RESIZE_DESKTOP_MIN_WIDTH,
@@ -456,6 +452,119 @@ describe('ReaderLayout', () => {
     renderWithNotifications();
     fireEvent.keyDown(window, { key: 'f', ctrlKey: true });
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('supports reader keyboard shortcuts for core article operations', () => {
+    resetSettingsStore();
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1440 });
+    const loadSnapshotMock = vi.fn(async () => undefined);
+    const toggleShowUnreadOnlyMock = vi.fn();
+
+    useAppStore.setState((state) => ({
+      ...state,
+      feeds: [
+        {
+          id: 'feed-1',
+          title: 'Example Feed',
+          url: 'https://example.com/rss.xml',
+          unreadCount: 2,
+          enabled: true,
+          fullTextOnOpenEnabled: false,
+          aiSummaryOnOpenEnabled: false,
+          categoryId: 'cat-uncategorized',
+          category: '未分类',
+        },
+      ],
+      articles: [
+        {
+          id: 'article-1',
+          feedId: 'feed-1',
+          title: 'Selected Article',
+          content: '<p>content</p>',
+          summary: 'summary',
+          publishedAt: new Date().toISOString(),
+          link: 'https://example.com/article-1',
+          isRead: false,
+          isStarred: false,
+        },
+        {
+          id: 'article-2',
+          feedId: 'feed-1',
+          title: 'Next Article',
+          content: '<p>next</p>',
+          summary: 'summary',
+          publishedAt: new Date().toISOString(),
+          link: 'https://example.com/article-2',
+          isRead: false,
+          isStarred: false,
+        },
+      ],
+      selectedView: 'all',
+      selectedArticleId: 'article-1',
+      loadSnapshot: loadSnapshotMock,
+      toggleShowUnreadOnly: toggleShowUnreadOnlyMock,
+    }));
+
+    renderWithNotifications();
+
+    fireEvent.keyDown(window, { key: '?' });
+    expect(screen.getByRole('dialog', { name: '键盘快捷键' })).toBeInTheDocument();
+    expect(screen.getByText('下一篇文章')).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'j' });
+    expect(useAppStore.getState().selectedArticleId).toBe('article-1');
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: '键盘快捷键' })).not.toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: '/' });
+    expect(screen.getByRole('dialog', { name: '全局搜索' })).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('关闭全局搜索'));
+
+    const selectedRow = screen.getByRole('button', { name: /Selected Article/ });
+    selectedRow.focus();
+
+    fireEvent.keyDown(window, { key: 'j' });
+    expect(useAppStore.getState().selectedArticleId).toBe('article-2');
+    expect(screen.getByRole('button', { name: /Next Article/ })).toHaveFocus();
+    expect(selectedRow).not.toHaveFocus();
+
+    fireEvent.keyDown(window, { key: 'k' });
+    expect(useAppStore.getState().selectedArticleId).toBe('article-1');
+
+    fireEvent.keyDown(window, { key: 'm' });
+    expect(useAppStore.getState().articles.find((article) => article.id === 'article-1')?.isRead).toBe(
+      true,
+    );
+
+    fireEvent.keyDown(window, { key: 's' });
+    expect(
+      useAppStore.getState().articles.find((article) => article.id === 'article-1')?.isStarred,
+    ).toBe(true);
+
+    fireEvent.keyDown(window, { key: 'a' });
+    expect(dispatchReaderArticleCommand).toHaveBeenCalledWith('ai-summary');
+
+    fireEvent.keyDown(window, { key: 't' });
+    expect(dispatchReaderArticleCommand).toHaveBeenCalledWith('ai-translate');
+
+    fireEvent.keyDown(window, { key: '[' });
+    expect(useAppStore.getState().sidebarCollapsed).toBe(true);
+
+    fireEvent.keyDown(window, { key: 'u' });
+    expect(toggleShowUnreadOnlyMock).toHaveBeenCalledTimes(1);
+    expect(useAppStore.getState().selectedView).toBe('all');
+
+    fireEvent.keyDown(window, { key: 'g' });
+    fireEvent.keyDown(window, { key: 'u' });
+    expect(useAppStore.getState().selectedView).toBe('ai-digest');
+
+    fireEvent.keyDown(window, { key: 'g' });
+    fireEvent.keyDown(window, { key: 's' });
+    expect(useAppStore.getState().selectedView).toBe('starred');
+
+    fireEvent.keyDown(window, { key: 'r' });
+    expect(loadSnapshotMock).toHaveBeenCalledWith({ view: 'starred' });
   });
 
   it('does not hijack the search shortcut inside editable fields', () => {

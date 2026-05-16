@@ -9,6 +9,8 @@
 ## 状态与交互
 
 - 阅读器级交互先看 `src/app/(reader)/ReaderApp.tsx` 与 `src/features/reader/**`
+- 全局 reader 快捷键归 `src/features/reader/components/ReaderLayout.tsx` 管理；快捷键必须忽略输入框、`contenteditable`、`select` 和已打开的非快捷键弹窗，文章内动作可通过显式 reader command 交给 `ArticleView` 执行。
+- 新增或调整 reader 快捷键时，同步更新快捷键帮助弹窗，并在 `src/test/features/reader/ReaderLayout.test.tsx` 覆盖至少一个正向触发和一个弹窗/输入焦点保护场景。
 - 文章视图相关契约先看 `src/features/articles/components/ArticleView.tsx`、`src/features/articles/hooks/useStreamingAiSummary.ts`、`src/features/articles/hooks/useImmersiveTranslation.ts`
 - 设置保存逻辑先看 `src/features/settings/hooks/useSettingsAutosave.ts`
 - AI 设置中的 `summaryPrompt`、`translationPrompt` 由设置中心维护；前端只负责编辑与保存，不在组件层拼接任务级 system prompt

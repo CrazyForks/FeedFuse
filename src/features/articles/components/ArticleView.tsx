@@ -62,6 +62,16 @@ const ARTICLE_SUMMARY_BADGE_CLASS_NAME =
   "inline-flex items-center gap-1.5 rounded-full bg-background/78 px-2 py-0.5 text-[11px] font-medium tracking-wide text-[color-mix(in_oklab,var(--color-primary)_40%,var(--color-muted-foreground)_60%)] ring-1 ring-[color-mix(in_oklab,var(--color-primary)_14%,var(--color-border)_86%)] dark:bg-[rgba(10,10,14,0.82)] dark:text-[color-mix(in_oklab,var(--color-primary)_54%,white_46%)] dark:ring-[rgba(94,106,210,0.24)]";
 const ARTICLE_SOURCE_BUTTON_CLASS_NAME =
   "flex w-full items-start justify-between gap-3 rounded-xl border border-border/60 bg-[color-mix(in_oklab,var(--color-background)_84%,white_16%)] px-3 py-2 text-left transition-[background-color,border-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:border-primary/16 hover:bg-accent/35 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring dark:border-white/[0.06] dark:bg-[linear-gradient(180deg,rgba(14,14,18,0.96),rgba(9,9,12,0.92))] dark:hover:border-[rgba(94,106,210,0.2)] dark:hover:bg-[color-mix(in_oklab,var(--color-primary)_10%,var(--color-card)_90%)]";
+const READER_COMMAND_EVENT_NAME = "feedfuse:reader-command";
+type ReaderArticleCommand = "ai-summary" | "ai-translate";
+
+function dispatchReaderArticleCommand(command: ReaderArticleCommand) {
+  window.dispatchEvent(
+    new CustomEvent(READER_COMMAND_EVENT_NAME, {
+      detail: { command },
+    }),
+  );
+}
 
 interface ArticleViewProps {
   highlightQuery?: string;
@@ -507,6 +517,35 @@ export default function ArticleView({
     if (isAiDigestArticle) return;
     void requestImmersiveTranslation({ force: true, autoView: true });
   }
+
+  useEffect(() => {
+    const handleReaderCommand = (event: Event) => {
+      const command = (event as CustomEvent<{ command?: ReaderArticleCommand }>).detail?.command;
+
+      if (command === "ai-summary") {
+        if (!article?.id || aiSummaryButtonDisabled) return;
+        void requestStreamingAiSummary({ force: true });
+        return;
+      }
+
+      if (command === "ai-translate") {
+        if (!article?.id || !bodyTranslationEligible || aiTranslationButtonDisabled) return;
+        void requestImmersiveTranslation({ force: true, autoView: true });
+      }
+    };
+
+    window.addEventListener(READER_COMMAND_EVENT_NAME, handleReaderCommand);
+    return () => {
+      window.removeEventListener(READER_COMMAND_EVENT_NAME, handleReaderCommand);
+    };
+  }, [
+    aiSummaryButtonDisabled,
+    aiTranslationButtonDisabled,
+    article?.id,
+    bodyTranslationEligible,
+    requestImmersiveTranslation,
+    requestStreamingAiSummary,
+  ]);
 
   function onMarkdownExportButtonClick() {
     if (!article) return;
@@ -1301,3 +1340,5 @@ export default function ArticleView({
     </div>
   );
 }
+
+export { dispatchReaderArticleCommand };

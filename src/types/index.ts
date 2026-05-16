@@ -33,6 +33,14 @@ export interface Category {
 
 export type Folder = Category;
 
+export interface ArticleMediaAttachment {
+  id: string;
+  url: string;
+  mimeType: string;
+  sizeBytes: number | null;
+  durationSeconds: number | null;
+}
+
 export interface Article {
   id: string;
   feedId: string;
@@ -57,6 +65,7 @@ export interface Article {
   bodyTranslationEligible?: boolean;
   bodyTranslationBlockedReason?: string | null;
   aiDigestSources?: ArticleAiDigestSource[];
+  mediaAttachments?: ArticleMediaAttachment[];
 }
 
 export interface ArticleAiDigestSource {

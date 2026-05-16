@@ -4,7 +4,10 @@ import { getPool } from '@/server/infra/db/pool';
 import { ok, fail } from '@/server/infra/http/apiResponse';
 import { NotFoundError, ValidationError } from '@/server/infra/http/errors';
 import { numericIdSchema } from '@/server/infra/http/idSchemas';
-import { getArticleById } from '@/server/domains/articles/repositories/articlesRepo';
+import {
+  getArticleById,
+  listArticleMediaAttachments,
+} from '@/server/domains/articles/repositories/articlesRepo';
 import { upsertTaskQueued } from '@/server/domains/articles/repositories/articleTasksRepo';
 import { getFeedFullTextOnOpenEnabled } from '@/server/domains/feeds/repositories/feedsRepo';
 import { getQueueSendOptions } from '@/server/infra/queue/contracts';
@@ -91,6 +94,10 @@ export async function POST(
     const pool = getPool();
     const article = await getArticleById(pool, articleId);
     if (!article) return fail(new NotFoundError('Article not found'));
+
+    // 播客文章只保留播放能力，不触发全文抓取。
+    const mediaAttachments = await listArticleMediaAttachments(pool, articleId);
+    if (mediaAttachments.length > 0) return ok({ enqueued: false, reason: 'podcast_article' });
 
     const fullTextOnOpenEnabled = await getFeedFullTextOnOpenEnabled(pool, article.feedId);
     if (!force && fullTextOnOpenEnabled !== true) {

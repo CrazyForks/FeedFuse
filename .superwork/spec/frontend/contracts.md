@@ -28,3 +28,4 @@
 - 文章打开后的全文、摘要、翻译按钮状态由 `src/features/articles/components/ArticleView.tsx` 结合 `getArticleTasks` 轮询结果控制。
 - `fullTextOnOpenEnabled` 只影响打开文章时的全文等待与按钮可用性；AI 摘要和翻译仍通过各自 enqueue 接口进入 worker。
 - `Feed.kind === 'ai_digest'` 的文章不触发全文抓取和翻译操作，避免对智能报告二次处理。
+- 带 `mediaAttachments` 的播客文章在 `ArticleView` 中渲染原生音视频播放器，并隐藏全文抓取、AI 摘要和翻译入口；自动打开触发也必须跳过。

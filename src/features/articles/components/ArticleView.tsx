@@ -65,6 +65,17 @@ const ARTICLE_SOURCE_BUTTON_CLASS_NAME =
 const READER_COMMAND_EVENT_NAME = "feedfuse:reader-command";
 type ReaderArticleCommand = "ai-summary" | "ai-translate";
 
+function getPlayableMediaAttachment(
+  article: { mediaAttachments?: Array<{ url: string; mimeType: string }> } | null,
+) {
+  return (
+    article?.mediaAttachments?.find((attachment) => {
+      const mimeType = attachment.mimeType.toLowerCase();
+      return attachment.url && (mimeType.startsWith("audio/") || mimeType.startsWith("video/"));
+    }) ?? null
+  );
+}
+
 function dispatchReaderArticleCommand(command: ReaderArticleCommand) {
   window.dispatchEvent(
     new CustomEvent(READER_COMMAND_EVENT_NAME, {
@@ -182,6 +193,8 @@ export default function ArticleView({
   const bodyTranslationEligible = article?.bodyTranslationEligible !== false;
   // AI digest articles are already synthesized content, so fulltext/translation actions stay disabled.
   const isAiDigestArticle = (feed?.kind ?? "rss") === "ai_digest";
+  // 播客文章只提供播放与导出，不开放全文、摘要和翻译入口。
+  const isPodcastArticle = Boolean(article?.mediaAttachments?.length);
   const aiDigestSources = article?.aiDigestSources ?? [];
   const aiDigestSourcesOverflow =
     aiDigestSources.length > AI_DIGEST_SOURCES_VISIBLE_LIMIT;
@@ -414,6 +427,7 @@ export default function ArticleView({
 
       if (!feedFullTextOnOpenEnabled) return;
       if (isAiDigestArticle) return;
+      if (isPodcastArticle) return;
       if (!articleLink) return;
 
       try {
@@ -434,6 +448,7 @@ export default function ArticleView({
     article?.link,
     feedFullTextOnOpenEnabled,
     isAiDigestArticle,
+    isPodcastArticle,
     requestFulltext,
   ]);
 
@@ -441,6 +456,7 @@ export default function ArticleView({
     const articleId = article?.id ?? null;
     if (!articleId) return;
     if (!feedAiSummaryOnOpenEnabled) return;
+    if (isPodcastArticle) return;
     // Keep the last summary/session outcome visible after refresh instead of auto-enqueueing again.
     const hasFormalAiSummary = Boolean(article?.aiSummary?.trim());
     const hasExistingSession = Boolean(article?.aiSummarySession);
@@ -456,6 +472,7 @@ export default function ArticleView({
     article?.aiSummarySession?.status,
     article?.id,
     feedAiSummaryOnOpenEnabled,
+    isPodcastArticle,
     requestStreamingAiSummary,
   ]);
 
@@ -464,6 +481,7 @@ export default function ArticleView({
     if (!articleId) return;
     if (!feedBodyTranslateOnOpenEnabled) return;
     if (isAiDigestArticle) return;
+    if (isPodcastArticle) return;
     if (!bodyTranslationEligible) return;
     if (hasAiTranslationContent || immersiveTranslationSession) return;
 
@@ -473,14 +491,17 @@ export default function ArticleView({
     bodyTranslationEligible,
     feedBodyTranslateOnOpenEnabled,
     isAiDigestArticle,
+    isPodcastArticle,
     hasAiTranslationContent,
     immersiveTranslationSession,
     requestImmersiveTranslation,
   ]);
 
-  const fulltextButtonDisabled = fulltextPending || isAiDigestArticle;
-  const aiTranslationButtonDisabled = isAiDigestArticle;
-  const aiSummaryButtonDisabled = feedFullTextOnOpenEnabled && fulltextPending;
+  const textAutomationDisabled = isAiDigestArticle || isPodcastArticle;
+  const fulltextButtonDisabled = fulltextPending || textAutomationDisabled;
+  const aiTranslationButtonDisabled = textAutomationDisabled;
+  const aiSummaryButtonDisabled =
+    textAutomationDisabled || (feedFullTextOnOpenEnabled && fulltextPending);
   const showDesktopStarButton = Boolean(article);
   const showDesktopMarkdownExportButton = Boolean(article);
   const showDesktopFulltextButton = Boolean(article) && !fulltextButtonDisabled;
@@ -503,18 +524,19 @@ export default function ArticleView({
 
   function onFulltextButtonClick() {
     if (!article?.id) return;
-    if (isAiDigestArticle) return;
+    if (textAutomationDisabled) return;
     void requestFulltext(article.id, { force: true });
   }
 
   function onAiSummaryButtonClick() {
     if (!article?.id) return;
+    if (textAutomationDisabled) return;
     void requestStreamingAiSummary({ force: true });
   }
 
   function onAiTranslationButtonClick() {
     if (!article?.id) return;
-    if (isAiDigestArticle) return;
+    if (textAutomationDisabled) return;
     void requestImmersiveTranslation({ force: true, autoView: true });
   }
 
@@ -884,6 +906,7 @@ export default function ArticleView({
     isDesktop && !effectiveArticleTitleVisible && effectiveHasScrollableContent;
   const articleFiltered =
     article.isFiltered || article.filterStatus === "filtered";
+  const playableMediaAttachment = getPlayableMediaAttachment(article);
 
   return (
     <div className="flex h-full flex-col bg-background text-foreground dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.015),rgba(255,255,255,0))]">
@@ -1055,6 +1078,31 @@ export default function ArticleView({
                 </div>
               ) : null}
             </div>
+
+            {playableMediaAttachment ? (
+              <section
+                className="mb-5 rounded-lg border border-border/65 bg-card/70 p-3"
+                aria-label="播客播放器"
+              >
+                {playableMediaAttachment.mimeType.toLowerCase().startsWith("audio/") ? (
+                  <audio
+                    data-testid="article-media-player"
+                    className="w-full"
+                    src={playableMediaAttachment.url}
+                    controls
+                    preload="metadata"
+                  />
+                ) : (
+                  <video
+                    data-testid="article-media-player"
+                    className="max-h-[28rem] w-full rounded-md bg-black"
+                    src={playableMediaAttachment.url}
+                    controls
+                    preload="metadata"
+                  />
+                )}
+              </section>
+            ) : null}
 
             {fulltextLoading ? (
               <div

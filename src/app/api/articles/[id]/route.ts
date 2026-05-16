@@ -9,6 +9,7 @@ import { numericIdSchema } from '@/server/infra/http/idSchemas';
 import { getActiveAiSummarySessionByArticleId } from '@/server/domains/articles/repositories/articleAiSummaryRepo';
 import {
   getArticleById,
+  listArticleMediaAttachments,
   setArticleRead,
   setArticleStarred,
   type ArticleRow,
@@ -110,6 +111,16 @@ function buildAiSummarySessionSnapshot(
   };
 }
 
+function mapMediaAttachment(row: Awaited<ReturnType<typeof listArticleMediaAttachments>>[number]) {
+  return {
+    id: row.id,
+    url: row.url,
+    mimeType: row.mimeType,
+    sizeBytes: row.sizeBytes === null ? null : Number(row.sizeBytes),
+    durationSeconds: row.durationSeconds,
+  };
+}
+
 function resolvePatchOperation(input: {
   articleId: string;
   isRead?: boolean;
@@ -168,8 +179,11 @@ export async function GET(
         ? article
         : { ...article, contentFullHtml: usableFulltextHtml };
     const proxiedArticle = rewriteArticleHtmlFields(articleWithUsableFulltext);
-    const aiSummarySession = await getActiveAiSummarySessionByArticleId(pool, article.id);
-    const aiDigestSources = await listAiDigestRunSourcesByArticleId(pool, article.id);
+    const [aiSummarySession, aiDigestSources, mediaAttachments] = await Promise.all([
+      getActiveAiSummarySessionByArticleId(pool, article.id),
+      listAiDigestRunSourcesByArticleId(pool, article.id),
+      listArticleMediaAttachments(pool, article.id),
+    ]);
     const eligibility = evaluateArticleBodyTranslationEligibility({
       sourceLanguage: article.sourceLanguage,
       contentHtml: article.contentHtml,
@@ -181,6 +195,7 @@ export async function GET(
       ...proxiedArticle,
       aiSummarySession: buildAiSummarySessionSnapshot(aiSummarySession),
       aiDigestSources,
+      mediaAttachments: mediaAttachments.map(mapMediaAttachment),
       bodyTranslationEligible: eligibility.bodyTranslationEligible,
       bodyTranslationBlockedReason: eligibility.bodyTranslationBlockedReason,
     });

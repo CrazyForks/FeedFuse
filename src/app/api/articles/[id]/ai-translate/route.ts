@@ -12,7 +12,11 @@ import {
   resolveTranslationConfig,
 } from '@/server/integrations/ai/translationConfig';
 import { extractImmersiveSegments, hashSourceHtml } from '@/server/integrations/ai/immersiveTranslationSession';
-import { getArticleById, type ArticleRow } from '@/server/domains/articles/repositories/articlesRepo';
+import {
+  getArticleById,
+  listArticleMediaAttachments,
+  type ArticleRow,
+} from '@/server/domains/articles/repositories/articlesRepo';
 import {
   deleteTranslationEventsBySessionId,
   deleteTranslationSegmentsBySessionId,
@@ -165,6 +169,13 @@ export async function POST(
 
     const article = await getArticleById(pool, articleId);
     if (!article) return fail(new NotFoundError('Article not found'));
+
+    // 播客文章不进入正文翻译链路。
+    const mediaAttachments = await listArticleMediaAttachments(pool, articleId);
+    if (mediaAttachments.length > 0) {
+      return ok({ enqueued: false, reason: 'podcast_article' });
+    }
+
     const usableFulltextHtml = getUsableFulltextHtml(article);
 
     const eligibility = evaluateArticleBodyTranslationEligibility({

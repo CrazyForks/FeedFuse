@@ -31,3 +31,10 @@
 - 入库链路的自动 AI 触发统一走 `src/worker/autoAiTriggers.ts`，只根据 `aiSummaryOnFetchEnabled`、`bodyTranslateOnFetchEnabled` 和文章已有内容决定是否入队。
 - 打开文章链路通过 `src/app/api/articles/[id]/fulltext/route.ts`、`ai-summary/route.ts`、`ai-translate/route.ts` 创建 `article_tasks`，状态由 `src/app/api/articles/[id]/tasks/route.ts` 返回给前端轮询。
 - AI 摘要/翻译提示词来自 `ui_settings.ai.summaryPrompt`、`ui_settings.ai.translationPrompt`；为空时必须在 `src/server/integrations/ai/**` 统一回退默认模板，不在 route/worker 内硬编码默认词。
+
+## 播客 RSS 契约
+
+- RSS `<enclosure>` 与 Atom `link rel="enclosure"` 中的 `audio/*`、`video/*` 附件属于文章媒体附件，持久化在 `article_media_attachments`，并通过 `Article.mediaAttachments` 返回给前端。
+- 播客文章判定以已解析出的媒体附件为准；图片类附件继续作为 `previewImage` 处理，不进入 `mediaAttachments`。
+- 播客文章只支持播放与普通阅读，不触发全文抓取、AI 摘要、正文翻译或文章过滤队列；worker 自动链路和 `fulltext`、`ai-summary`、`ai-translate` 手动 API 都必须返回 no-op。
+- 更新播客解析、附件入库或文本自动化屏蔽逻辑时，至少覆盖 RSS/Atom 解析、附件 repository、worker 入库跳过队列、文章 API DTO、文章视图播放与按钮屏蔽测试。

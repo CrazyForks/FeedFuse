@@ -9,6 +9,14 @@ export interface ParsedFeedItem {
   contentHtml: string | null;
   previewImage: string | null;
   summary: string | null;
+  mediaAttachments: ParsedFeedMediaAttachment[];
+}
+
+export interface ParsedFeedMediaAttachment {
+  url: string;
+  mimeType: string;
+  sizeBytes: number | null;
+  durationSeconds: number | null;
 }
 
 export interface ParsedFeed {
@@ -25,6 +33,7 @@ const parser = new Parser({
       ['media:thumbnail', 'mediaThumbnail', { keepArray: true }],
       ['media:content', 'mediaContent', { keepArray: true }],
       ['itunes:image', 'itunesImage', { keepArray: true }],
+      ['itunes:duration', 'itunesDuration'],
       ['link', 'links', { keepArray: true }],
     ],
   },
@@ -68,6 +77,46 @@ function getStringField(value: unknown, key: string): string | null {
   const record = value as Record<string, unknown>;
   const raw = record[key];
   return typeof raw === 'string' ? raw : null;
+}
+
+function getUnknownField(value: unknown, key: string): unknown {
+  if (typeof value !== 'object' || value === null) return null;
+  return (value as Record<string, unknown>)[key];
+}
+
+function normalizeMimeType(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized.startsWith('audio/') && !normalized.startsWith('video/')) return null;
+  return normalized;
+}
+
+function parseNonNegativeInteger(value: unknown): number | null {
+  if (typeof value !== 'string' && typeof value !== 'number') return null;
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) return null;
+  return parsed;
+}
+
+function parseItunesDuration(value: unknown): number | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  if (/^\d+$/.test(trimmed)) {
+    return parseNonNegativeInteger(trimmed);
+  }
+
+  const parts = trimmed.split(':').map((part) => part.trim());
+  if (parts.length < 2 || parts.length > 3 || parts.some((part) => !/^\d+$/.test(part))) {
+    return null;
+  }
+
+  const numbers = parts.map(Number);
+  const [hours, minutes, seconds] =
+    numbers.length === 3 ? numbers : [0, numbers[0], numbers[1]];
+  if (minutes > 59 || seconds > 59) return null;
+  return hours * 3600 + minutes * 60 + seconds;
 }
 
 function firstNormalizedUrlFromNodes(
@@ -150,6 +199,60 @@ function extractPreviewImage(item: unknown, baseUrl: string | null): string | nu
   return null;
 }
 
+function extractMediaAttachments(
+  item: unknown,
+  input: { baseUrl: string | null; durationSeconds: number | null },
+): ParsedFeedMediaAttachment[] {
+  if (typeof item !== 'object' || item === null) return [];
+
+  const attachments: ParsedFeedMediaAttachment[] = [];
+  const seen = new Set<string>();
+
+  // 只保留浏览器可直接播放的音视频附件，图片仍由 previewImage 处理。
+  const pushAttachment = (candidate: {
+    url: unknown;
+    mimeType: unknown;
+    sizeBytes?: unknown;
+  }) => {
+    const url = normalizeHttpUrl(candidate.url, input.baseUrl);
+    const mimeType = normalizeMimeType(candidate.mimeType);
+    if (!url || !mimeType || seen.has(url)) return;
+
+    seen.add(url);
+    attachments.push({
+      url,
+      mimeType,
+      sizeBytes: parseNonNegativeInteger(candidate.sizeBytes),
+      durationSeconds: input.durationSeconds,
+    });
+  };
+
+  const enclosure = (item as { enclosure?: unknown }).enclosure;
+  for (const node of Array.isArray(enclosure) ? enclosure : [enclosure]) {
+    if (typeof node !== 'object' || node === null) continue;
+    const record = node as { url?: unknown; type?: unknown; length?: unknown };
+    pushAttachment({
+      url: record.url,
+      mimeType: record.type,
+      sizeBytes: record.length,
+    });
+  }
+
+  const links = (item as { links?: unknown }).links;
+  for (const link of Array.isArray(links) ? links : []) {
+    const rel = (getXmlAttr(link, 'rel') ?? '').toLowerCase();
+    if (rel !== 'enclosure') continue;
+
+    pushAttachment({
+      url: getXmlAttr(link, 'href'),
+      mimeType: getXmlAttr(link, 'type'),
+      sizeBytes: getXmlAttr(link, 'length'),
+    });
+  }
+
+  return attachments;
+}
+
 function parseDate(value: unknown): Date | null {
   if (typeof value !== 'string' || value.trim().length === 0) return null;
   const date = new Date(value);
@@ -193,6 +296,8 @@ export async function parseFeed(xml: string, fetchedAt: Date): Promise<ParsedFee
         : getStringField(item, 'author');
 
     const previewImage = extractPreviewImage(item, baseUrl);
+    const durationSeconds = parseItunesDuration(getUnknownField(item, 'itunesDuration'));
+    const mediaAttachments = extractMediaAttachments(item, { baseUrl, durationSeconds });
 
     return {
       title: typeof item.title === 'string' ? item.title : '',
@@ -203,6 +308,7 @@ export async function parseFeed(xml: string, fetchedAt: Date): Promise<ParsedFee
       contentHtml,
       previewImage,
       summary,
+      mediaAttachments,
     };
   });
 

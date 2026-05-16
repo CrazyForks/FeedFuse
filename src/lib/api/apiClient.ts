@@ -846,6 +846,15 @@ export interface ArticleDto {
   bodyTranslationEligible?: boolean;
   bodyTranslationBlockedReason?: string | null;
   aiDigestSources?: ArticleAiDigestSourceDto[] | null;
+  mediaAttachments?: ArticleMediaAttachmentDto[] | null;
+}
+
+export interface ArticleMediaAttachmentDto {
+  id: string;
+  url: string;
+  mimeType: string;
+  sizeBytes: number | null;
+  durationSeconds: number | null;
 }
 
 export interface ArticleAiDigestSourceDto {
@@ -1255,6 +1264,13 @@ export function mapArticleDto(dto: ArticleDto): Article {
       link: source.link,
       publishedAt: source.publishedAt,
       position: source.position,
+    })) ?? undefined,
+    mediaAttachments: dto.mediaAttachments?.map((attachment) => ({
+      id: attachment.id,
+      url: attachment.url,
+      mimeType: attachment.mimeType,
+      sizeBytes: attachment.sizeBytes,
+      durationSeconds: attachment.durationSeconds,
     })) ?? undefined,
   };
 }

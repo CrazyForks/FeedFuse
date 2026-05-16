@@ -10,6 +10,7 @@ import {
 import {
   getArticleById,
   insertArticleIgnoreDuplicate,
+  insertArticleMediaAttachments,
   pruneFeedArticlesToLimit,
   recordArticleTitleTranslationFailure,
   setArticleTitleTranslation,
@@ -97,6 +98,38 @@ type FeedFetchResult = {
   errorMessage: string | null;
 };
 
+type FeedIngestionDeps = {
+  getPool: typeof getPool;
+  getFeedForFetch: typeof getFeedForFetch;
+  isSafeExternalUrl: typeof isSafeExternalUrl;
+  getAppSettings: typeof getAppSettings;
+  getUiSettings: typeof getUiSettings;
+  fetchFeedXml: typeof fetchFeedXml;
+  parseFeed: typeof parseFeed;
+  sanitizeContent: typeof sanitizeContent;
+  insertArticleIgnoreDuplicate: typeof insertArticleIgnoreDuplicate;
+  insertArticleMediaAttachments: typeof insertArticleMediaAttachments;
+  pruneFeedArticlesToLimit: typeof pruneFeedArticlesToLimit;
+  recordFeedFetchResult: typeof recordFeedFetchResult;
+  isFeedDue: typeof isFeedDue;
+};
+
+const defaultFeedIngestionDeps: FeedIngestionDeps = {
+  getPool,
+  getFeedForFetch,
+  isSafeExternalUrl,
+  getAppSettings,
+  getUiSettings,
+  fetchFeedXml,
+  parseFeed,
+  sanitizeContent,
+  insertArticleIgnoreDuplicate,
+  insertArticleMediaAttachments,
+  pruneFeedArticlesToLimit,
+  recordFeedFetchResult,
+  isFeedDue,
+};
+
 async function enqueueRefreshAll(boss: PgBoss, input?: { force?: boolean; runId?: string }) {
   const pool = getPool();
   const feeds = await listEnabledFeedsForFetch(pool);
@@ -120,13 +153,14 @@ async function enqueueRefreshAll(boss: PgBoss, input?: { force?: boolean; runId?
   return { enqueued: targetFeeds.length };
 }
 
-async function fetchAndIngestFeed(
+export async function fetchAndIngestFeed(
   boss: PgBoss,
   feedId: string,
-  input?: { force?: boolean },
+  input?: { force?: boolean; deps?: Partial<FeedIngestionDeps> },
 ): Promise<FeedFetchResult> {
-  const pool = getPool();
-  const feed = await getFeedForFetch(pool, feedId);
+  const deps = { ...defaultFeedIngestionDeps, ...(input?.deps ?? {}) };
+  const pool = deps.getPool();
+  const feed = await deps.getFeedForFetch(pool, feedId);
   if (!feed) {
     return { inserted: 0, errorMessage: '订阅源不存在' };
   }
@@ -136,13 +170,13 @@ async function fetchAndIngestFeed(
   }
 
   const force = Boolean(input?.force);
-  if (!force && !isFeedDue({ lastFetchedAt: feed.lastFetchedAt, fetchIntervalMinutes: feed.fetchIntervalMinutes }, new Date())) {
+  if (!force && !deps.isFeedDue({ lastFetchedAt: feed.lastFetchedAt, fetchIntervalMinutes: feed.fetchIntervalMinutes }, new Date())) {
     return { inserted: 0, errorMessage: null };
   }
 
-  if (!(await isSafeExternalUrl(feed.url))) {
+  if (!(await deps.isSafeExternalUrl(feed.url))) {
     const mapped = mapFeedFetchError('Unsafe URL');
-    await recordFeedFetchResult(pool, feedId, {
+    await deps.recordFeedFetchResult(pool, feedId, {
       status: null,
       error: mapped.errorMessage,
       rawError: mapped.rawErrorMessage,
@@ -150,8 +184,8 @@ async function fetchAndIngestFeed(
     return { inserted: 0, errorMessage: mapped.errorMessage };
   }
 
-  const settings = await getAppSettings(pool);
-  const uiSettings = normalizePersistedSettings(await getUiSettings(pool));
+  const settings = await deps.getAppSettings(pool);
+  const uiSettings = normalizePersistedSettings(await deps.getUiSettings(pool));
   const fetchedAt = new Date();
 
   let status: number | null = null;
@@ -162,7 +196,7 @@ async function fetchAndIngestFeed(
   let inserted = 0;
 
   try {
-    const res = await fetchFeedXml(feed.url, {
+    const res = await deps.fetchFeedXml(feed.url, {
       timeoutMs: settings.rssTimeoutMs,
       userAgent: settings.rssUserAgent,
       etag: feed.etag,
@@ -181,28 +215,37 @@ async function fetchAndIngestFeed(
       return { inserted: 0, errorMessage: mapped.errorMessage };
     }
 
-    const parsed = await parseFeed(res.xml, fetchedAt);
+    const parsed = await deps.parseFeed(res.xml, fetchedAt);
+    const isPodcastSource = parsed.items.some((item) => item.mediaAttachments.length > 0);
     for (const item of parsed.items) {
       const baseUrl = item.link ?? parsed.link ?? feed.url;
-      const created = await insertArticleIgnoreDuplicate(pool, {
+      const created = await deps.insertArticleIgnoreDuplicate(pool, {
         feedId,
         dedupeKey: buildDedupeKey(item),
         title: item.title || '(untitled)',
         link: item.link,
         author: item.author,
         publishedAt: item.publishedAt.toISOString(),
-        contentHtml: sanitizeContent(item.contentHtml, { baseUrl }),
+        contentHtml: deps.sanitizeContent(item.contentHtml, { baseUrl }),
         previewImageUrl: item.previewImage,
         summary: item.summary,
         sourceLanguage: parsed.language,
-        filterStatus: 'pending',
+        filterStatus: isPodcastSource ? 'passed' : 'pending',
         isFiltered: false,
         filteredBy: [],
-        filterEvaluatedAt: null,
+        filterEvaluatedAt: isPodcastSource ? new Date().toISOString() : null,
         filterErrorMessage: null,
       });
       if (!created) continue;
       inserted += 1;
+
+      if (item.mediaAttachments.length > 0) {
+        await deps.insertArticleMediaAttachments(pool, created.id, item.mediaAttachments);
+      }
+
+      if (isPodcastSource) {
+        continue;
+      }
 
       const filterJob: ArticleFilterJobData = {
         articleId: created.id,
@@ -223,7 +266,7 @@ async function fetchAndIngestFeed(
     }
 
     if (inserted > 0) {
-      await pruneFeedArticlesToLimit(pool, feedId, uiSettings.rss.maxStoredArticlesPerFeed);
+      await deps.pruneFeedArticlesToLimit(pool, feedId, uiSettings.rss.maxStoredArticlesPerFeed);
     }
 
     return { inserted, errorMessage: null };
@@ -233,7 +276,7 @@ async function fetchAndIngestFeed(
     rawError = mapped.rawErrorMessage;
     return { inserted: 0, errorMessage: mapped.errorMessage };
   } finally {
-    await recordFeedFetchResult(pool, feedId, {
+    await deps.recordFeedFetchResult(pool, feedId, {
       status,
       etag,
       lastModified,
@@ -845,7 +888,11 @@ async function main() {
   process.on('SIGTERM', () => void shutdown());
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exitCode = 1;
-});
+const isDirectRun = process.argv[1] && import.meta.url === new URL(process.argv[1], 'file:').href;
+
+if (isDirectRun) {
+  main().catch((err) => {
+    console.error(err);
+    process.exitCode = 1;
+  });
+}

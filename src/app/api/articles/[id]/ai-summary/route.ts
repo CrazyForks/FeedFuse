@@ -11,7 +11,10 @@ import { getPool } from '@/server/infra/db/pool';
 import { ok, fail } from '@/server/infra/http/apiResponse';
 import { NotFoundError, ValidationError } from '@/server/infra/http/errors';
 import { numericIdSchema } from '@/server/infra/http/idSchemas';
-import { getArticleById } from '@/server/domains/articles/repositories/articlesRepo';
+import {
+  getArticleById,
+  listArticleMediaAttachments,
+} from '@/server/domains/articles/repositories/articlesRepo';
 import {
   getActiveAiSummarySessionByArticleId,
   markAiSummarySessionSuperseded,
@@ -177,6 +180,13 @@ export async function POST(
 
     const article = await getArticleById(pool, articleId);
     if (!article) return fail(new NotFoundError('Article not found'));
+
+    // 播客文章不进入 AI 摘要链路，避免对节目内容做文本化处理。
+    const mediaAttachments = await listArticleMediaAttachments(pool, articleId);
+    if (mediaAttachments.length > 0) {
+      return ok({ enqueued: false, reason: 'podcast_article' });
+    }
+
     const usableFulltextHtml = getUsableFulltextHtml(article);
 
     const [aiApiKey, uiSettings] = await Promise.all([

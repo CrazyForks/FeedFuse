@@ -4,6 +4,7 @@ const poolQueryMock = vi.fn();
 const pool = { query: poolQueryMock };
 
 const getArticleByIdMock = vi.fn();
+const listArticleMediaAttachmentsMock = vi.fn();
 const setArticleReadMock = vi.fn();
 const setArticleStarredMock = vi.fn();
 const markAllReadMock = vi.fn();
@@ -56,30 +57,35 @@ vi.mock('@/server/infra/db/pool', () => ({
 
 vi.mock('@/server/domains/articles/repositories/articlesRepo', () => ({
   getArticleById: (...args: unknown[]) => getArticleByIdMock(...args),
+  listArticleMediaAttachments: (...args: unknown[]) => listArticleMediaAttachmentsMock(...args),
   setArticleRead: (...args: unknown[]) => setArticleReadMock(...args),
   setArticleStarred: (...args: unknown[]) => setArticleStarredMock(...args),
   markAllRead: (...args: unknown[]) => markAllReadMock(...args),
 }));
 vi.mock('@/server/domains/articles/repositories/articlesRepo', () => ({
   getArticleById: (...args: unknown[]) => getArticleByIdMock(...args),
+  listArticleMediaAttachments: (...args: unknown[]) => listArticleMediaAttachmentsMock(...args),
   setArticleRead: (...args: unknown[]) => setArticleReadMock(...args),
   setArticleStarred: (...args: unknown[]) => setArticleStarredMock(...args),
   markAllRead: (...args: unknown[]) => markAllReadMock(...args),
 }));
 vi.mock('@/server/domains/articles/repositories/articlesRepo', () => ({
   getArticleById: (...args: unknown[]) => getArticleByIdMock(...args),
+  listArticleMediaAttachments: (...args: unknown[]) => listArticleMediaAttachmentsMock(...args),
   setArticleRead: (...args: unknown[]) => setArticleReadMock(...args),
   setArticleStarred: (...args: unknown[]) => setArticleStarredMock(...args),
   markAllRead: (...args: unknown[]) => markAllReadMock(...args),
 }));
 vi.mock('@/server/domains/articles/repositories/articlesRepo', () => ({
   getArticleById: (...args: unknown[]) => getArticleByIdMock(...args),
+  listArticleMediaAttachments: (...args: unknown[]) => listArticleMediaAttachmentsMock(...args),
   setArticleRead: (...args: unknown[]) => setArticleReadMock(...args),
   setArticleStarred: (...args: unknown[]) => setArticleStarredMock(...args),
   markAllRead: (...args: unknown[]) => markAllReadMock(...args),
 }));
 vi.mock('@/server/domains/articles/repositories/articlesRepo', () => ({
   getArticleById: (...args: unknown[]) => getArticleByIdMock(...args),
+  listArticleMediaAttachments: (...args: unknown[]) => listArticleMediaAttachmentsMock(...args),
   setArticleRead: (...args: unknown[]) => setArticleReadMock(...args),
   setArticleStarred: (...args: unknown[]) => setArticleStarredMock(...args),
   markAllRead: (...args: unknown[]) => markAllReadMock(...args),
@@ -327,6 +333,8 @@ describe('/api/articles', () => {
     poolQueryMock.mockResolvedValue({ rows: [] });
     listTranslationEventsAfterMock.mockResolvedValue([]);
     getActiveAiSummarySessionByArticleIdMock.mockResolvedValue(null);
+    listArticleMediaAttachmentsMock.mockReset();
+    listArticleMediaAttachmentsMock.mockResolvedValue([]);
     upsertAiSummarySessionMock.mockResolvedValue({
       id: 'summary-session-id-1',
       articleId,
@@ -381,6 +389,69 @@ describe('/api/articles', () => {
     expect(json.data.filterStatus).toBe('filtered');
     expect(json.data.isFiltered).toBe(true);
     expect(json.data.filteredBy).toEqual(['keyword']);
+  });
+
+  it('GET returns article media attachments', async () => {
+    getArticleByIdMock.mockResolvedValue({
+      id: articleId,
+      feedId,
+      dedupeKey: 'guid:1',
+      title: 'Podcast episode',
+      titleOriginal: 'Podcast episode',
+      titleZh: null,
+      link: 'https://pod.example.com/1',
+      author: null,
+      publishedAt: null,
+      contentHtml: '<p>Episode</p>',
+      contentFullHtml: null,
+      contentFullFetchedAt: null,
+      contentFullError: null,
+      contentFullSourceUrl: null,
+      previewImageUrl: null,
+      aiSummary: null,
+      aiSummaryModel: null,
+      aiSummarizedAt: null,
+      aiTranslationBilingualHtml: null,
+      aiTranslationZhHtml: null,
+      aiTranslationModel: null,
+      aiTranslatedAt: null,
+      summary: null,
+      sourceLanguage: 'en',
+      filterStatus: 'passed',
+      isFiltered: false,
+      filteredBy: [],
+      isRead: false,
+      readAt: null,
+      isStarred: false,
+      starredAt: null,
+    });
+    listArticleMediaAttachmentsMock.mockResolvedValue([
+      {
+        id: 'attachment-1',
+        articleId,
+        url: 'https://pod.example.com/1.mp3',
+        mimeType: 'audio/mpeg',
+        sizeBytes: '123',
+        durationSeconds: 456,
+      },
+    ]);
+
+    const mod = await import('../../../../app/api/articles/[id]/route');
+    const res = await mod.GET(new Request(`http://localhost/api/articles/${articleId}`), {
+      params: Promise.resolve({ id: articleId }),
+    });
+    const json = await res.json();
+
+    expect(json.ok).toBe(true);
+    expect(json.data.mediaAttachments).toEqual([
+      {
+        id: 'attachment-1',
+        url: 'https://pod.example.com/1.mp3',
+        mimeType: 'audio/mpeg',
+        sizeBytes: 123,
+        durationSeconds: 456,
+      },
+    ]);
   });
 
   it('GET accepts numeric route id', async () => {
@@ -952,6 +1023,35 @@ describe('/api/articles', () => {
     expect(enqueueMock).not.toHaveBeenCalled();
   });
 
+  it('POST /:id/fulltext skips podcast articles', async () => {
+    getArticleByIdMock.mockResolvedValue({
+      id: articleId,
+      feedId,
+      link: 'https://pod.example.com/1',
+    });
+    listArticleMediaAttachmentsMock.mockResolvedValue([
+      {
+        id: 'attachment-1',
+        articleId,
+        url: 'https://pod.example.com/1.mp3',
+        mimeType: 'audio/mpeg',
+        sizeBytes: '123',
+        durationSeconds: 456,
+      },
+    ]);
+
+    const mod = await import('../../../../app/api/articles/[id]/fulltext/route');
+    const res = await mod.POST(new Request(`http://localhost/api/articles/${articleId}/fulltext`), {
+      params: Promise.resolve({ id: articleId }),
+    });
+    const json = await res.json();
+
+    expect(json.ok).toBe(true);
+    expect(json.data).toEqual({ enqueued: false, reason: 'podcast_article' });
+    expect(getFeedFullTextOnOpenEnabledMock).not.toHaveBeenCalled();
+    expect(enqueueWithResultMock).not.toHaveBeenCalled();
+  });
+
   it('POST /:id/fulltext force=true bypasses disabled flag and enqueues', async () => {
     getFeedFullTextOnOpenEnabledMock.mockResolvedValue(false);
     getArticleByIdMock.mockResolvedValue({
@@ -1228,6 +1328,38 @@ describe('/api/articles', () => {
     const json = await res.json();
     expect(json.ok).toBe(true);
     expect(json.data).toEqual({ enqueued: false, reason: 'missing_api_key' });
+  });
+
+  it('POST /:id/ai-summary skips podcast articles', async () => {
+    getArticleByIdMock.mockResolvedValue({
+      id: articleId,
+      feedId,
+      contentHtml: '<p>Episode notes</p>',
+      contentFullHtml: null,
+      summary: null,
+      aiSummary: null,
+    });
+    listArticleMediaAttachmentsMock.mockResolvedValue([
+      {
+        id: 'attachment-1',
+        articleId,
+        url: 'https://pod.example.com/1.mp3',
+        mimeType: 'audio/mpeg',
+        sizeBytes: null,
+        durationSeconds: null,
+      },
+    ]);
+
+    const mod = await import('../../../../app/api/articles/[id]/ai-summary/route');
+    const res = await mod.POST(new Request(`http://localhost/api/articles/${articleId}/ai-summary`), {
+      params: Promise.resolve({ id: articleId }),
+    });
+    const json = await res.json();
+
+    expect(json.ok).toBe(true);
+    expect(json.data).toEqual({ enqueued: false, reason: 'podcast_article' });
+    expect(getAiApiKeyMock).not.toHaveBeenCalled();
+    expect(enqueueWithResultMock).not.toHaveBeenCalled();
   });
 
   it('POST /:id/ai-summary returns missing_ai_config when shared AI config is incomplete', async () => {
@@ -2234,6 +2366,40 @@ describe('/api/articles', () => {
     const json = await res.json();
     expect(json.ok).toBe(true);
     expect(json.data).toEqual({ enqueued: false, reason: 'missing_api_key' });
+  });
+
+  it('POST /:id/ai-translate skips podcast articles', async () => {
+    getArticleByIdMock.mockResolvedValue({
+      id: articleId,
+      feedId,
+      sourceLanguage: 'en',
+      contentHtml: '<p>Episode notes</p>',
+      contentFullHtml: null,
+      summary: null,
+      aiTranslationBilingualHtml: null,
+      aiTranslationZhHtml: null,
+    });
+    listArticleMediaAttachmentsMock.mockResolvedValue([
+      {
+        id: 'attachment-1',
+        articleId,
+        url: 'https://pod.example.com/1.mp3',
+        mimeType: 'audio/mpeg',
+        sizeBytes: null,
+        durationSeconds: null,
+      },
+    ]);
+
+    const mod = await import('../../../../app/api/articles/[id]/ai-translate/route');
+    const res = await mod.POST(new Request(`http://localhost/api/articles/${articleId}/ai-translate`), {
+      params: Promise.resolve({ id: articleId }),
+    });
+    const json = await res.json();
+
+    expect(json.ok).toBe(true);
+    expect(json.data).toEqual({ enqueued: false, reason: 'podcast_article' });
+    expect(getAiApiKeyMock).not.toHaveBeenCalled();
+    expect(enqueueWithResultMock).not.toHaveBeenCalled();
   });
 
   it('POST /:id/ai-translate returns missing_api_key when dedicated translation key is empty', async () => {

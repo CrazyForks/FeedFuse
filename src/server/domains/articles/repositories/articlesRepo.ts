@@ -128,6 +128,22 @@ export interface ArticleSearchResult {
   publishedAt: string | null;
 }
 
+export interface ArticleMediaAttachmentRow {
+  id: string;
+  articleId: string;
+  url: string;
+  mimeType: string;
+  sizeBytes: string | null;
+  durationSeconds: number | null;
+}
+
+export interface ArticleMediaAttachmentInput {
+  url: string;
+  mimeType: string;
+  sizeBytes: number | null;
+  durationSeconds: number | null;
+}
+
 function normalizeSearchKeyword(value: string): string {
   return value.trim().replace(/\s+/g, ' ');
 }
@@ -278,6 +294,66 @@ export async function getArticleById(
     [id],
   );
   return rows[0] ?? null;
+}
+
+export async function insertArticleMediaAttachments(
+  pool: DbClient,
+  articleId: string,
+  attachments: ArticleMediaAttachmentInput[],
+): Promise<void> {
+  if (attachments.length === 0) return;
+
+  const values: Array<string | number | null> = [];
+  const tuples = attachments.map((attachment, index) => {
+    const offset = index * 6;
+    values.push(
+      articleId,
+      attachment.url,
+      attachment.mimeType,
+      attachment.sizeBytes,
+      attachment.durationSeconds,
+      index,
+    );
+    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
+  });
+
+  await pool.query(
+    `
+      insert into article_media_attachments(
+        article_id,
+        url,
+        mime_type,
+        size_bytes,
+        duration_seconds,
+        position
+      )
+      values ${tuples.join(', ')}
+      on conflict (article_id, url) do nothing
+    `,
+    values,
+  );
+}
+
+export async function listArticleMediaAttachments(
+  pool: DbClient,
+  articleId: string,
+): Promise<ArticleMediaAttachmentRow[]> {
+  const { rows } = await pool.query<ArticleMediaAttachmentRow>(
+    `
+      select
+        id,
+        article_id as "articleId",
+        url,
+        mime_type as "mimeType",
+        size_bytes as "sizeBytes",
+        duration_seconds as "durationSeconds"
+      from article_media_attachments
+      where article_id = $1
+      order by position asc, id asc
+    `,
+    [articleId],
+  );
+  return rows;
 }
 
 export async function searchArticles(

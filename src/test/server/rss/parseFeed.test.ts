@@ -62,6 +62,36 @@ describe('rss parsing', () => {
     expect(feed.language).toBe('zh-CN');
   });
 
+  it('parses playable RSS podcast enclosures with duration', async () => {
+    const xml = await readFixture('podcast-rss.xml');
+    const feed = await parseFeed(xml, new Date('2026-05-16T00:00:00Z'));
+
+    expect(feed.items[0].mediaAttachments).toEqual([
+      {
+        url: 'https://pod.example.com/episodes/1.mp3',
+        mimeType: 'audio/mpeg',
+        sizeBytes: 12345678,
+        durationSeconds: 3723,
+      },
+    ]);
+    expect(feed.items[0].previewImage).toBe('https://pod.example.com/cover.jpg');
+    expect(feed.items[1].mediaAttachments).toEqual([]);
+  });
+
+  it('parses playable Atom enclosure links', async () => {
+    const xml = await readFixture('podcast-atom.xml');
+    const feed = await parseFeed(xml, new Date('2026-05-16T00:00:00Z'));
+
+    expect(feed.items[0].mediaAttachments).toEqual([
+      {
+        url: 'https://pod.example.com/episodes/atom-video.mp4',
+        mimeType: 'video/mp4',
+        sizeBytes: 222,
+        durationSeconds: null,
+      },
+    ]);
+  });
+
   it('sanitizes scripts and event handlers', () => {
     const cleaned = sanitizeContent(
       '<p>Hi</p><script>alert(1)</script><img src="https://example.com/a.png" onerror="alert(1)" />',

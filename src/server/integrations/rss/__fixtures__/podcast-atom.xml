@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Example Atom Podcast</title>
+  <link href="https://pod.example.com/" />
+  <entry>
+    <id>atom-episode-1</id>
+    <title>Atom Episode 1</title>
+    <updated>2026-05-16T00:00:00Z</updated>
+    <link href="https://pod.example.com/episodes/atom-1" />
+    <link rel="enclosure" href="/episodes/atom-video.mp4" type="video/mp4" length="222" />
+  </entry>
+</feed>

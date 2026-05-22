@@ -4,7 +4,7 @@ import { getPool } from '@/server/infra/db/pool';
 import { ok, fail } from '@/server/infra/http/apiResponse';
 import { ValidationError } from '@/server/infra/http/errors';
 import { optionalNumericIdSchema } from '@/server/infra/http/idSchemas';
-import { markAllRead } from '@/server/domains/articles/repositories/articlesRepo';
+import { markAllArticlesReadWithWriteback } from '@/server/domains/fever/services/feverWritebackService';
 import {
   writeUserOperationFailedLog,
   writeUserOperationSucceededLog,
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     }
 
     const pool = getPool();
-    const updatedCount = await markAllRead(pool, { feedId: parsed.data.feedId });
+    const updatedCount = await markAllArticlesReadWithWriteback(pool, { feedId: parsed.data.feedId });
     await writeUserOperationSucceededLog(pool, {
       actionKey: 'article.markAllRead',
       source: 'app/api/articles/mark-all-read',

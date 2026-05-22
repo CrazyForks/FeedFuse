@@ -10,6 +10,8 @@ interface EditFeedDialogProps {
 }
 
 export default function EditFeedDialog({ open, feed, categories, onOpenChange, onSubmit }: EditFeedDialogProps) {
+  const isRemoteManaged = feed.provider === 'fever';
+
   return (
     <FeedDialog
       mode="edit"
@@ -22,6 +24,7 @@ export default function EditFeedDialog({ open, feed, categories, onOpenChange, o
         siteUrl: feed.siteUrl ?? null,
         categoryId: feed.categoryId ?? null,
       }}
+      readOnlyFields={{ title: isRemoteManaged, url: isRemoteManaged }}
       onSubmit={onSubmit}
     />
   );

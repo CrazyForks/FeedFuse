@@ -147,6 +147,39 @@ describe('mapFeedDto', () => {
     expect(mapped.fetchRawError).toBe('HTTP 403 from upstream');
   });
 
+  it('maps fever provider and remote management fields', () => {
+    const mapped = mapFeedDto(
+      {
+        id: 'feed-fever',
+        kind: 'rss',
+        provider: 'fever',
+        title: 'Fever Feed',
+        url: 'https://example.com/fever.xml',
+        siteUrl: null,
+        iconUrl: null,
+        enabled: true,
+        fullTextOnOpenEnabled: false,
+        aiSummaryOnOpenEnabled: false,
+        aiSummaryOnFetchEnabled: false,
+        bodyTranslateOnFetchEnabled: false,
+        bodyTranslateOnOpenEnabled: false,
+        titleTranslateEnabled: false,
+        bodyTranslateEnabled: false,
+        articleListDisplayMode: 'card',
+        categoryId: null,
+        fetchIntervalMinutes: 30,
+        unreadCount: 0,
+        lastFetchStatus: null,
+        lastFetchError: null,
+      } as Parameters<typeof mapFeedDto>[0],
+      [],
+    );
+
+    expect(mapped.provider).toBe('fever');
+    expect(mapped.remoteManaged).toBe(true);
+    expect(mapped.remoteSource).toBe('fever');
+  });
+
   it('maps podcast flag from snapshot feeds', () => {
     const mapped = mapFeedDto(
       {

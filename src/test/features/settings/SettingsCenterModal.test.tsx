@@ -241,6 +241,35 @@ describe('SettingsCenterModal', () => {
           );
         }
 
+        if (url.includes('/api/fever/accounts')) {
+          if (method === 'GET') {
+            return new Response(JSON.stringify({ ok: true, data: [] }), {
+              status: 200,
+              headers: { 'content-type': 'application/json' },
+            });
+          }
+
+          if (method === 'POST') {
+            return new Response(
+              JSON.stringify({
+                ok: true,
+                data: {
+                  id: 'fever-1',
+                  baseUrl: 'https://reader.example.com',
+                  username: 'demo',
+                  enabled: true,
+                  lastSyncAt: null,
+                  lastError: null,
+                },
+              }),
+              {
+                status: 200,
+                headers: { 'content-type': 'application/json' },
+              },
+            );
+          }
+        }
+
         if (!url.includes('/api/settings')) {
           throw new Error(`Unexpected fetch: ${url}`);
         }

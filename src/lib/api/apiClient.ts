@@ -402,6 +402,9 @@ export interface ReaderSnapshotDto {
   feeds: Array<{
     id: string;
     kind: Feed['kind'];
+    provider?: Feed['provider'];
+    remoteManaged?: boolean;
+    remoteSource?: 'fever' | null;
     title: string;
     url: string;
     siteUrl: string | null;
@@ -441,6 +444,7 @@ export interface ReaderSnapshotDto {
       filteredBy: string[];
       isRead: boolean;
       isStarred: boolean;
+      remoteSource?: 'fever' | null;
       bodyTranslationEligible?: boolean;
       bodyTranslationBlockedReason?: string | null;
       aiSummarySession?: ArticleAiSummarySessionSnapshotDto | null;
@@ -636,6 +640,9 @@ export async function refreshAllFeeds(
 export interface FeedRowDto {
   id: string;
   kind: Feed['kind'];
+  provider?: Feed['provider'];
+  remoteManaged?: boolean;
+  remoteSource?: 'fever' | null;
   title: string;
   url: string;
   siteUrl: string | null;
@@ -809,6 +816,49 @@ export async function markAllRead(
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(input),
+    },
+    options,
+  );
+}
+
+export interface FeverAccountDto {
+  id: string;
+  baseUrl: string;
+  username: string;
+  enabled: boolean;
+  lastSyncAt: string | null;
+  lastError: string | null;
+}
+
+export async function listFeverAccounts(
+  options?: RequestApiOptions,
+): Promise<FeverAccountDto[]> {
+  return requestApi('/api/fever/accounts', undefined, options);
+}
+
+export async function createFeverAccount(
+  input: { baseUrl: string; username: string; apiKey: string },
+  options?: RequestApiOptions,
+): Promise<FeverAccountDto> {
+  return requestApi(
+    '/api/fever/accounts',
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    },
+    options,
+  );
+}
+
+export async function syncFeverAccountNow(
+  accountId: string,
+  options?: RequestApiOptions,
+): Promise<{ queued: boolean }> {
+  return requestApi(
+    `/api/fever/accounts/${encodeURIComponent(accountId)}/sync`,
+    {
+      method: 'POST',
     },
     options,
   );
@@ -1184,6 +1234,9 @@ export function mapFeedDto(dto: FeedDtoLike, categories: Category[]): Feed {
   return {
     id: dto.id,
     kind: dto.kind,
+    provider: dto.provider ?? 'local_rss',
+    remoteManaged: dto.remoteManaged ?? dto.provider === 'fever',
+    remoteSource: dto.remoteSource ?? (dto.provider === 'fever' ? 'fever' : null),
     title: dto.title,
     url: dto.url,
     siteUrl: dto.siteUrl,
@@ -1230,6 +1283,7 @@ export function mapSnapshotArticleItem(dto: ReaderSnapshotDto['articles']['items
     filteredBy: dto.filteredBy,
     isRead: dto.isRead,
     isStarred: dto.isStarred,
+    remoteSource: dto.remoteSource ?? null,
     bodyTranslationEligible: dto.bodyTranslationEligible,
     bodyTranslationBlockedReason: dto.bodyTranslationBlockedReason,
     aiSummarySession: dto.aiSummarySession,

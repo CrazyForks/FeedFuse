@@ -48,6 +48,7 @@ import {
   JOB_AI_TRANSLATE_TITLE,
   JOB_ARTICLE_FILTER,
   JOB_ARTICLE_FULLTEXT_FETCH,
+  JOB_FEVER_SYNC,
   JOB_FEED_FETCH,
   JOB_REFRESH_ALL,
   JOB_SYSTEM_LOG_CLEANUP,
@@ -63,6 +64,7 @@ import { runImmersiveTranslateSession } from '@/worker/immersiveTranslateWorker'
 import { runAiSummaryStreamWorker } from '@/worker/aiSummaryStreamWorker';
 import { runAiDigestTick } from '@/worker/aiDigestTick';
 import { runAiDigestGenerate } from '@/worker/aiDigestGenerate';
+import { runFeverSyncWorker } from '@/worker/feverSync';
 import { runArticleFilterWorker, type ArticleFilterJobData } from '@/worker/articleFilterWorker';
 import { runSystemLogCleanup } from '@/worker/systemLogCleanup';
 import {
@@ -287,6 +289,7 @@ export async function fetchAndIngestFeed(
 }
 
 async function main() {
+  const pool = getPool();
   const boss = await startBoss();
 
   await bootstrapQueues(boss);
@@ -851,10 +854,25 @@ async function main() {
     await runSystemLogCleanup({ pool: getPool() });
   };
 
+  const feverSyncHandler = async (jobs: unknown[]) => {
+    for (const job of jobs as Array<{ data?: { accountId?: string } }>) {
+      const accountId = job.data?.accountId;
+      if (!accountId) {
+        continue;
+      }
+
+      await runFeverSyncWorker({
+        pool,
+        data: { accountId },
+      });
+    }
+  };
+
   await registerWorkers(boss, {
     [JOB_REFRESH_ALL]: refreshAllHandler,
     [JOB_AI_DIGEST_TICK]: aiDigestTickHandler,
     [JOB_AI_DIGEST_GENERATE]: aiDigestGenerateHandler,
+    [JOB_FEVER_SYNC]: feverSyncHandler,
     [JOB_FEED_FETCH]: feedFetchHandler,
     [JOB_ARTICLE_FILTER]: articleFilterHandler,
     [JOB_ARTICLE_FULLTEXT_FETCH]: fulltextHandler,

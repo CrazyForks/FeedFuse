@@ -1,5 +1,5 @@
 import { Bot, KeyRound, Palette, Rss, ScrollText, type LucideIcon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { startTransition, useEffect, useRef, useState } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +25,7 @@ import AISettingsPanel from '../panels/AISettingsPanel';
 import LogsSettingsPanel from '../panels/LogsSettingsPanel';
 import RssSettingsPanel from '../panels/RssSettingsPanel';
 import SecuritySettingsPanel from '../panels/SecuritySettingsPanel';
+import FeverAccountSettingsPanel from '../panels/FeverAccountSettingsPanel';
 import type { OpmlTransferResultSummary } from '../panels/OpmlTransferSection';
 import { useSettingsAutosave } from '../hooks';
 import {
@@ -152,7 +153,9 @@ export default function SettingsCenterDrawer({ onClose }: SettingsCenterDrawerPr
   useEffect(() => {
     void (async () => {
       await hydratePersistedSettings();
-      loadDraft();
+      startTransition(() => {
+        loadDraft();
+      });
     })();
   }, [hydratePersistedSettings, loadDraft]);
 
@@ -353,7 +356,10 @@ export default function SettingsCenterDrawer({ onClose }: SettingsCenterDrawerPr
                         />
                       </TabsContent>
                       <TabsContent value="security" className="mt-0 h-full overflow-y-auto">
-                        <SecuritySettingsPanel />
+                        <div className="space-y-4">
+                          <SecuritySettingsPanel />
+                          <FeverAccountSettingsPanel />
+                        </div>
                       </TabsContent>
                       <TabsContent value="logging" className="mt-0 h-full min-h-0">
                         <LogsSettingsPanel

@@ -15,6 +15,7 @@ interface UseFeedDialogFormOptions {
   actionKey: UserOperationActionKey;
   categories: Category[];
   initialValues?: Partial<FeedDialogInitialValues>;
+  skipUrlValidation?: boolean;
   onSubmit: (payload: FeedDialogSubmitPayload) => Promise<void>;
   onOpenChange: (open: boolean) => void;
 }
@@ -140,6 +141,7 @@ export function useFeedDialogForm({
   actionKey,
   categories,
   initialValues,
+  skipUrlValidation = false,
   onSubmit,
   onOpenChange,
 }: UseFeedDialogFormOptions) {
@@ -193,8 +195,7 @@ export function useFeedDialogForm({
   const canSave =
     Boolean(trimmedTitle) &&
     Boolean(trimmedUrl) &&
-    validationState === 'verified' &&
-    lastVerifiedUrl === trimmedUrl &&
+    (skipUrlValidation || (validationState === 'verified' && lastVerifiedUrl === trimmedUrl)) &&
     !submitting;
 
   const resetValidationState = () => {
@@ -270,6 +271,12 @@ export function useFeedDialogForm({
   };
 
   const handleValidate = async (urlToValidate: string) => {
+    if (skipUrlValidation) {
+      setValidationState('verified');
+      setLastVerifiedUrl(urlToValidate);
+      return;
+    }
+
     if (!urlToValidate) {
       resetValidationState();
       return;
@@ -318,6 +325,11 @@ export function useFeedDialogForm({
   const handleUrlChange = (nextUrl: string) => {
     validationRequestIdRef.current += 1;
     setUrl(nextUrl);
+    if (skipUrlValidation) {
+      setValidationState('verified');
+      setLastVerifiedUrl(nextUrl.trim());
+      return;
+    }
     setUrlTouched(false);
     setSubmitError(null);
     setServerFieldErrors((current) => ({ ...current, url: undefined }));

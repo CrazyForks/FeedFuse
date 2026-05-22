@@ -108,6 +108,17 @@ export const QUEUE_CONTRACTS: Record<string, QueueContract> = {
     worker: { localConcurrency: 1, batchSize: 1 },
     send: (ctx) => (ctx.runId ? { singletonKey: ctx.runId, singletonSeconds: 3600 } : {}),
   },
+  'fever.sync': {
+    queue: {
+      retryLimit: 3,
+      retryDelay: 30,
+      heartbeatSeconds: 60,
+      expireInSeconds: 3600,
+      warningQueueSize: 50,
+    },
+    worker: { localConcurrency: 1, batchSize: 1 },
+    send: (ctx) => (ctx.feedId ? { singletonKey: ctx.feedId, singletonSeconds: 1800 } : {}),
+  },
   'feed.refresh_all': {
     queue: { warningQueueSize: 50 },
     worker: { localConcurrency: 1, batchSize: 1 },

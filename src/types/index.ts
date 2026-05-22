@@ -1,8 +1,12 @@
 export type FeedKind = 'rss' | 'ai_digest';
+export type FeedProvider = 'local_rss' | 'fever';
 
 export interface Feed {
   id: string;
   kind: FeedKind;
+  provider: FeedProvider;
+  remoteManaged?: boolean;
+  remoteSource?: 'fever' | null;
   title: string;
   url: string;
   siteUrl?: string | null;
@@ -63,6 +67,7 @@ export interface Article {
   filteredBy?: string[];
   isRead: boolean;
   isStarred: boolean;
+  remoteSource?: 'fever' | null;
   bodyTranslationEligible?: boolean;
   bodyTranslationBlockedReason?: string | null;
   aiDigestSources?: ArticleAiDigestSource[];

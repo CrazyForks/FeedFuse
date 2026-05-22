@@ -33,6 +33,8 @@ const writeSystemLogMock = vi.fn();
 const writeUserOperationStartedLogMock = vi.fn();
 const writeUserOperationSucceededLogMock = vi.fn();
 const writeUserOperationFailedLogMock = vi.fn();
+const updateArticleStateWithWritebackMock = vi.fn();
+const markAllArticlesReadWithWritebackMock = vi.fn();
 
 const challengeSourceUrl =
   'https://mp.weixin.qq.com/mp/wappoc_appmsgcaptcha?poc_token=test&target_url=https%3A%2F%2Fmp.weixin.qq.com%2Fs%2Fabc';
@@ -126,6 +128,12 @@ vi.mock('@/server/infra/logging/userOperationLogger', () => ({
     writeUserOperationSucceededLogMock(...args),
   writeUserOperationFailedLog: (...args: unknown[]) =>
     writeUserOperationFailedLogMock(...args),
+}));
+vi.mock('@/server/domains/fever/services/feverWritebackService', () => ({
+  updateArticleStateWithWriteback: (...args: unknown[]) =>
+    updateArticleStateWithWritebackMock(...args),
+  markAllArticlesReadWithWriteback: (...args: unknown[]) =>
+    markAllArticlesReadWithWritebackMock(...args),
 }));
 vi.mock('@/server/infra/logging/userOperationLogger', () => ({
   writeUserOperationStartedLog: (...args: unknown[]) =>
@@ -297,6 +305,8 @@ describe('/api/articles', () => {
     writeUserOperationStartedLogMock.mockReset();
     writeUserOperationSucceededLogMock.mockReset();
     writeUserOperationFailedLogMock.mockReset();
+    updateArticleStateWithWritebackMock.mockReset();
+    markAllArticlesReadWithWritebackMock.mockReset();
     poolQueryMock.mockReset();
 
     getTranslationSessionByArticleIdMock.mockResolvedValue(null);
@@ -952,7 +962,7 @@ describe('/api/articles', () => {
   });
 
   it('PATCH writes article.markRead success log through the shared helper', async () => {
-    setArticleReadMock.mockResolvedValue(true);
+    updateArticleStateWithWritebackMock.mockResolvedValue(undefined);
 
     const mod = await import('../../../../app/api/articles/[id]/route');
     await mod.PATCH(
@@ -964,14 +974,40 @@ describe('/api/articles', () => {
       { params: Promise.resolve({ id: articleId }) },
     );
 
+    expect(updateArticleStateWithWritebackMock).toHaveBeenCalledWith(
+      pool,
+      expect.objectContaining({ articleId, isRead: true }),
+    );
     expect(writeUserOperationSucceededLogMock).toHaveBeenCalledWith(
       pool,
       expect.objectContaining({ actionKey: 'article.markRead' }),
     );
   });
 
+  it('PATCH delegates fever writeback before local update semantics', async () => {
+    updateArticleStateWithWritebackMock.mockResolvedValue(undefined);
+
+    const mod = await import('../../../../app/api/articles/[id]/route');
+    const res = await mod.PATCH(
+      new Request(`http://localhost/api/articles/${articleId}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ isStarred: true }),
+      }),
+      { params: Promise.resolve({ id: articleId }) },
+    );
+    const json = await res.json();
+
+    expect(json.ok).toBe(true);
+    expect(updateArticleStateWithWritebackMock).toHaveBeenCalledWith(
+      pool,
+      expect.objectContaining({ articleId, isStarred: true }),
+    );
+    expect(setArticleStarredMock).not.toHaveBeenCalled();
+  });
+
   it('POST /mark-all-read supports feedId?', async () => {
-    markAllReadMock.mockResolvedValue(12);
+    markAllArticlesReadWithWritebackMock.mockResolvedValue(12);
 
     const mod = await import('../../../../app/api/articles/mark-all-read/route');
     const res = await mod.POST(
@@ -983,7 +1019,7 @@ describe('/api/articles', () => {
     );
     const json = await res.json();
     expect(json.ok).toBe(true);
-    expect(markAllReadMock).toHaveBeenCalledWith(pool, { feedId });
+    expect(markAllArticlesReadWithWritebackMock).toHaveBeenCalledWith(pool, { feedId });
     expect(json.data.updatedCount).toBe(12);
     expect(writeUserOperationSucceededLogMock).toHaveBeenCalledWith(
       pool,
@@ -3381,3 +3417,5 @@ describe('/api/articles', () => {
     abortController.abort();
   });
 });
+    updateArticleStateWithWritebackMock.mockResolvedValue(undefined);
+    markAllArticlesReadWithWritebackMock.mockResolvedValue(0);

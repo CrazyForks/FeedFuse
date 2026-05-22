@@ -122,6 +122,9 @@ describe('FeedList manage', () => {
         })),
         feeds: state.feeds.map((feed) => ({
           id: feed.id,
+          provider: feed.provider ?? 'local_rss',
+          remoteManaged: feed.remoteManaged ?? false,
+          remoteSource: feed.remoteSource ?? null,
           title: feed.title,
           url: feed.url,
           siteUrl: feed.siteUrl ?? null,
@@ -646,6 +649,42 @@ describe('FeedList manage', () => {
     expect(screen.getByLabelText('URL')).toHaveValue('https://example.com/rss.xml');
     expect(screen.getByLabelText('分类')).toHaveValue('未分类');
     expect(screen.queryByRole('combobox', { name: '状态' })).not.toBeInTheDocument();
+  });
+
+  it('shows Fever badge for fever feeds', async () => {
+    useAppStore.setState({
+      feeds: [
+        {
+          id: 'fever-1',
+          kind: 'rss',
+          provider: 'fever',
+          remoteManaged: true,
+          remoteSource: 'fever',
+          title: 'Fever Feed',
+          url: 'https://example.com/feed.xml',
+          unreadCount: 0,
+          enabled: true,
+          fullTextOnOpenEnabled: false,
+          fullTextOnFetchEnabled: false,
+          aiSummaryOnOpenEnabled: false,
+          aiSummaryOnFetchEnabled: false,
+          bodyTranslateOnFetchEnabled: false,
+          bodyTranslateOnOpenEnabled: false,
+          titleTranslateEnabled: false,
+          bodyTranslateEnabled: false,
+          articleListDisplayMode: 'card',
+          fetchStatus: null,
+          fetchError: null,
+          fetchRawError: null,
+        },
+      ],
+      categories: [{ id: 'cat-uncategorized', name: '未分类', expanded: true }],
+      articles: [],
+      selectedView: 'all',
+    });
+
+    render(<FeedList initialSelectedView="all" />);
+    expect(await screen.findByText('Fever')).toBeInTheDocument();
   });
 
   it('renders feed icon from persisted icon url instead of feed url derived value', () => {

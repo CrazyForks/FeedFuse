@@ -70,4 +70,9 @@ describe('readerSnapshotService', () => {
       id: 'id-1',
     });
   });
+
+  it('keeps fever source filtering in article query sql', async () => {
+    const mod = await import('@/server/domains/reader/services/readerSnapshotService');
+    expect(String(mod.getReaderSnapshot)).toContain('remoteManaged');
+  });
 });

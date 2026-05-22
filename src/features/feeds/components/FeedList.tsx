@@ -579,6 +579,11 @@ export default function FeedList({
                               ) : null}
                             </span>
                             <span className="truncate font-medium">{feed.title}</span>
+                            {feed.provider === 'fever' ? (
+                              <Badge variant="outline" className="h-5 shrink-0 rounded-full px-2 text-[10px]">
+                                Fever
+                              </Badge>
+                            ) : null}
                           </div>
                           <div className="flex items-center gap-1">
                             {isFeedErrored ? (

@@ -29,9 +29,11 @@ interface FeedDialogFormProps {
   submitting: boolean;
   submittingLabel: string;
   title: string;
+  titleDisabled?: boolean;
   titleFieldError: string | null | undefined;
   titleInputRef: RefObject<HTMLInputElement | null>;
   url: string;
+  urlDisabled?: boolean;
   urlFieldError: string | null | undefined;
   urlInputRef: RefObject<HTMLInputElement | null>;
   validationIcon?: LucideIcon;
@@ -60,9 +62,11 @@ export default function FeedDialogForm({
   submitting,
   submittingLabel,
   title,
+  titleDisabled = false,
   titleFieldError,
   titleInputRef,
   url,
+  urlDisabled = false,
   urlFieldError,
   urlInputRef,
   validationIcon: ValidationIcon,
@@ -106,6 +110,7 @@ export default function FeedDialogForm({
               autoComplete="off"
               spellCheck={false}
               value={url}
+              disabled={urlDisabled}
               onChange={(event) => onUrlChange(event.target.value)}
               onBlur={(event) => onUrlBlur(event.currentTarget.value)}
               placeholder="例如：https://example.com/feed.xml…"
@@ -142,6 +147,7 @@ export default function FeedDialogForm({
               type="text"
               autoComplete="off"
               value={title}
+              disabled={titleDisabled}
               onChange={(event) => onTitleChange(event.target.value)}
               onBlur={onTitleBlur}
               placeholder="例如：The Verge…"

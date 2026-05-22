@@ -121,6 +121,7 @@ export interface ReaderSnapshotArticleItem {
   filteredBy: string[];
   isRead: boolean;
   isStarred: boolean;
+  remoteSource: 'fever' | null;
   bodyTranslationEligible: boolean;
   bodyTranslationBlockedReason: string | null;
   aiSummarySession: {
@@ -140,6 +141,9 @@ export interface ReaderSnapshotArticleItem {
 export interface ReaderSnapshotFeed {
   id: string;
   kind: 'rss' | 'ai_digest';
+  provider: 'local_rss' | 'fever';
+  remoteManaged: boolean;
+  remoteSource: 'fever' | null;
   title: string;
   url: string;
   siteUrl: string | null;
@@ -291,6 +295,7 @@ async function queryArticleRows(
         articles.content_full_html as "contentFullHtml",
         articles.is_read as "isRead",
         articles.is_starred as "isStarred",
+        case when feeds.provider = 'fever' then 'fever' else null end as "remoteSource",
         ai_summary_session.id as "aiSummarySessionId",
         ai_summary_session.status as "aiSummarySessionStatus",
         ai_summary_session.draft_text as "aiSummarySessionDraftText",
@@ -303,6 +308,7 @@ async function queryArticleRows(
         ai_summary_session.updated_at as "aiSummarySessionUpdatedAt",
         coalesce(articles.published_at, 'epoch'::timestamptz) as "sortPublishedAt"
       from articles
+      inner join feeds on feeds.id = articles.feed_id
       left join lateral (
         select
           id,
@@ -324,6 +330,12 @@ async function queryArticleRows(
         limit 1
       ) ai_summary_session on true
       ${whereSql}
+      ${whereSql ? 'and' : 'where'} not exists (
+        select 1
+        from fever_item_mappings fim
+        where fim.local_article_id = articles.id
+          and fim.is_active = false
+      )
       order by "sortPublishedAt" desc, articles.id desc
       limit $${limitParamIndex}
     `,
@@ -386,6 +398,8 @@ export async function getReaderSnapshot(
 
   const feedsWithUnread: ReaderSnapshotFeed[] = feeds.map((feed) => ({
     ...feed,
+    remoteManaged: feed.provider === 'fever',
+    remoteSource: feed.provider === 'fever' ? 'fever' : null,
     iconUrl: rewriteFeedIcon(feed.iconUrl),
     unreadCount: unreadByFeedId.get(feed.id) ?? 0,
   }));

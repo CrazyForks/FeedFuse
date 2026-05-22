@@ -11,6 +11,7 @@ export const mockFeeds: Feed[] = [
   {
     id: 'feed-1',
     kind: 'rss',
+    provider: 'local_rss',
     title: 'Hacker News',
     url: 'https://news.ycombinator.com/rss',
     icon: '🔶',
@@ -33,6 +34,7 @@ export const mockFeeds: Feed[] = [
   {
     id: 'feed-2',
     kind: 'rss',
+    provider: 'local_rss',
     title: 'TechCrunch',
     url: 'https://techcrunch.com/feed/',
     icon: '🚀',
@@ -55,6 +57,7 @@ export const mockFeeds: Feed[] = [
   {
     id: 'feed-3',
     kind: 'rss',
+    provider: 'local_rss',
     title: 'Dribbble Blog',
     url: 'https://dribbble.com/stories.rss',
     icon: '🎨',
@@ -77,6 +80,7 @@ export const mockFeeds: Feed[] = [
   {
     id: 'feed-4',
     kind: 'rss',
+    provider: 'local_rss',
     title: 'Smashing Magazine',
     url: 'https://www.smashingmagazine.com/feed/',
     icon: '📐',
@@ -99,6 +103,7 @@ export const mockFeeds: Feed[] = [
   {
     id: 'feed-5',
     kind: 'rss',
+    provider: 'local_rss',
     title: 'CSS-Tricks',
     url: 'https://css-tricks.com/feed/',
     icon: '💅',
@@ -121,6 +126,7 @@ export const mockFeeds: Feed[] = [
   {
     id: 'feed-6',
     kind: 'rss',
+    provider: 'local_rss',
     title: 'Dev.to',
     url: 'https://dev.to/feed',
     icon: '👨‍💻',

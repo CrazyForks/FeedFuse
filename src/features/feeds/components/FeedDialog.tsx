@@ -26,6 +26,7 @@ interface FeedDialogProps {
   onOpenChange: (open: boolean) => void;
   categories: Category[];
   initialValues?: Partial<FeedDialogInitialValues>;
+  readOnlyFields?: { title?: boolean; url?: boolean };
   onSubmit: (payload: FeedDialogSubmitPayload) => Promise<void>;
 }
 
@@ -102,6 +103,7 @@ export default function FeedDialog({
   onOpenChange,
   categories,
   initialValues,
+  readOnlyFields,
   onSubmit,
 }: FeedDialogProps) {
   const modeMeta = MODE_META[mode];
@@ -109,6 +111,7 @@ export default function FeedDialog({
     actionKey: modeMeta.actionKey,
     categories,
     initialValues,
+    skipUrlValidation: Boolean(readOnlyFields?.url),
     onSubmit,
     onOpenChange,
   });
@@ -151,9 +154,11 @@ export default function FeedDialog({
           submitting={form.submitting}
           submittingLabel={modeMeta.submittingLabel}
           title={form.title}
+          titleDisabled={Boolean(readOnlyFields?.title)}
           titleFieldError={form.titleFieldError}
           titleInputRef={form.titleInputRef}
           url={form.url}
+          urlDisabled={Boolean(readOnlyFields?.url)}
           urlFieldError={form.urlFieldError}
           urlInputRef={form.urlInputRef}
           validationIcon={ValidationIcon}

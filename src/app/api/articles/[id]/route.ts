@@ -10,10 +10,9 @@ import { getActiveAiSummarySessionByArticleId } from '@/server/domains/articles/
 import {
   getArticleById,
   listArticleMediaAttachments,
-  setArticleRead,
-  setArticleStarred,
   type ArticleRow,
 } from '@/server/domains/articles/repositories/articlesRepo';
+import { updateArticleStateWithWriteback } from '@/server/domains/fever/services/feverWritebackService';
 import { listAiDigestRunSourcesByArticleId } from '@/server/domains/ai-digests/repositories/aiDigestRepo';
 import {
   buildImageProxyUrl,
@@ -243,12 +242,11 @@ export async function PATCH(
       isStarred,
     });
 
-    if (typeof isRead !== 'undefined') {
-      await setArticleRead(pool, paramsParsed.data.id, isRead);
-    }
-    if (typeof isStarred !== 'undefined') {
-      await setArticleStarred(pool, paramsParsed.data.id, isStarred);
-    }
+    await updateArticleStateWithWriteback(pool, {
+      articleId: paramsParsed.data.id,
+      isRead,
+      isStarred,
+    });
 
     if (operation) {
       await writeUserOperationSucceededLog(pool, {

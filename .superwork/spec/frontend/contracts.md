@@ -30,3 +30,10 @@
 - `Feed.kind === 'ai_digest'` 的文章不触发全文抓取和翻译操作，避免对智能报告二次处理。
 - 带 `mediaAttachments` 的播客文章在 `ArticleView` 中渲染原生音视频播放器，并隐藏全文抓取、AI 摘要和翻译入口；自动打开触发也必须跳过。
 - `Feed.isPodcast` 由后端 snapshot 从 `article_media_attachments` 推导；播客 RSS 源在左栏右键菜单中不显示全文抓取、AI 摘要和翻译配置项。
+
+## Fever 来源交互契约
+
+- 前端统一通过 `src/lib/api/apiClient.ts` 消费 Fever 账号接口，不直接在组件里拼 `/api/fever/**` 请求。
+- `Feed.provider === 'fever'` 时，UI 必须把该 feed 视为远端托管源：展示 `Fever` 来源标记，并通过 `remoteManaged` / `remoteSource` 驱动只读或受限交互。
+- Fever feed 仍出现在阅读器左栏和快照里，但编辑弹窗中的标题、URL 等上游托管字段必须只读，避免把本地表单当成上游配置入口。
+- 设置中心的安全区域承载 Fever account 管理入口；新增账号和手动同步通过设置页完成，不在普通添加 RSS 源对话框中混入 Fever feed 创建。

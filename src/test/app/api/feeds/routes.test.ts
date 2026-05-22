@@ -130,6 +130,7 @@ describe('/api/feeds', () => {
     listFeedsMock.mockResolvedValue([
       {
         id: feedId,
+        provider: 'fever',
         title: 'Example',
         url: 'https://example.com/rss.xml',
         siteUrl: null,
@@ -153,6 +154,7 @@ describe('/api/feeds', () => {
 
     expect(json.ok).toBe(true);
     expect(json.data[0].unreadCount).toBe(3);
+    expect(json.data[0].provider).toBe('fever');
     expect(json.data[0].fullTextOnFetchEnabled).toBe(false);
   });
 

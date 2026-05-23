@@ -8,6 +8,7 @@ import {
   JOB_ARTICLE_FILTER,
   JOB_ARTICLE_FULLTEXT_FETCH,
   JOB_FEVER_SYNC,
+  JOB_FEVER_SYNC_DUE,
   JOB_FEED_FETCH,
   JOB_REFRESH_ALL,
   JOB_SYSTEM_LOG_CLEANUP,
@@ -23,6 +24,7 @@ describe('queue jobs', () => {
     expect(JOB_AI_DIGEST_TICK).toBe('ai.digest_tick');
     expect(JOB_AI_DIGEST_GENERATE).toBe('ai.digest_generate');
     expect(JOB_FEVER_SYNC).toBe('fever.sync');
+    expect(JOB_FEVER_SYNC_DUE).toBe('fever.sync_due');
     expect(JOB_ARTICLE_FILTER).toBe('article.filter');
     expect(JOB_ARTICLE_FULLTEXT_FETCH).toBe('article.fetch_fulltext');
     expect(JOB_SYSTEM_LOG_CLEANUP).toBe('system_logs.cleanup');

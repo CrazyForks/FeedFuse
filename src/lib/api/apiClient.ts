@@ -826,6 +826,8 @@ export interface FeverAccountDto {
   baseUrl: string;
   username: string;
   enabled: boolean;
+  autoSyncEnabled: boolean;
+  autoSyncIntervalMinutes: number;
   lastSyncAt: string | null;
   lastError: string | null;
 }
@@ -844,6 +846,21 @@ export async function createFeverAccount(
     '/api/fever/accounts',
     {
       method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    },
+    options,
+  );
+}
+
+export async function updateFeverAccountAutoSyncSettings(
+  input: { id: string; autoSyncEnabled: boolean; autoSyncIntervalMinutes: number },
+  options?: RequestApiOptions,
+): Promise<FeverAccountDto> {
+  return requestApi(
+    '/api/fever/accounts',
+    {
+      method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(input),
     },

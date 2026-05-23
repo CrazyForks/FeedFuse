@@ -44,4 +44,14 @@ describe('queue contracts', () => {
       singletonSeconds: 5,
     });
   });
+
+  it('dedupes fever auto sync scheduler jobs by queue singleton', () => {
+    expect(getQueueSendOptions('fever.sync_due', {})).toEqual({
+      singletonKey: 'fever.sync_due',
+      singletonSeconds: 55,
+    });
+    expect(getWorkerOptions('fever.sync_due')).toEqual(
+      expect.objectContaining({ localConcurrency: 1, batchSize: 1 }),
+    );
+  });
 });

@@ -49,6 +49,7 @@ import {
   JOB_ARTICLE_FILTER,
   JOB_ARTICLE_FULLTEXT_FETCH,
   JOB_FEVER_SYNC,
+  JOB_FEVER_SYNC_DUE,
   JOB_FEED_FETCH,
   JOB_REFRESH_ALL,
   JOB_SYSTEM_LOG_CLEANUP,
@@ -64,6 +65,7 @@ import { runImmersiveTranslateSession } from '@/worker/immersiveTranslateWorker'
 import { runAiSummaryStreamWorker } from '@/worker/aiSummaryStreamWorker';
 import { runAiDigestTick } from '@/worker/aiDigestTick';
 import { runAiDigestGenerate } from '@/worker/aiDigestGenerate';
+import { runFeverAutoSyncWorker } from '@/worker/feverAutoSync';
 import { runFeverSyncWorker } from '@/worker/feverSync';
 import { runArticleFilterWorker, type ArticleFilterJobData } from '@/worker/articleFilterWorker';
 import { runSystemLogCleanup } from '@/worker/systemLogCleanup';
@@ -868,11 +870,17 @@ async function main() {
     }
   };
 
+  const feverAutoSyncHandler = async (jobs: unknown[]) => {
+    void jobs;
+    await runFeverAutoSyncWorker({ pool });
+  };
+
   await registerWorkers(boss, {
     [JOB_REFRESH_ALL]: refreshAllHandler,
     [JOB_AI_DIGEST_TICK]: aiDigestTickHandler,
     [JOB_AI_DIGEST_GENERATE]: aiDigestGenerateHandler,
     [JOB_FEVER_SYNC]: feverSyncHandler,
+    [JOB_FEVER_SYNC_DUE]: feverAutoSyncHandler,
     [JOB_FEED_FETCH]: feedFetchHandler,
     [JOB_ARTICLE_FILTER]: articleFilterHandler,
     [JOB_ARTICLE_FULLTEXT_FETCH]: fulltextHandler,
@@ -894,6 +902,8 @@ async function main() {
   await boss.send(JOB_REFRESH_ALL, {});
   await boss.schedule(JOB_AI_DIGEST_TICK, '* * * * *');
   await boss.send(JOB_AI_DIGEST_TICK, {});
+  await boss.schedule(JOB_FEVER_SYNC_DUE, '* * * * *');
+  await boss.send(JOB_FEVER_SYNC_DUE, {}, getQueueSendOptions(JOB_FEVER_SYNC_DUE, {}));
   // Run cleanup hourly and trigger one immediate pass on worker boot.
   await boss.schedule(JOB_SYSTEM_LOG_CLEANUP, '0 * * * *');
   await boss.send(JOB_SYSTEM_LOG_CLEANUP, {});

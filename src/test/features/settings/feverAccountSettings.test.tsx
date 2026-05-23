@@ -12,18 +12,22 @@ vi.mock('../../../features/notifications/userOperationNotifier', () => ({
 
 import FeverAccountSettingsPanel from '../../../features/settings/panels/FeverAccountSettingsPanel';
 
+type FeverAccountFixture = {
+  id: string;
+  baseUrl: string;
+  username: string;
+  enabled: boolean;
+  autoSyncEnabled: boolean;
+  autoSyncIntervalMinutes: number;
+  lastSyncAt: string | null;
+  lastError: string | null;
+};
+
 describe('FeverAccountSettingsPanel', () => {
   beforeEach(() => {
     runImmediateSuccessMock.mockReset();
     runImmediateFailureMock.mockReset();
-    let accounts: Array<{
-      id: string;
-      baseUrl: string;
-      username: string;
-      enabled: boolean;
-      lastSyncAt: string | null;
-      lastError: string | null;
-    }> = [];
+    let accounts: FeverAccountFixture[] = [];
 
     vi.stubGlobal(
       'fetch',
@@ -54,6 +58,8 @@ describe('FeverAccountSettingsPanel', () => {
             baseUrl: 'https://reader.example.com',
             username: 'demo',
             enabled: true,
+            autoSyncEnabled: true,
+            autoSyncIntervalMinutes: 30,
             lastSyncAt: null,
             lastError: null,
           };
@@ -63,6 +69,25 @@ describe('FeverAccountSettingsPanel', () => {
             ok: true,
             data: created,
           }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+
+        if (url.includes('/api/fever/accounts') && method === 'PATCH') {
+          const body = init?.body ? JSON.parse(String(init.body)) : {};
+          accounts = accounts.map((account) => (
+            account.id === body.id
+              ? {
+                  ...account,
+                  autoSyncEnabled: body.autoSyncEnabled,
+                  autoSyncIntervalMinutes: body.autoSyncIntervalMinutes,
+                }
+              : account
+          ));
+          const updated = accounts.find((account) => account.id === body.id) ?? null;
+
+          return new Response(JSON.stringify({ ok: true, data: updated }), {
             status: 200,
             headers: { 'content-type': 'application/json' },
           });
@@ -106,6 +131,8 @@ describe('FeverAccountSettingsPanel', () => {
                 baseUrl: 'https://reader.example.com',
                 username: 'persisted-user',
                 enabled: true,
+                autoSyncEnabled: true,
+                autoSyncIntervalMinutes: 30,
                 lastSyncAt: null,
                 lastError: null,
               },
@@ -177,6 +204,8 @@ describe('FeverAccountSettingsPanel', () => {
                     baseUrl: 'https://reader.example.com',
                     username: 'demo',
                     enabled: true,
+                    autoSyncEnabled: true,
+                    autoSyncIntervalMinutes: 30,
                     lastSyncAt: '2026-05-23T00:23:37.240Z',
                     lastError: null,
                   },
@@ -187,6 +216,8 @@ describe('FeverAccountSettingsPanel', () => {
                     baseUrl: 'https://reader.example.com',
                     username: 'demo',
                     enabled: true,
+                    autoSyncEnabled: true,
+                    autoSyncIntervalMinutes: 30,
                     lastSyncAt: null,
                     lastError: null,
                   },
@@ -250,6 +281,8 @@ describe('FeverAccountSettingsPanel', () => {
                 baseUrl: 'https://reader.example.com',
                 username: 'demo',
                 enabled: true,
+                autoSyncEnabled: true,
+                autoSyncIntervalMinutes: 30,
                 lastSyncAt: null,
                 lastError: 'Fever 认证失败',
               },
@@ -272,12 +305,14 @@ describe('FeverAccountSettingsPanel', () => {
   });
 
   it('deletes fever account after confirmation and removes it from the list', async () => {
-    let accounts = [
+    let accounts: FeverAccountFixture[] = [
       {
         id: '1',
         baseUrl: 'https://reader.example.com',
         username: 'demo',
         enabled: true,
+        autoSyncEnabled: true,
+        autoSyncIntervalMinutes: 30,
         lastSyncAt: null,
         lastError: null,
       },
@@ -357,6 +392,8 @@ describe('FeverAccountSettingsPanel', () => {
                   baseUrl: 'https://reader.example.com',
                   username: 'demo',
                   enabled: true,
+                  autoSyncEnabled: true,
+                  autoSyncIntervalMinutes: 30,
                   lastSyncAt: '2026-05-23T00:23:37.240Z',
                   lastError: null,
                 },
@@ -367,6 +404,8 @@ describe('FeverAccountSettingsPanel', () => {
                   baseUrl: 'https://reader.example.com',
                   username: 'demo',
                   enabled: true,
+                  autoSyncEnabled: true,
+                  autoSyncIntervalMinutes: 30,
                   lastSyncAt: '2026-05-23T00:20:00.000Z',
                   lastError: null,
                 },
@@ -426,6 +465,8 @@ describe('FeverAccountSettingsPanel', () => {
                   baseUrl: 'https://reader.example.com',
                   username: 'demo',
                   enabled: true,
+                  autoSyncEnabled: true,
+                  autoSyncIntervalMinutes: 30,
                   lastSyncAt: null,
                   lastError: 'Fever 认证失败',
                 },
@@ -436,6 +477,8 @@ describe('FeverAccountSettingsPanel', () => {
                   baseUrl: 'https://reader.example.com',
                   username: 'demo',
                   enabled: true,
+                  autoSyncEnabled: true,
+                  autoSyncIntervalMinutes: 30,
                   lastSyncAt: '2026-05-23T00:20:00.000Z',
                   lastError: null,
                 },
@@ -465,5 +508,78 @@ describe('FeverAccountSettingsPanel', () => {
     await waitFor(() => {
       expect(screen.getByText('Fever 认证失败')).toBeInTheDocument();
     });
+  });
+
+  it('updates auto sync settings for an existing fever account', async () => {
+    let accounts: FeverAccountFixture[] = [
+      {
+        id: '1',
+        baseUrl: 'https://reader.example.com',
+        username: 'demo',
+        enabled: true,
+        autoSyncEnabled: true,
+        autoSyncIntervalMinutes: 30,
+        lastSyncAt: null,
+        lastError: null,
+      },
+    ];
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url =
+          typeof input === 'string'
+            ? input
+            : typeof URL !== 'undefined' && input instanceof URL
+              ? input.toString()
+              : typeof Request !== 'undefined' && input instanceof Request
+                ? input.url
+                : String(input);
+        const method =
+          typeof Request !== 'undefined' && input instanceof Request
+            ? input.method
+            : init?.method ?? 'GET';
+
+        if (url.includes('/api/fever/accounts') && method === 'GET') {
+          return new Response(JSON.stringify({ ok: true, data: accounts }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+
+        if (url.includes('/api/fever/accounts') && method === 'PATCH') {
+          accounts = [
+            {
+              ...accounts[0],
+              autoSyncEnabled: false,
+              autoSyncIntervalMinutes: 45,
+            },
+          ];
+          return new Response(JSON.stringify({ ok: true, data: accounts[0] }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+
+        throw new Error(`Unexpected fetch: ${url}`);
+      }),
+    );
+
+    render(<FeverAccountSettingsPanel />);
+
+    await screen.findByText('demo');
+    fireEvent.click(screen.getByRole('switch', { name: '启用 demo 自动同步' }));
+    fireEvent.change(screen.getByLabelText('自动同步间隔（分钟）'), {
+      target: { value: '45' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '保存自动同步' }));
+
+    await waitFor(() => {
+      expect(runImmediateSuccessMock).toHaveBeenCalledWith({
+        actionKey: 'fever.sync',
+        context: { outcome: 'settings_saved' },
+      });
+    });
+    expect(screen.getByDisplayValue('45')).toBeInTheDocument();
   });
 });

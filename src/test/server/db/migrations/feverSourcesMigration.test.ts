@@ -13,4 +13,16 @@ describe('db migrations', () => {
     expect(sql).toContain('create table if not exists fever_item_mappings');
     expect(sql).toContain('create table if not exists fever_sync_states');
   });
+
+  it('adds fever auto sync configuration migration', () => {
+    const migrationPath = 'src/server/infra/db/migrations/0030_fever_auto_sync.sql';
+    expect(existsSync(migrationPath)).toBe(true);
+
+    const sql = readFileSync(migrationPath, 'utf8');
+    expect(sql).toContain('alter table fever_accounts');
+    expect(sql).toContain('add column if not exists auto_sync_enabled boolean not null default true');
+    expect(sql).toContain('add column if not exists auto_sync_interval_minutes integer not null default 30');
+    expect(sql).toContain('add column if not exists last_sync_attempt_at timestamptz null');
+    expect(sql).toContain('fever_accounts_auto_sync_interval_minutes_check');
+  });
 });

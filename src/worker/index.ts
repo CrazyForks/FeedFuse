@@ -902,6 +902,7 @@ async function main() {
       try {
         await runFeverSyncWorker({
           pool,
+          boss,
           data: { accountId, runId, feedIds },
         });
 

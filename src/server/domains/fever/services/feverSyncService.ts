@@ -1,9 +1,11 @@
 import type { Pool } from 'pg';
 import {
+  insertArticleMediaAttachments,
   getArticleByFeedAndDedupeKey,
   insertArticleIgnoreDuplicate,
   setArticleRead,
   setArticleStarred,
+  type ArticleMediaAttachmentInput,
 } from '@/server/domains/articles/repositories/articlesRepo';
 import {
   createCategory,
@@ -27,6 +29,19 @@ import { updateFeverAccountSyncState } from '@/server/domains/fever/repositories
 import type { FeverClient } from '@/server/integrations/fever/feverClient';
 import type { FeverFeed, FeverItem } from '@/server/integrations/fever/feverSchemas';
 import { buildFeedFaviconPath } from '@/server/integrations/rss/feedFaviconUrl';
+
+export interface FeverProjectedArticle {
+  title: string;
+  link: string | null;
+  author: string | null;
+  publishedAt: string | null;
+  contentHtml: string | null;
+  summary: string | null;
+  sourceLanguage: string | null;
+  previewImageUrl: string | null;
+  mediaAttachments: ArticleMediaAttachmentInput[];
+  isPodcastSource: boolean;
+}
 
 function resolveFeverFeedSiteUrl(remoteFeed: FeverFeed): string | null {
   if (remoteFeed.siteUrl) {
@@ -127,28 +142,41 @@ export async function projectFeverItem(
   pool: Pool,
   input: {
     accountId: string;
-    localFeedId: string;
+    localFeed: FeedRow;
     remoteItem: FeverItem;
+    projectedArticle?: FeverProjectedArticle | null;
+    onCreated?: (payload: { articleId: string; feed: FeedRow }) => Promise<void>;
   },
 ): Promise<{ articleId: string; created: boolean }> {
   const dedupeKey = `fever:${input.accountId}:${input.remoteItem.id}`;
+  const projectedArticle = input.projectedArticle;
+  const isPodcastSource = projectedArticle?.isPodcastSource ?? false;
   const created = await insertArticleIgnoreDuplicate(pool, {
-    feedId: input.localFeedId,
+    feedId: input.localFeed.id,
     dedupeKey,
-    title: input.remoteItem.title || '(untitled)',
-    link: input.remoteItem.url ?? null,
-    author: input.remoteItem.author ?? null,
-    publishedAt: input.remoteItem.createdAt,
-    contentHtml: input.remoteItem.html ?? null,
-    summary: null,
-    filterStatus: 'passed',
+    title: projectedArticle?.title || input.remoteItem.title || '(untitled)',
+    link: projectedArticle?.link ?? input.remoteItem.url ?? null,
+    author: projectedArticle?.author ?? input.remoteItem.author ?? null,
+    publishedAt: projectedArticle?.publishedAt ?? input.remoteItem.createdAt,
+    contentHtml: projectedArticle?.contentHtml ?? null,
+    previewImageUrl: projectedArticle?.previewImageUrl ?? null,
+    summary: projectedArticle?.summary ?? null,
+    sourceLanguage: projectedArticle?.sourceLanguage ?? null,
+    // Fever 新文章和本地 RSS 一样，先入 pending，再交给 article.filter 决定后续链路。
+    filterStatus: isPodcastSource ? 'passed' : 'pending',
     isFiltered: false,
+    filteredBy: [],
+    filterEvaluatedAt: isPodcastSource ? new Date().toISOString() : null,
   });
+
+  if (created && projectedArticle?.mediaAttachments.length) {
+    await insertArticleMediaAttachments(pool, created.id, projectedArticle.mediaAttachments);
+  }
 
   // 重复同步命中去重时复用现有 article，而不是把正常幂等路径当成错误。
   const existing = created
     ?? await getArticleByFeedAndDedupeKey(pool, {
-      feedId: input.localFeedId,
+      feedId: input.localFeed.id,
       dedupeKey,
     });
   const articleId = existing?.id;
@@ -162,12 +190,16 @@ export async function projectFeverItem(
     accountId: input.accountId,
     feverItemId: input.remoteItem.id,
     feverFeedId: input.remoteItem.feedId,
-    localFeedId: input.localFeedId,
+    localFeedId: input.localFeed.id,
     localArticleId: articleId,
     remoteIsRead: input.remoteItem.isRead,
     remoteIsSaved: input.remoteItem.isSaved,
     remoteCreatedAt: input.remoteItem.createdAt,
   });
+
+  if (created && !isPodcastSource && input.onCreated) {
+    await input.onCreated({ articleId, feed: input.localFeed });
+  }
 
   return { articleId, created: Boolean(created) };
 }
@@ -181,13 +213,23 @@ export async function reconcileFeverItems(
 
 export async function syncFeverAccount(
   pool: Pool,
-  input: { accountId: string; client: FeverClient },
+  input: {
+    accountId: string;
+    client: FeverClient;
+    resolveArticleProjection?: (payload: {
+      remoteFeed: FeverFeed;
+      localFeed: FeedRow;
+      remoteItem: FeverItem;
+    }) => Promise<FeverProjectedArticle | null>;
+    onArticleCreated?: (payload: { articleId: string; feed: FeedRow }) => Promise<void>;
+  },
 ): Promise<{ createdFeeds: number; createdArticles: number }> {
   try {
     const feeds = await input.client.listFeeds();
     const items = await input.client.listItems();
     let createdFeeds = 0;
     let createdArticles = 0;
+    const localFeedByRemoteFeedId = new Map<string, FeedRow>();
 
     for (const remoteFeed of feeds) {
       const existingMapping = await getFeverFeedMappingByRemoteFeedId(pool, {
@@ -198,6 +240,8 @@ export async function syncFeverAccount(
       if (!existingMapping) {
         createdFeeds += 1;
       }
+
+      localFeedByRemoteFeedId.set(remoteFeed.id, localFeed);
 
       await upsertFeverFeedMapping(pool, {
         accountId: input.accountId,
@@ -211,20 +255,26 @@ export async function syncFeverAccount(
     }
 
     for (const remoteItem of items) {
-      const mapping = await getFeverFeedMappingByRemoteFeedId(pool, {
-        accountId: input.accountId,
-        feverFeedId: remoteItem.feedId,
-      });
-      if (!mapping) {
+      const localFeed = localFeedByRemoteFeedId.get(remoteItem.feedId);
+      if (!localFeed) {
         continue;
       }
 
-      await projectFeverItem(pool, {
+      const remoteFeed = feeds.find((feed) => feed.id === remoteItem.feedId);
+      const projectedArticle =
+        remoteFeed && input.resolveArticleProjection
+          ? await input.resolveArticleProjection({ remoteFeed, localFeed, remoteItem })
+          : null;
+      const result = await projectFeverItem(pool, {
         accountId: input.accountId,
-        localFeedId: mapping.localFeedId,
+        localFeed,
         remoteItem,
+        projectedArticle,
+        onCreated: input.onArticleCreated,
       });
-      createdArticles += 1;
+      if (result.created) {
+        createdArticles += 1;
+      }
     }
 
     await markMissingFeverFeedMappingsInactive(pool, {

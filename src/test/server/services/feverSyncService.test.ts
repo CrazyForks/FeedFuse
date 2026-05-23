@@ -18,6 +18,34 @@ const markMissingFeverFeedMappingsInactiveMock = vi.hoisted(() => vi.fn());
 const markMissingFeverItemMappingsInactiveMock = vi.hoisted(() => vi.fn());
 const updateFeverAccountSyncStateMock = vi.hoisted(() => vi.fn());
 
+function buildLocalFeed() {
+  return {
+    id: '10',
+    kind: 'rss' as const,
+    provider: 'fever' as const,
+    title: 'Feed',
+    url: 'https://example.com/feed.xml',
+    siteUrl: 'https://example.com',
+    iconUrl: null,
+    enabled: true,
+    fullTextOnOpenEnabled: false,
+    fullTextOnFetchEnabled: true,
+    aiSummaryOnOpenEnabled: false,
+    aiSummaryOnFetchEnabled: true,
+    bodyTranslateOnFetchEnabled: true,
+    bodyTranslateOnOpenEnabled: false,
+    titleTranslateEnabled: true,
+    bodyTranslateEnabled: false,
+    articleListDisplayMode: 'card' as const,
+    categoryId: null,
+    fetchIntervalMinutes: 30,
+    lastFetchStatus: null,
+    lastFetchError: null,
+    lastFetchRawError: null,
+    isPodcast: false,
+  };
+}
+
 vi.mock('@/server/domains/feeds/repositories/feedsRepo', () => ({
   createFeed: (...args: unknown[]) => createFeedMock(...args),
   getFeedByUrl: (...args: unknown[]) => getFeedByUrlMock(...args),
@@ -31,6 +59,7 @@ vi.mock('@/server/domains/feeds/repositories/categoriesRepo', () => ({
 }));
 
 vi.mock('@/server/domains/articles/repositories/articlesRepo', () => ({
+  insertArticleMediaAttachments: vi.fn(),
   getArticleByFeedAndDedupeKey: (...args: unknown[]) => getArticleByFeedAndDedupeKeyMock(...args),
   insertArticleIgnoreDuplicate: (...args: unknown[]) => insertArticleIgnoreDuplicateMock(...args),
   setArticleRead: (...args: unknown[]) => setArticleReadMock(...args),
@@ -295,7 +324,7 @@ describe('feverSyncService', () => {
 
     await projectFeverItem({} as never, {
       accountId: '1',
-      localFeedId: '10',
+      localFeed: buildLocalFeed(),
       remoteItem: {
         id: 'remote-1',
         feedId: 'feed-1',
@@ -328,7 +357,7 @@ describe('feverSyncService', () => {
 
     await projectFeverItem({} as never, {
       accountId: '1',
-      localFeedId: '10',
+      localFeed: buildLocalFeed(),
       remoteItem: {
         id: 'remote-1',
         feedId: 'feed-1',
@@ -363,7 +392,7 @@ describe('feverSyncService', () => {
     const { projectFeverItem } = await import('@/server/domains/fever/services/feverSyncService');
     const result = await projectFeverItem({} as never, {
       accountId: '1',
-      localFeedId: '10',
+      localFeed: buildLocalFeed(),
       remoteItem: {
         id: 'remote-1',
         feedId: 'feed-1',
@@ -384,6 +413,60 @@ describe('feverSyncService', () => {
     expect(result).toEqual({ articleId: 'article-existing', created: false });
     expect(setArticleReadMock).toHaveBeenCalledWith(expect.anything(), 'article-existing', true);
     expect(setArticleStarredMock).toHaveBeenCalledWith(expect.anything(), 'article-existing', false);
+  });
+
+  it('keeps new fever articles pending and calls onCreated for downstream filter pipeline', async () => {
+    insertArticleIgnoreDuplicateMock.mockResolvedValue({ id: 'article-1' });
+    const onCreated = vi.fn().mockResolvedValue(undefined);
+
+    const { projectFeverItem } = await import('@/server/domains/fever/services/feverSyncService');
+
+    await projectFeverItem({} as never, {
+      accountId: '1',
+      localFeed: buildLocalFeed(),
+      remoteItem: {
+        id: 'remote-1',
+        feedId: 'feed-1',
+        title: 'Hello',
+        url: 'https://example.com/post',
+        author: null,
+        html: '<p>hello</p>',
+        createdAt: '2026-05-22T10:05:00.000Z',
+        isRead: false,
+        isSaved: false,
+      },
+      projectedArticle: {
+        title: 'Hello',
+        link: 'https://example.com/post',
+        author: null,
+        publishedAt: '2026-05-22T10:05:00.000Z',
+        contentHtml: '<p>clean</p>',
+        summary: 'summary',
+        sourceLanguage: 'en',
+        previewImageUrl: 'https://example.com/cover.jpg',
+        mediaAttachments: [],
+        isPodcastSource: false,
+      },
+      onCreated,
+    });
+
+    expect(insertArticleIgnoreDuplicateMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        contentHtml: '<p>clean</p>',
+        summary: 'summary',
+        sourceLanguage: 'en',
+        previewImageUrl: 'https://example.com/cover.jpg',
+        filterStatus: 'pending',
+        isFiltered: false,
+        filteredBy: [],
+        filterEvaluatedAt: null,
+      }),
+    );
+    expect(onCreated).toHaveBeenCalledWith({
+      articleId: 'article-1',
+      feed: buildLocalFeed(),
+    });
   });
 
   it('stores sync error on account state when fever fetch fails', async () => {

@@ -296,6 +296,8 @@ export default function FeverAccountSettingsPanel() {
 
     try {
       await deleteFeverAccount(deleteAccountId, { notifyOnError: false });
+      // 删除 Fever 服务后，立即刷新左栏快照，确保关联的 fever 源同步消失。
+      await reloadCurrentSnapshot();
       await reloadAccounts();
       setDeleteAccountId(null);
       runImmediateSuccess({
@@ -613,9 +615,9 @@ export default function FeverAccountSettingsPanel() {
             <AlertDialogTitle>确认删除 Fever 账号</AlertDialogTitle>
             <AlertDialogDescription className="break-words">
               {activeDeleteAccount
-                ? `确定删除 Fever 账号「${activeDeleteAccount.username}」？`
-                : '确定删除这个 Fever 账号？'}
-              删除后将移除该账号配置，且无法恢复。
+                ? `确定删除 Fever 服务「${activeDeleteAccount.username}」？`
+                : '确定删除这个 Fever 服务？'}
+              删除后会删除该 Fever 服务下的所有 fever 源，并立即从左栏移除；该 Fever 服务及其 fever 源均无法恢复。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

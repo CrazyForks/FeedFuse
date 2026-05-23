@@ -5,11 +5,11 @@ import { ok, fail } from '@/server/infra/http/apiResponse';
 import { ValidationError } from '@/server/infra/http/errors';
 import {
   createFeverAccount,
-  deleteFeverAccount,
   listFeverAccounts,
   type FeverAccountRow,
   updateFeverAccount,
 } from '@/server/domains/fever/repositories/feverAccountsRepo';
+import { deleteFeverAccountAndSources } from '@/server/domains/fever/services/feverAccountLifecycleService';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -121,7 +121,7 @@ export async function DELETE(request: Request) {
       return fail(new ValidationError('Invalid request query', { id: '缺少 Fever 账号 id' }));
     }
 
-    await deleteFeverAccount(getPool(), accountId);
+    await deleteFeverAccountAndSources(getPool(), accountId);
     return ok({ deleted: true });
   } catch (err) {
     return fail(err);

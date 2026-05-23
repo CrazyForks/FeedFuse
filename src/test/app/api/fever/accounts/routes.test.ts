@@ -4,6 +4,7 @@ const pool = {};
 const listFeverAccountsMock = vi.fn();
 const createFeverAccountMock = vi.fn();
 const deleteFeverAccountMock = vi.fn();
+const deleteFeverAccountAndSourcesMock = vi.fn();
 const updateFeverAccountMock = vi.fn();
 const markFeverAccountSyncAttemptedMock = vi.fn();
 const enqueueWithResultMock = vi.fn();
@@ -20,6 +21,10 @@ vi.mock('@/server/domains/fever/repositories/feverAccountsRepo', () => ({
   markFeverAccountSyncAttempted: (...args: unknown[]) => markFeverAccountSyncAttemptedMock(...args),
 }));
 
+vi.mock('@/server/domains/fever/services/feverAccountLifecycleService', () => ({
+  deleteFeverAccountAndSources: (...args: unknown[]) => deleteFeverAccountAndSourcesMock(...args),
+}));
+
 vi.mock('@/server/infra/queue/queue', () => ({
   enqueueWithResult: (...args: unknown[]) => enqueueWithResultMock(...args),
 }));
@@ -29,6 +34,7 @@ describe('/api/fever/accounts', () => {
     listFeverAccountsMock.mockReset();
     createFeverAccountMock.mockReset();
     deleteFeverAccountMock.mockReset();
+    deleteFeverAccountAndSourcesMock.mockReset();
     updateFeverAccountMock.mockReset();
     markFeverAccountSyncAttemptedMock.mockReset();
     enqueueWithResultMock.mockReset();
@@ -170,8 +176,8 @@ describe('/api/fever/accounts', () => {
     expect(json.data.autoSyncIntervalMinutes).toBe(45);
   });
 
-  it('DELETE removes a fever account', async () => {
-    deleteFeverAccountMock.mockResolvedValue(true);
+  it('DELETE removes a fever account and its local fever sources', async () => {
+    deleteFeverAccountAndSourcesMock.mockResolvedValue(true);
 
     const mod = await import('../../../../../app/api/fever/accounts/route');
     const response = await mod.DELETE(
@@ -182,7 +188,7 @@ describe('/api/fever/accounts', () => {
     const json = await response.json();
 
     expect(json.ok).toBe(true);
-    expect(deleteFeverAccountMock).toHaveBeenCalledWith(pool, '1');
+    expect(deleteFeverAccountAndSourcesMock).toHaveBeenCalledWith(pool, '1');
   });
 
   it('DELETE validates account id presence', async () => {

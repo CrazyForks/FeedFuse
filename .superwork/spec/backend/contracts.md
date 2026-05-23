@@ -46,6 +46,7 @@
 - Fever 协议适配只放在 `src/server/integrations/fever/**`；route 和 worker 不直接拼 Fever 请求，也不直接解析 Fever DTO。
 - Fever 同步、投影和写回编排放在 `src/server/domains/fever/services/**`；worker 仅通过 `fever.sync` 任务调度这些 service。
 - Fever 账号配置还包含 `autoSyncEnabled`、`autoSyncIntervalMinutes`、`lastSyncAttemptAt`；字段持久化落在 `fever_accounts`，并通过 `/api/fever/accounts` 返回给前端。
+- 删除 Fever account 时，必须同时删除该账号投影出来的本地 `provider = 'fever'` feeds，并清理因此变空的分类；只删除 mapping 或 account 本身而保留本地 feed 会导致左栏快照残留失效来源。
 - `fever.sync_due` 是每分钟运行一次的后台调度任务，只负责挑选到期账号并入队 `fever.sync`；真正的同步执行和远端读写仍统一走 `fever.sync`。
 - 手动 `POST /api/fever/accounts/[id]/sync` 和后台 `fever.sync_due` 在成功入队后都要写入 `lastSyncAttemptAt`，避免长时间同步期间被重复调度。
 - 用户触发 `POST /api/feeds/[id]/refresh` 或 `POST /api/feeds/refresh` 时，如果目标包含 `provider = 'fever'` 的 feed，必须分流到对应账号的 `fever.sync`，并把该账号关联的本地 feed item 一并纳入 `feed_refresh_runs` 跟踪。

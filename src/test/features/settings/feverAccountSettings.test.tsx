@@ -333,7 +333,7 @@ describe('FeverAccountSettingsPanel', () => {
     });
   });
 
-  it('deletes fever account after confirmation and removes it from the list', async () => {
+  it('deletes fever account after confirmation, warns about fever sources, and refreshes sidebar data', async () => {
     let accounts: FeverAccountFixture[] = [
       {
         id: '1',
@@ -346,6 +346,11 @@ describe('FeverAccountSettingsPanel', () => {
         lastError: null,
       },
     ];
+    const loadSnapshotMock = vi.fn().mockResolvedValue(undefined);
+    useAppStore.setState({
+      selectedView: 'all',
+      loadSnapshot: loadSnapshotMock,
+    });
 
     vi.stubGlobal(
       'fetch',
@@ -386,11 +391,13 @@ describe('FeverAccountSettingsPanel', () => {
 
     await screen.findByText('demo');
     fireEvent.click(screen.getByRole('button', { name: '删除账号' }));
+    expect(screen.getByText(/会删除该 Fever 服务下的所有 fever 源/i)).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: '确认删除' }));
 
     await waitFor(() => {
       expect(screen.queryByText('demo')).not.toBeInTheDocument();
     });
+    expect(loadSnapshotMock).toHaveBeenCalledWith({ view: 'all' });
   });
 
   it('refreshes account status after sync completes and shows lastSyncAt', async () => {

@@ -126,8 +126,19 @@ const catalog: Record<UserOperationActionKey, UserOperationCatalogEntry> = {
   'fever.sync': {
     mode: 'immediate',
     category: 'settings',
-    successMessage: (context) =>
-      context?.outcome === 'already_enqueued' ? 'Fever 同步已在队列中' : '已开始同步 Fever 账号',
+    successMessage: (context) => {
+      if (context?.outcome === 'already_enqueued') {
+        return 'Fever 同步已在队列中';
+      }
+      if (context?.outcome === 'settings_saved') {
+        return '已保存 Fever 账号设置';
+      }
+      if (context?.outcome === 'deleted') {
+        return '已删除 Fever 服务和其源';
+      }
+
+      return '已开始同步 Fever 账号';
+    },
     errorPrefix: () => '同步 Fever 账号失败',
   },
   'feed.articleListDisplayMode.update': {

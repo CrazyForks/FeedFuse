@@ -9,6 +9,8 @@ import {
 describe('userOperationCatalog', () => {
   it('renders success without reason and error with short reason', () => {
     expect(renderUserOperationSuccess('feed.create')).toBe('已添加订阅源');
+    expect(renderUserOperationSuccess('fever.sync', { outcome: 'deleted' })).toBe('已删除 Fever 服务和其源');
+    expect(renderUserOperationSuccess('fever.sync', { outcome: 'settings_saved' })).toBe('已保存 Fever 账号设置');
     expect(renderUserOperationFailure('feed.create', '  订阅源已存在  ')).toBe(
       '添加订阅源失败：订阅源已存在',
     );

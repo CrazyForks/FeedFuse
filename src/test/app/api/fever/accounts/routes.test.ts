@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const pool = {};
 const listFeverAccountsMock = vi.fn();
 const createFeverAccountMock = vi.fn();
+const deleteFeverAccountMock = vi.fn();
 const enqueueWithResultMock = vi.fn();
 
 vi.mock('@/server/infra/db/pool', () => ({
@@ -12,6 +13,7 @@ vi.mock('@/server/infra/db/pool', () => ({
 vi.mock('@/server/domains/fever/repositories/feverAccountsRepo', () => ({
   listFeverAccounts: (...args: unknown[]) => listFeverAccountsMock(...args),
   createFeverAccount: (...args: unknown[]) => createFeverAccountMock(...args),
+  deleteFeverAccount: (...args: unknown[]) => deleteFeverAccountMock(...args),
 }));
 
 vi.mock('@/server/infra/queue/queue', () => ({
@@ -22,6 +24,7 @@ describe('/api/fever/accounts', () => {
   beforeEach(() => {
     listFeverAccountsMock.mockReset();
     createFeverAccountMock.mockReset();
+    deleteFeverAccountMock.mockReset();
     enqueueWithResultMock.mockReset();
   });
 
@@ -89,5 +92,50 @@ describe('/api/fever/accounts', () => {
 
     expect(json.ok).toBe(true);
     expect(json.data.queued).toBe(true);
+  });
+
+  it('POST /sync returns already_enqueued when fever sync is duplicated', async () => {
+    enqueueWithResultMock.mockResolvedValue({ status: 'throttled_or_duplicate' });
+
+    const mod = await import('../../../../../app/api/fever/accounts/[id]/sync/route.ts');
+    const response = await mod.POST(
+      new Request('http://localhost/api/fever/accounts/1/sync', {
+        method: 'POST',
+      }),
+      { params: Promise.resolve({ id: '1' }) },
+    );
+    const json = await response.json();
+
+    expect(json.ok).toBe(true);
+    expect(json.data).toEqual({ queued: false, reason: 'already_enqueued' });
+  });
+
+  it('DELETE removes a fever account', async () => {
+    deleteFeverAccountMock.mockResolvedValue(true);
+
+    const mod = await import('../../../../../app/api/fever/accounts/route');
+    const response = await mod.DELETE(
+      new Request('http://localhost/api/fever/accounts?id=1', {
+        method: 'DELETE',
+      }),
+    );
+    const json = await response.json();
+
+    expect(json.ok).toBe(true);
+    expect(deleteFeverAccountMock).toHaveBeenCalledWith(pool, '1');
+  });
+
+  it('DELETE validates account id presence', async () => {
+    const mod = await import('../../../../../app/api/fever/accounts/route');
+    const response = await mod.DELETE(
+      new Request('http://localhost/api/fever/accounts', {
+        method: 'DELETE',
+      }),
+    );
+    const json = await response.json();
+
+    expect(json.ok).toBe(false);
+    expect(json.error.code).toBe('validation_error');
+    expect(json.error.fields.id).toBeTruthy();
   });
 });

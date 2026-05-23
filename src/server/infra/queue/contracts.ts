@@ -117,7 +117,8 @@ export const QUEUE_CONTRACTS: Record<string, QueueContract> = {
       warningQueueSize: 50,
     },
     worker: { localConcurrency: 1, batchSize: 1 },
-    send: (ctx) => (ctx.feedId ? { singletonKey: ctx.feedId, singletonSeconds: 1800 } : {}),
+    // 仅防止用户连点重复入队，完成后的下一次手动同步应当能很快再次触发。
+    send: (ctx) => (ctx.feedId ? { singletonKey: ctx.feedId, singletonSeconds: 5 } : {}),
   },
   'feed.refresh_all': {
     queue: { warningQueueSize: 50 },

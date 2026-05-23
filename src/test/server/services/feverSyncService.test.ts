@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { FeverAuthError } from '@/server/integrations/fever/feverErrors';
 
 const createFeedMock = vi.hoisted(() => vi.fn());
+const getArticleByFeedAndDedupeKeyMock = vi.hoisted(() => vi.fn());
 const getFeedByUrlMock = vi.hoisted(() => vi.fn());
 const insertArticleIgnoreDuplicateMock = vi.hoisted(() => vi.fn());
 const setArticleReadMock = vi.hoisted(() => vi.fn());
@@ -18,6 +20,7 @@ vi.mock('@/server/domains/feeds/repositories/feedsRepo', () => ({
 }));
 
 vi.mock('@/server/domains/articles/repositories/articlesRepo', () => ({
+  getArticleByFeedAndDedupeKey: (...args: unknown[]) => getArticleByFeedAndDedupeKeyMock(...args),
   insertArticleIgnoreDuplicate: (...args: unknown[]) => insertArticleIgnoreDuplicateMock(...args),
   setArticleRead: (...args: unknown[]) => setArticleReadMock(...args),
   setArticleStarred: (...args: unknown[]) => setArticleStarredMock(...args),
@@ -41,6 +44,7 @@ vi.mock('@/server/domains/fever/repositories/feverAccountsRepo', () => ({
 describe('feverSyncService', () => {
   beforeEach(() => {
     createFeedMock.mockReset();
+    getArticleByFeedAndDedupeKeyMock.mockReset();
     getFeedByUrlMock.mockReset();
     insertArticleIgnoreDuplicateMock.mockReset();
     setArticleReadMock.mockReset();
@@ -107,6 +111,7 @@ describe('feverSyncService', () => {
 
   it('creates projected articles with remote read and saved state', async () => {
     insertArticleIgnoreDuplicateMock.mockResolvedValue({ id: 'article-1' });
+    getArticleByFeedAndDedupeKeyMock.mockResolvedValue(null);
 
     const { projectFeverItem } = await import('@/server/domains/fever/services/feverSyncService');
 
@@ -135,5 +140,93 @@ describe('feverSyncService', () => {
     );
     expect(setArticleReadMock).toHaveBeenCalledWith(expect.anything(), 'article-1', true);
     expect(setArticleStarredMock).toHaveBeenCalledWith(expect.anything(), 'article-1', false);
+  });
+
+  it('passes normalized ISO createdAt into article and mapping writes', async () => {
+    insertArticleIgnoreDuplicateMock.mockResolvedValue({ id: 'article-1' });
+    getArticleByFeedAndDedupeKeyMock.mockResolvedValue(null);
+
+    const { projectFeverItem } = await import('@/server/domains/fever/services/feverSyncService');
+
+    await projectFeverItem({} as never, {
+      accountId: '1',
+      localFeedId: '10',
+      remoteItem: {
+        id: 'remote-1',
+        feedId: 'feed-1',
+        title: 'Hello',
+        url: 'https://example.com/post',
+        author: null,
+        html: '<p>hello</p>',
+        createdAt: '2026-05-22T18:05:00.000Z',
+        isRead: true,
+        isSaved: false,
+      },
+    });
+
+    expect(insertArticleIgnoreDuplicateMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        publishedAt: '2026-05-22T18:05:00.000Z',
+      }),
+    );
+    expect(upsertFeverItemMappingMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        remoteCreatedAt: '2026-05-22T18:05:00.000Z',
+      }),
+    );
+  });
+
+  it('reuses existing projected article when duplicate sync hits the same dedupe key', async () => {
+    insertArticleIgnoreDuplicateMock.mockResolvedValue(null);
+    getArticleByFeedAndDedupeKeyMock.mockResolvedValue({ id: 'article-existing' });
+
+    const { projectFeverItem } = await import('@/server/domains/fever/services/feverSyncService');
+    const result = await projectFeverItem({} as never, {
+      accountId: '1',
+      localFeedId: '10',
+      remoteItem: {
+        id: 'remote-1',
+        feedId: 'feed-1',
+        title: 'Hello',
+        url: 'https://example.com/post',
+        author: null,
+        html: '<p>hello</p>',
+        createdAt: '2026-05-22T10:05:00.000Z',
+        isRead: true,
+        isSaved: false,
+      },
+    });
+
+    expect(getArticleByFeedAndDedupeKeyMock).toHaveBeenCalledWith(
+      expect.anything(),
+      { feedId: '10', dedupeKey: 'fever:1:remote-1' },
+    );
+    expect(result).toEqual({ articleId: 'article-existing', created: false });
+    expect(setArticleReadMock).toHaveBeenCalledWith(expect.anything(), 'article-existing', true);
+    expect(setArticleStarredMock).toHaveBeenCalledWith(expect.anything(), 'article-existing', false);
+  });
+
+  it('stores sync error on account state when fever fetch fails', async () => {
+    const { syncFeverAccount } = await import('@/server/domains/fever/services/feverSyncService');
+
+    await expect(
+      syncFeverAccount({} as never, {
+        accountId: '1',
+        client: {
+          listFeeds: vi.fn().mockRejectedValue(new FeverAuthError()),
+          listItems: vi.fn(),
+        } as never,
+      }),
+    ).rejects.toMatchObject({ code: 'fever_auth_failed' });
+
+    expect(updateFeverAccountSyncStateMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        accountId: '1',
+        lastError: 'Fever 认证失败',
+      }),
+    );
   });
 });

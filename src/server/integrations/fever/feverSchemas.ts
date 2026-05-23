@@ -35,6 +35,23 @@ function parseFlag(value: string | number | boolean | null | undefined): boolean
   return false;
 }
 
+function normalizeFeverCreatedAt(
+  value: string | number | null | undefined,
+): string | null {
+  if (typeof value === 'undefined' || value === null) {
+    return null;
+  }
+
+  // Fever `created_on_time` 使用 Unix 秒级时间戳，入库前统一转成 ISO 字符串。
+  if (typeof value === 'number' || /^\d+$/.test(value)) {
+    const timestamp = typeof value === 'number' ? value : Number(value);
+    const date = new Date(timestamp * 1000);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  }
+
+  return value;
+}
+
 export interface FeverFeed {
   id: string;
   title: string;
@@ -94,10 +111,7 @@ export function parseFeverEnvelope(input: unknown): FeverEnvelope {
       author: item.author ?? null,
       html: item.html ?? null,
       url: item.url ?? null,
-      createdAt:
-        typeof item.created_on_time === 'undefined' || item.created_on_time === null
-          ? null
-          : String(item.created_on_time),
+      createdAt: normalizeFeverCreatedAt(item.created_on_time),
       isRead: parseFlag(item.is_read),
       isSaved: parseFlag(item.is_saved),
     })),

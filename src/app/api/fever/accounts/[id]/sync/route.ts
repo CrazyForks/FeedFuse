@@ -24,7 +24,12 @@ export async function POST(
       payload,
       getQueueSendOptions(JOB_FEVER_SYNC, { feedId: id }),
     );
-    return ok({ queued: result.status === 'enqueued' });
+    if (result.status === 'enqueued') {
+      return ok({ queued: true });
+    }
+
+    // Fever 同步使用 singletonKey 去重，重复点击时显式返回原因，前端才能给出准确反馈。
+    return ok({ queued: false, reason: 'already_enqueued' as const });
   } catch (err) {
     return fail(err);
   }

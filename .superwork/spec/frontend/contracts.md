@@ -36,4 +36,5 @@
 - 前端统一通过 `src/lib/api/apiClient.ts` 消费 Fever 账号接口，不直接在组件里拼 `/api/fever/**` 请求。
 - `Feed.provider === 'fever'` 时，UI 必须把该 feed 视为远端托管源：展示 `Fever` 来源标记，并通过 `remoteManaged` / `remoteSource` 驱动只读或受限交互。
 - Fever feed 仍出现在阅读器左栏和快照里，但编辑弹窗中的标题、URL 等上游托管字段必须只读，避免把本地表单当成上游配置入口。
-- 设置中心的安全区域承载 Fever account 管理入口；新增账号和手动同步通过设置页完成，不在普通添加 RSS 源对话框中混入 Fever feed 创建。
+- 设置中心为 Fever account 提供独立分区入口；新增账号和手动同步通过该分区完成，不在普通添加 RSS 源对话框中混入 Fever feed 创建，也不与密码/登录安全操作混放。
+- Fever 账号分区必须暴露删除账号配置入口；同步失败后需要显示后端返回的账号级错误结果，避免用户只看到开始态而没有终态反馈。

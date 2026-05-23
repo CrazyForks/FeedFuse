@@ -22,7 +22,7 @@ describe('feverClient', () => {
     const result = await client.listFeeds();
 
     expect(fetchImpl).toHaveBeenCalledWith(
-      'https://reader.example.com/?api',
+      'https://reader.example.com/?api&feeds=1',
       expect.objectContaining({
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -31,7 +31,7 @@ describe('feverClient', () => {
     );
     const body = fetchImpl.mock.calls[0]?.[1]?.body as URLSearchParams;
     expect(body.get('api_key')).toBe('3610fcbefb84d63611e69521ee5d95fb');
-    expect(body.get('feeds')).toBe('1');
+    expect(body.get('feeds')).toBeNull();
     expect(result[0]?.id).toBe('1');
   });
 
@@ -41,7 +41,7 @@ describe('feverClient', () => {
       json: async () => ({
         api_version: 3,
         auth: 1,
-        items: [{ id: '11', feed_id: '1', title: 'Item' }],
+        items: [{ id: '11', feed_id: '1', title: 'Item', created_on_time: 1779444300 }],
       }),
     });
 
@@ -55,10 +55,12 @@ describe('feverClient', () => {
 
     const items = await client.listItems('88');
 
+    expect(fetchImpl.mock.calls[0]?.[0]).toBe('https://reader.example.com/?api&items=1&since_id=88');
     const body = fetchImpl.mock.calls[0]?.[1]?.body as URLSearchParams;
-    expect(body.get('items')).toBe('1');
-    expect(body.get('since_id')).toBe('88');
+    expect(body.get('items')).toBeNull();
+    expect(body.get('since_id')).toBeNull();
     expect(items[0]?.feedId).toBe('1');
+    expect(items[0]?.createdAt).toBe('2026-05-22T10:05:00.000Z');
   });
 
   it('builds mark item payload', async () => {

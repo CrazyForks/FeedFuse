@@ -5,6 +5,7 @@ import { ok, fail } from '@/server/infra/http/apiResponse';
 import { ValidationError } from '@/server/infra/http/errors';
 import {
   createFeverAccount,
+  deleteFeverAccount,
   listFeverAccounts,
 } from '@/server/domains/fever/repositories/feverAccountsRepo';
 
@@ -63,6 +64,25 @@ export async function POST(request: Request) {
     const sanitized = { ...account } as Omit<typeof account, 'apiKey'> & { apiKey?: string };
     delete sanitized.apiKey;
     return ok(sanitized);
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function DELETE(request: Request) {
+  const authResponse = await requireApiSession();
+  if (authResponse) {
+    return authResponse;
+  }
+
+  try {
+    const accountId = new URL(request.url).searchParams.get('id')?.trim() ?? '';
+    if (!accountId) {
+      return fail(new ValidationError('Invalid request query', { id: '缺少 Fever 账号 id' }));
+    }
+
+    await deleteFeverAccount(getPool(), accountId);
+    return ok({ deleted: true });
   } catch (err) {
     return fail(err);
   }

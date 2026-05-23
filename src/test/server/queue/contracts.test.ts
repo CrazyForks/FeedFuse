@@ -37,4 +37,11 @@ describe('queue contracts', () => {
       expect.objectContaining({ localConcurrency: 3, batchSize: 1 }),
     );
   });
+
+  it('keeps fever sync dedupe window short for repeated manual sync', () => {
+    expect(getQueueSendOptions('fever.sync', { feedId: 'account-1' })).toEqual({
+      singletonKey: 'account-1',
+      singletonSeconds: 5,
+    });
+  });
 });

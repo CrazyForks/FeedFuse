@@ -1,5 +1,6 @@
 import type { Pool } from 'pg';
 import {
+  getArticleByFeedAndDedupeKey,
   insertArticleIgnoreDuplicate,
   setArticleRead,
   setArticleStarred,
@@ -48,9 +49,10 @@ export async function projectFeverItem(
     remoteItem: FeverItem;
   },
 ): Promise<{ articleId: string; created: boolean }> {
+  const dedupeKey = `fever:${input.accountId}:${input.remoteItem.id}`;
   const created = await insertArticleIgnoreDuplicate(pool, {
     feedId: input.localFeedId,
-    dedupeKey: `fever:${input.accountId}:${input.remoteItem.id}`,
+    dedupeKey,
     title: input.remoteItem.title || '(untitled)',
     link: input.remoteItem.url ?? null,
     author: input.remoteItem.author ?? null,
@@ -61,7 +63,13 @@ export async function projectFeverItem(
     isFiltered: false,
   });
 
-  const articleId = created?.id;
+  // 重复同步命中去重时复用现有 article，而不是把正常幂等路径当成错误。
+  const existing = created
+    ?? await getArticleByFeedAndDedupeKey(pool, {
+      feedId: input.localFeedId,
+      dedupeKey,
+    });
+  const articleId = existing?.id;
   if (!articleId) {
     throw new Error(`Failed to project Fever item ${input.remoteItem.id}`);
   }
@@ -79,7 +87,7 @@ export async function projectFeverItem(
     remoteCreatedAt: input.remoteItem.createdAt,
   });
 
-  return { articleId, created: true };
+  return { articleId, created: Boolean(created) };
 }
 
 export async function reconcileFeverItems(
@@ -93,62 +101,74 @@ export async function syncFeverAccount(
   pool: Pool,
   input: { accountId: string; client: FeverClient },
 ): Promise<{ createdFeeds: number; createdArticles: number }> {
-  const feeds = await input.client.listFeeds();
-  const items = await input.client.listItems();
-  let createdFeeds = 0;
-  let createdArticles = 0;
+  try {
+    const feeds = await input.client.listFeeds();
+    const items = await input.client.listItems();
+    let createdFeeds = 0;
+    let createdArticles = 0;
 
-  for (const remoteFeed of feeds) {
-    const existingMapping = await getFeverFeedMappingByRemoteFeedId(pool, {
-      accountId: input.accountId,
-      feverFeedId: remoteFeed.id,
-    });
-    const localFeed = await ensureProjectedFeed(pool, remoteFeed);
-    if (!existingMapping) {
-      createdFeeds += 1;
+    for (const remoteFeed of feeds) {
+      const existingMapping = await getFeverFeedMappingByRemoteFeedId(pool, {
+        accountId: input.accountId,
+        feverFeedId: remoteFeed.id,
+      });
+      const localFeed = await ensureProjectedFeed(pool, remoteFeed);
+      if (!existingMapping) {
+        createdFeeds += 1;
+      }
+
+      await upsertFeverFeedMapping(pool, {
+        accountId: input.accountId,
+        feverFeedId: remoteFeed.id,
+        localFeedId: localFeed.id,
+        remoteTitle: remoteFeed.title,
+        remoteUrl: remoteFeed.url,
+        remoteGroupName: null,
+        remoteFaviconUrl: null,
+      });
     }
 
-    await upsertFeverFeedMapping(pool, {
-      accountId: input.accountId,
-      feverFeedId: remoteFeed.id,
-      localFeedId: localFeed.id,
-      remoteTitle: remoteFeed.title,
-      remoteUrl: remoteFeed.url,
-      remoteGroupName: null,
-      remoteFaviconUrl: null,
-    });
-  }
+    for (const remoteItem of items) {
+      const mapping = await getFeverFeedMappingByRemoteFeedId(pool, {
+        accountId: input.accountId,
+        feverFeedId: remoteItem.feedId,
+      });
+      if (!mapping) {
+        continue;
+      }
 
-  for (const remoteItem of items) {
-    const mapping = await getFeverFeedMappingByRemoteFeedId(pool, {
-      accountId: input.accountId,
-      feverFeedId: remoteItem.feedId,
-    });
-    if (!mapping) {
-      continue;
+      await projectFeverItem(pool, {
+        accountId: input.accountId,
+        localFeedId: mapping.localFeedId,
+        remoteItem,
+      });
+      createdArticles += 1;
     }
 
-    await projectFeverItem(pool, {
+    await markMissingFeverFeedMappingsInactive(pool, {
       accountId: input.accountId,
-      localFeedId: mapping.localFeedId,
-      remoteItem,
+      seenRemoteFeedIds: feeds.map((feed) => feed.id),
     });
-    createdArticles += 1;
+    await reconcileFeverItems(pool, {
+      accountId: input.accountId,
+      seenRemoteItemIds: items.map((item) => item.id),
+    });
+    await updateFeverAccountSyncState(pool, {
+      accountId: input.accountId,
+      syncedAt: new Date().toISOString(),
+      lastError: null,
+    });
+
+    return { createdFeeds, createdArticles };
+  } catch (err) {
+    const lastError =
+      err instanceof Error && err.message.trim() ? err.message : 'Fever 同步失败，请稍后重试';
+
+    // 同步失败也要写回账号状态，否则设置页只能看到“开始同步”而没有终态。
+    await updateFeverAccountSyncState(pool, {
+      accountId: input.accountId,
+      lastError,
+    });
+    throw err;
   }
-
-  await markMissingFeverFeedMappingsInactive(pool, {
-    accountId: input.accountId,
-    seenRemoteFeedIds: feeds.map((feed) => feed.id),
-  });
-  await reconcileFeverItems(pool, {
-    accountId: input.accountId,
-    seenRemoteItemIds: items.map((item) => item.id),
-  });
-  await updateFeverAccountSyncState(pool, {
-    accountId: input.accountId,
-    syncedAt: new Date().toISOString(),
-    lastError: null,
-  });
-
-  return { createdFeeds, createdArticles };
 }

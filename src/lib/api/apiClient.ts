@@ -851,10 +851,23 @@ export async function createFeverAccount(
   );
 }
 
+export async function deleteFeverAccount(
+  accountId: string,
+  options?: RequestApiOptions,
+): Promise<{ deleted: boolean }> {
+  return requestApi(
+    `/api/fever/accounts?id=${encodeURIComponent(accountId)}`,
+    {
+      method: 'DELETE',
+    },
+    options,
+  );
+}
+
 export async function syncFeverAccountNow(
   accountId: string,
   options?: RequestApiOptions,
-): Promise<{ queued: boolean }> {
+): Promise<{ queued: boolean; reason?: 'already_enqueued' }> {
   return requestApi(
     `/api/fever/accounts/${encodeURIComponent(accountId)}/sync`,
     {

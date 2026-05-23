@@ -75,6 +75,18 @@ export async function listFeverAccounts(db: DbClient): Promise<FeverAccountRow[]
   return rows;
 }
 
+export async function deleteFeverAccount(db: DbClient, id: string): Promise<boolean> {
+  const result = await db.query(
+    `
+      delete from fever_accounts
+      where id = $1
+    `,
+    [id],
+  );
+
+  return (result.rowCount ?? 0) > 0;
+}
+
 export async function updateFeverAccountSyncState(
   db: DbClient,
   input: { accountId: string; lastError?: string | null; syncedAt?: string | null },

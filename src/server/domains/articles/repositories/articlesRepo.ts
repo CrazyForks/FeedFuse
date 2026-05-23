@@ -281,6 +281,23 @@ export async function insertArticleIgnoreDuplicate(
   return rows[0] ?? null;
 }
 
+export async function getArticleByFeedAndDedupeKey(
+  pool: DbClient,
+  input: { feedId: string; dedupeKey: string },
+): Promise<ArticleRow | null> {
+  const { rows } = await pool.query<ArticleRow>(
+    `
+      select ${articleRowColumnsSql}
+      from articles
+      where feed_id = $1
+        and dedupe_key = $2
+      limit 1
+    `,
+    [input.feedId, input.dedupeKey],
+  );
+  return rows[0] ?? null;
+}
+
 export async function getArticleById(
   pool: DbClient,
   id: string,

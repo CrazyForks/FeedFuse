@@ -320,6 +320,7 @@ describe('SettingsCenterModal', () => {
     expect(screen.queryByTestId('settings-section-tab-categories')).not.toBeInTheDocument();
     expect(screen.getByTestId('settings-section-tab-rss')).toBeInTheDocument();
     expect(screen.getByText('账号与安全')).toBeInTheDocument();
+    expect(screen.getByText('Fever 账号')).toBeInTheDocument();
     expect(screen.getByText('主题')).toBeInTheDocument();
   });
 
@@ -337,7 +338,7 @@ describe('SettingsCenterModal', () => {
     expect(screen.queryByText('模型与接口')).not.toBeInTheDocument();
   });
 
-  it('renders logging as the fifth settings section', async () => {
+  it('renders fever as a dedicated tab before logging', async () => {
     resetSettingsStore();
     renderWithNotifications();
     fireEvent.click(screen.getByLabelText('打开设置'));
@@ -348,7 +349,8 @@ describe('SettingsCenterModal', () => {
 
     const tabs = screen.getAllByRole('tab');
     expect(tabs[3]).toHaveAttribute('data-testid', 'settings-section-tab-security');
-    expect(tabs[4]).toHaveAttribute('data-testid', 'settings-section-tab-logging');
+    expect(tabs[4]).toHaveAttribute('data-testid', 'settings-section-tab-fever');
+    expect(tabs[5]).toHaveAttribute('data-testid', 'settings-section-tab-logging');
     expect('logs' in (useSettingsStore.getState().draft as Record<string, unknown>)).toBe(false);
   });
 
@@ -380,6 +382,23 @@ describe('SettingsCenterModal', () => {
     fireEvent.click(logoutButton);
     expect(screen.getByText('确认退出登录')).toBeInTheDocument();
     expect(countLogoutCalls()).toBe(0);
+  });
+
+  it('moves fever account management into a dedicated fever section', async () => {
+    resetSettingsStore();
+    renderWithNotifications();
+    fireEvent.click(screen.getByLabelText('打开设置'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('settings-center-modal')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('添加 Fever 账号')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('settings-section-tab-fever'));
+
+    expect(await screen.findByRole('button', { name: '添加 Fever 账号' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Base URL')).toBeInTheDocument();
   });
 
   it('does not show removed sidebar-collapsed and rss-fulltext settings items', async () => {

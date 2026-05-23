@@ -13,6 +13,7 @@ export type UserOperationActionKey =
   | 'feed.moveToCategory'
   | 'feed.refresh'
   | 'feed.refreshAll'
+  | 'fever.sync'
   | 'feed.articleListDisplayMode.update'
   | 'category.create'
   | 'category.update'
@@ -121,6 +122,13 @@ const catalog: Record<UserOperationActionKey, UserOperationCatalogEntry> = {
     startMessage: () => '已开始刷新全部订阅源',
     successMessage: () => '全部订阅源已刷新',
     errorPrefix: () => '刷新全部订阅源失败',
+  },
+  'fever.sync': {
+    mode: 'immediate',
+    category: 'settings',
+    successMessage: (context) =>
+      context?.outcome === 'already_enqueued' ? 'Fever 同步已在队列中' : '已开始同步 Fever 账号',
+    errorPrefix: () => '同步 Fever 账号失败',
   },
   'feed.articleListDisplayMode.update': {
     mode: 'immediate',

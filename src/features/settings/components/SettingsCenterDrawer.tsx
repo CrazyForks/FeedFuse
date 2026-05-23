@@ -1,4 +1,4 @@
-import { Bot, KeyRound, Palette, Rss, ScrollText, type LucideIcon } from 'lucide-react';
+import { Bot, Flame, KeyRound, Palette, Rss, ScrollText, type LucideIcon } from 'lucide-react';
 import { startTransition, useEffect, useRef, useState } from 'react';
 import {
   AlertDialog,
@@ -38,7 +38,7 @@ interface SettingsCenterDrawerProps {
   onClose: () => void;
 }
 
-type SettingsSectionKey = 'general' | 'rss' | 'ai' | 'security' | 'logging';
+type SettingsSectionKey = 'general' | 'rss' | 'ai' | 'security' | 'fever' | 'logging';
 
 interface SettingsSectionItem {
   key: SettingsSectionKey;
@@ -51,6 +51,7 @@ const sectionItems: SettingsSectionItem[] = [
   { key: 'rss', label: 'RSS', icon: Rss },
   { key: 'ai', label: 'AI', icon: Bot },
   { key: 'security', label: '账号与安全', icon: KeyRound },
+  { key: 'fever', label: 'Fever 账号', icon: Flame },
   { key: 'logging', label: '日志', icon: ScrollText },
 ];
 
@@ -186,6 +187,7 @@ export default function SettingsCenterDrawer({ onClose }: SettingsCenterDrawerPr
     rss: validationErrorKeys.filter((field) => field.startsWith('rss.')).length,
     ai: validationErrorKeys.filter((field) => field.startsWith('ai.')).length,
     security: 0,
+    fever: 0,
     logging: 0,
   };
 
@@ -356,10 +358,10 @@ export default function SettingsCenterDrawer({ onClose }: SettingsCenterDrawerPr
                         />
                       </TabsContent>
                       <TabsContent value="security" className="mt-0 h-full overflow-y-auto">
-                        <div className="space-y-4">
-                          <SecuritySettingsPanel />
-                          <FeverAccountSettingsPanel />
-                        </div>
+                        <SecuritySettingsPanel />
+                      </TabsContent>
+                      <TabsContent value="fever" className="mt-0 h-full overflow-y-auto">
+                        <FeverAccountSettingsPanel />
                       </TabsContent>
                       <TabsContent value="logging" className="mt-0 h-full min-h-0">
                         <LogsSettingsPanel

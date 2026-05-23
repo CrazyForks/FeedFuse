@@ -15,6 +15,11 @@ function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.replace(/\/+$/, '');
 }
 
+function buildRequestUrl(baseUrl: string, params: URLSearchParams): string {
+  const query = params.toString();
+  return query ? `${baseUrl}/?api&${query}` : `${baseUrl}/?api`;
+}
+
 export interface FeverClient {
   listFeeds(): Promise<FeverFeed[]>;
   listItems(sinceId?: string): Promise<FeverItem[]>;
@@ -31,14 +36,20 @@ export function createFeverClient(input: {
   const baseUrl = normalizeBaseUrl(input.baseUrl);
   const feverApiKey = buildFeverApiKey(input.username, input.apiKey);
 
-  async function request(params: URLSearchParams): Promise<FeverEnvelope> {
+  async function request(
+    params: URLSearchParams,
+    options?: { selectorInQuery?: boolean },
+  ): Promise<FeverEnvelope> {
     try {
+      const selectorInQuery = options?.selectorInQuery ?? false;
+      // Fever 读接口要求查询选择器走 query string，否则部分实现只返回 auth 状态而不返回数据体。
+      const requestUrl = selectorInQuery ? buildRequestUrl(baseUrl, params) : `${baseUrl}/?api`;
       const body = new URLSearchParams({
         api_key: feverApiKey,
-        ...Object.fromEntries(params),
+        ...(selectorInQuery ? {} : Object.fromEntries(params)),
       });
 
-      const response = await fetchImpl(`${baseUrl}/?api`, {
+      const response = await fetchImpl(requestUrl, {
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
         body,
@@ -53,7 +64,9 @@ export function createFeverClient(input: {
 
   return {
     async listFeeds() {
-      const envelope = await request(new URLSearchParams({ feeds: '1' }));
+      const envelope = await request(new URLSearchParams({ feeds: '1' }), {
+        selectorInQuery: true,
+      });
       return envelope.feeds ?? [];
     },
     async listItems(sinceId) {
@@ -62,7 +75,7 @@ export function createFeverClient(input: {
         params.set('since_id', sinceId);
       }
 
-      const envelope = await request(params);
+      const envelope = await request(params, { selectorInQuery: true });
       return envelope.items ?? [];
     },
     async markItem(markInput) {

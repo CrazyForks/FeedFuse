@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useAppStore } from '../../../store/appStore';
 const { runImmediateSuccessMock, runImmediateFailureMock } = vi.hoisted(() => ({
   runImmediateSuccessMock: vi.fn(),
   runImmediateFailureMock: vi.fn(),
@@ -39,6 +40,9 @@ describe('FeverAccountSettingsPanel', () => {
   beforeEach(() => {
     runImmediateSuccessMock.mockReset();
     runImmediateFailureMock.mockReset();
+    useAppStore.setState({
+      selectedView: 'all',
+    });
     let accounts: FeverAccountFixture[] = [];
 
     vi.stubGlobal(
@@ -195,6 +199,11 @@ describe('FeverAccountSettingsPanel', () => {
 
   it('shows syncing state and emits success when sync is queued', async () => {
     let listCalls = 0;
+    const loadSnapshotMock = vi.fn().mockResolvedValue(undefined);
+    useAppStore.setState({
+      selectedView: 'all',
+      loadSnapshot: loadSnapshotMock,
+    });
 
     vi.stubGlobal(
       'fetch',
@@ -271,6 +280,7 @@ describe('FeverAccountSettingsPanel', () => {
       expect(runImmediateSuccessMock).toHaveBeenCalledWith({ actionKey: 'fever.sync' });
       expect(screen.getByRole('button', { name: '立即同步' })).toBeEnabled();
     });
+    expect(loadSnapshotMock).toHaveBeenCalledWith({ view: 'all' });
     expect(runImmediateFailureMock).not.toHaveBeenCalled();
   });
 

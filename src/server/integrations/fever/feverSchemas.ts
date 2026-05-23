@@ -9,6 +9,16 @@ const feverFeedSchema = z.object({
   favicon_id: z.union([z.string(), z.number()]).nullish(),
 });
 
+const feverGroupSchema = z.object({
+  id: z.coerce.string(),
+  title: z.string().catch(''),
+});
+
+const feverFeedsGroupSchema = z.object({
+  group_id: z.coerce.string(),
+  feed_ids: z.string().catch(''),
+});
+
 const feverItemSchema = z.object({
   id: z.coerce.string(),
   feed_id: z.coerce.string(),
@@ -25,6 +35,8 @@ const feverEnvelopeBaseSchema = z.object({
   api_version: z.union([z.number(), z.string()]).optional(),
   auth: z.union([z.number(), z.string(), z.boolean()]).optional(),
   feeds: z.array(feverFeedSchema).optional(),
+  groups: z.array(feverGroupSchema).optional(),
+  feeds_groups: z.array(feverFeedsGroupSchema).optional(),
   items: z.array(feverItemSchema).optional(),
 });
 
@@ -58,6 +70,7 @@ export interface FeverFeed {
   url: string;
   siteUrl: string | null;
   faviconId: string | null;
+  groupName: string | null;
 }
 
 export interface FeverItem {
@@ -77,6 +90,7 @@ export interface FeverEnvelope {
   auth: boolean;
   feeds?: FeverFeed[];
   items?: FeverItem[];
+  groupNameByFeedId?: Record<string, string>;
 }
 
 export function parseFeverEnvelope(input: unknown): FeverEnvelope {
@@ -90,10 +104,32 @@ export function parseFeverEnvelope(input: unknown): FeverEnvelope {
     throw new FeverAuthError();
   }
 
+  const groupNameByFeedId = new Map<string, string>();
+  const groupTitleById = new Map(
+    (parsed.data.groups ?? []).map((group) => [group.id, group.title]),
+  );
+
+  for (const feedsGroup of parsed.data.feeds_groups ?? []) {
+    const groupTitle = groupTitleById.get(feedsGroup.group_id)?.trim();
+    if (!groupTitle) {
+      continue;
+    }
+
+    for (const rawFeedId of feedsGroup.feed_ids.split(',')) {
+      const feedId = rawFeedId.trim();
+      if (!feedId || groupNameByFeedId.has(feedId)) {
+        continue;
+      }
+
+      groupNameByFeedId.set(feedId, groupTitle);
+    }
+  }
+
   return {
     apiVersion:
       typeof parsed.data.api_version === 'undefined' ? null : String(parsed.data.api_version),
     auth,
+    groupNameByFeedId: Object.fromEntries(groupNameByFeedId),
     feeds: parsed.data.feeds?.map((feed) => ({
       id: feed.id,
       title: feed.title,
@@ -103,6 +139,7 @@ export function parseFeverEnvelope(input: unknown): FeverEnvelope {
         typeof feed.favicon_id === 'undefined' || feed.favicon_id === null
           ? null
           : String(feed.favicon_id),
+      groupName: groupNameByFeedId.get(feed.id) ?? null,
     })),
     items: parsed.data.items?.map((item) => ({
       id: item.id,

@@ -64,10 +64,25 @@ export function createFeverClient(input: {
 
   return {
     async listFeeds() {
-      const envelope = await request(new URLSearchParams({ feeds: '1' }), {
+      const feedsEnvelope = await request(new URLSearchParams({
+        feeds: '1',
+      }), {
         selectorInQuery: true,
       });
-      return envelope.feeds ?? [];
+      const groupsEnvelope = await request(new URLSearchParams({
+        groups: '1',
+      }), {
+        selectorInQuery: true,
+      });
+
+      const groupNameByFeedId = new Map(
+        Object.entries(groupsEnvelope.groupNameByFeedId ?? {}),
+      );
+
+      return (feedsEnvelope.feeds ?? []).map((feed) => ({
+        ...feed,
+        groupName: groupNameByFeedId.get(feed.id) ?? feed.groupName,
+      }));
     },
     async listItems(sinceId) {
       const params = new URLSearchParams({ items: '1' });
@@ -85,6 +100,10 @@ export function createFeverClient(input: {
           id: markInput.itemId,
           as: markInput.as,
         }),
+        {
+          // Fever 多个实现要求 mark 选择器出现在 query string，否则可能只返回 auth 成功而忽略写操作。
+          selectorInQuery: true,
+        },
       );
     },
   };

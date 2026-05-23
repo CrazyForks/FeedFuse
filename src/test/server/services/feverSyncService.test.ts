@@ -2,11 +2,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FeverAuthError } from '@/server/integrations/fever/feverErrors';
 
 const createFeedMock = vi.hoisted(() => vi.fn());
+const createCategoryMock = vi.hoisted(() => vi.fn());
+const findCategoryByNormalizedNameMock = vi.hoisted(() => vi.fn());
 const getArticleByFeedAndDedupeKeyMock = vi.hoisted(() => vi.fn());
 const getFeedByUrlMock = vi.hoisted(() => vi.fn());
+const getNextCategoryPositionMock = vi.hoisted(() => vi.fn());
 const insertArticleIgnoreDuplicateMock = vi.hoisted(() => vi.fn());
 const setArticleReadMock = vi.hoisted(() => vi.fn());
 const setArticleStarredMock = vi.hoisted(() => vi.fn());
+const updateFeedMock = vi.hoisted(() => vi.fn());
 const getFeverFeedMappingByRemoteFeedIdMock = vi.hoisted(() => vi.fn());
 const upsertFeverFeedMappingMock = vi.hoisted(() => vi.fn());
 const upsertFeverItemMappingMock = vi.hoisted(() => vi.fn());
@@ -17,6 +21,13 @@ const updateFeverAccountSyncStateMock = vi.hoisted(() => vi.fn());
 vi.mock('@/server/domains/feeds/repositories/feedsRepo', () => ({
   createFeed: (...args: unknown[]) => createFeedMock(...args),
   getFeedByUrl: (...args: unknown[]) => getFeedByUrlMock(...args),
+  updateFeed: (...args: unknown[]) => updateFeedMock(...args),
+}));
+
+vi.mock('@/server/domains/feeds/repositories/categoriesRepo', () => ({
+  createCategory: (...args: unknown[]) => createCategoryMock(...args),
+  findCategoryByNormalizedName: (...args: unknown[]) => findCategoryByNormalizedNameMock(...args),
+  getNextCategoryPosition: (...args: unknown[]) => getNextCategoryPositionMock(...args),
 }));
 
 vi.mock('@/server/domains/articles/repositories/articlesRepo', () => ({
@@ -44,11 +55,15 @@ vi.mock('@/server/domains/fever/repositories/feverAccountsRepo', () => ({
 describe('feverSyncService', () => {
   beforeEach(() => {
     createFeedMock.mockReset();
+    createCategoryMock.mockReset();
+    findCategoryByNormalizedNameMock.mockReset();
     getArticleByFeedAndDedupeKeyMock.mockReset();
     getFeedByUrlMock.mockReset();
+    getNextCategoryPositionMock.mockReset();
     insertArticleIgnoreDuplicateMock.mockReset();
     setArticleReadMock.mockReset();
     setArticleStarredMock.mockReset();
+    updateFeedMock.mockReset();
     getFeverFeedMappingByRemoteFeedIdMock.mockReset();
     upsertFeverFeedMappingMock.mockReset();
     upsertFeverItemMappingMock.mockReset();
@@ -59,6 +74,7 @@ describe('feverSyncService', () => {
 
   it('projects remote feeds into local feeds and mappings', async () => {
     getFeedByUrlMock.mockResolvedValue(null);
+    findCategoryByNormalizedNameMock.mockResolvedValue({ id: 'cat-tech', name: 'Tech', position: 0 });
     getFeverFeedMappingByRemoteFeedIdMock
       .mockResolvedValue({ localFeedId: '10' })
       .mockResolvedValueOnce(null);
@@ -76,7 +92,14 @@ describe('feverSyncService', () => {
     const pool = {} as never;
     const client = {
       listFeeds: vi.fn().mockResolvedValue([
-        { id: 'feed-1', title: 'Feed', url: 'https://example.com/feed.xml', siteUrl: null, faviconId: null },
+        {
+          id: 'feed-1',
+          title: 'Feed',
+          url: 'https://example.com/feed.xml',
+          siteUrl: null,
+          faviconId: null,
+          groupName: 'Tech',
+        },
       ]),
       listItems: vi.fn().mockResolvedValue([
         { id: 'item-1', feedId: 'feed-1', title: 'Hello', author: null, html: null, url: 'https://example.com/1', createdAt: null, isRead: false, isSaved: false },
@@ -91,8 +114,163 @@ describe('feverSyncService', () => {
 
     expect(result.createdFeeds).toBe(1);
     expect(result.createdArticles).toBe(2);
-    expect(upsertFeverFeedMappingMock).toHaveBeenCalled();
+    expect(createFeedMock).toHaveBeenCalledWith(
+      pool,
+      expect.objectContaining({
+        categoryId: 'cat-tech',
+        siteUrl: 'https://example.com',
+        iconUrl: null,
+      }),
+    );
+    expect(updateFeedMock).toHaveBeenCalledWith(
+      pool,
+      '10',
+      { iconUrl: '/api/feeds/10/favicon' },
+    );
+    expect(upsertFeverFeedMappingMock).toHaveBeenCalledWith(
+      pool,
+      expect.objectContaining({
+        localFeedId: '10',
+        remoteGroupName: 'Tech',
+        remoteFaviconUrl: '/api/feeds/10/favicon',
+      }),
+    );
     expect(upsertFeverItemMappingMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('backfills favicon route when the projected local feed already exists', async () => {
+    findCategoryByNormalizedNameMock.mockResolvedValue({ id: 'cat-tech', name: 'Tech', position: 0 });
+    getFeedByUrlMock.mockResolvedValue({
+      id: '10',
+      kind: 'rss',
+      provider: 'fever',
+      title: 'Feed',
+      url: 'https://example.com/feed.xml',
+      siteUrl: null,
+      iconUrl: null,
+      enabled: true,
+      fullTextOnOpenEnabled: false,
+      fullTextOnFetchEnabled: false,
+      aiSummaryOnOpenEnabled: false,
+      aiSummaryOnFetchEnabled: false,
+      bodyTranslateOnFetchEnabled: false,
+      bodyTranslateOnOpenEnabled: false,
+      titleTranslateEnabled: false,
+      bodyTranslateEnabled: false,
+      articleListDisplayMode: 'card',
+      categoryId: null,
+      fetchIntervalMinutes: 30,
+      lastFetchStatus: null,
+      lastFetchError: null,
+      lastFetchRawError: null,
+      isPodcast: false,
+    });
+    updateFeedMock.mockResolvedValue({
+      id: '10',
+      kind: 'rss',
+      provider: 'fever',
+      title: 'Feed',
+      url: 'https://example.com/feed.xml',
+      siteUrl: 'https://example.com',
+      iconUrl: '/api/feeds/10/favicon',
+      enabled: true,
+      fullTextOnOpenEnabled: false,
+      fullTextOnFetchEnabled: false,
+      aiSummaryOnOpenEnabled: false,
+      aiSummaryOnFetchEnabled: false,
+      bodyTranslateOnFetchEnabled: false,
+      bodyTranslateOnOpenEnabled: false,
+      titleTranslateEnabled: false,
+      bodyTranslateEnabled: false,
+      articleListDisplayMode: 'card',
+      categoryId: 'cat-tech',
+      fetchIntervalMinutes: 30,
+      lastFetchStatus: null,
+      lastFetchError: null,
+      lastFetchRawError: null,
+      isPodcast: false,
+    });
+    getFeverFeedMappingByRemoteFeedIdMock.mockResolvedValue({ localFeedId: '10' });
+
+    const { syncFeverAccount } = await import('@/server/domains/fever/services/feverSyncService');
+
+    await syncFeverAccount({} as never, {
+      accountId: '1',
+      client: {
+        listFeeds: vi.fn().mockResolvedValue([
+          {
+            id: 'feed-1',
+            title: 'Feed',
+            url: 'https://example.com/feed.xml',
+            siteUrl: 'https://example.com',
+            faviconId: null,
+            groupName: 'Tech',
+          },
+        ]),
+        listItems: vi.fn().mockResolvedValue([]),
+      },
+    });
+
+    expect(updateFeedMock).toHaveBeenCalledWith(
+      expect.anything(),
+      '10',
+      {
+        categoryId: 'cat-tech',
+        siteUrl: 'https://example.com',
+        iconUrl: '/api/feeds/10/favicon',
+      },
+    );
+    expect(upsertFeverFeedMappingMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        localFeedId: '10',
+        remoteGroupName: 'Tech',
+        remoteFaviconUrl: '/api/feeds/10/favicon',
+      }),
+    );
+  });
+
+  it('creates local category when remote fever group does not exist yet', async () => {
+    getFeedByUrlMock.mockResolvedValue(null);
+    findCategoryByNormalizedNameMock.mockResolvedValue(null);
+    getNextCategoryPositionMock.mockResolvedValue(2);
+    createCategoryMock.mockResolvedValue({ id: 'cat-news', name: 'News', position: 2 });
+    getFeverFeedMappingByRemoteFeedIdMock.mockResolvedValue(null);
+    createFeedMock.mockResolvedValue({
+      id: '10',
+      provider: 'fever',
+      title: 'Feed',
+      url: 'https://example.com/feed.xml',
+    });
+
+    const { syncFeverAccount } = await import('@/server/domains/fever/services/feverSyncService');
+
+    await syncFeverAccount({} as never, {
+      accountId: '1',
+      client: {
+        listFeeds: vi.fn().mockResolvedValue([
+          {
+            id: 'feed-1',
+            title: 'Feed',
+            url: 'https://example.com/feed.xml',
+            siteUrl: 'https://example.com',
+            faviconId: null,
+            groupName: 'News',
+          },
+        ]),
+        listItems: vi.fn().mockResolvedValue([]),
+      },
+    });
+
+    expect(getNextCategoryPositionMock).toHaveBeenCalled();
+    expect(createCategoryMock).toHaveBeenCalledWith(
+      expect.anything(),
+      { name: 'News', position: 2 },
+    );
+    expect(createFeedMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ categoryId: 'cat-news' }),
+    );
   });
 
   it('marks missing remote items inactive during full sync', async () => {

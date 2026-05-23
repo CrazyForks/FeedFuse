@@ -6,8 +6,14 @@ import {
   setArticleStarred,
 } from '@/server/domains/articles/repositories/articlesRepo';
 import {
+  createCategory,
+  findCategoryByNormalizedName,
+  getNextCategoryPosition,
+} from '@/server/domains/feeds/repositories/categoriesRepo';
+import {
   createFeed,
   getFeedByUrl,
+  updateFeed,
   type FeedRow,
 } from '@/server/domains/feeds/repositories/feedsRepo';
 import {
@@ -20,25 +26,101 @@ import {
 import { updateFeverAccountSyncState } from '@/server/domains/fever/repositories/feverAccountsRepo';
 import type { FeverClient } from '@/server/integrations/fever/feverClient';
 import type { FeverFeed, FeverItem } from '@/server/integrations/fever/feverSchemas';
+import { buildFeedFaviconPath } from '@/server/integrations/rss/feedFaviconUrl';
+
+function resolveFeverFeedSiteUrl(remoteFeed: FeverFeed): string | null {
+  if (remoteFeed.siteUrl) {
+    return remoteFeed.siteUrl;
+  }
+
+  try {
+    return new URL(remoteFeed.url).origin;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeCategoryName(name: string | null | undefined): string | null {
+  const normalized = name?.trim() ?? '';
+  if (!normalized || normalized === '未分类') {
+    return null;
+  }
+
+  return normalized;
+}
+
+async function resolveFeverFeedCategoryId(
+  pool: Pool,
+  remoteFeed: FeverFeed,
+): Promise<string | null> {
+  const normalizedCategoryName = normalizeCategoryName(remoteFeed.groupName);
+  if (!normalizedCategoryName) {
+    return null;
+  }
+
+  const existing = await findCategoryByNormalizedName(pool, normalizedCategoryName);
+  if (existing) {
+    return existing.id;
+  }
+
+  // Fever 分组需要落成本地分类，保持左栏与上游目录结构一致。
+  const position = await getNextCategoryPosition(pool);
+  const created = await createCategory(pool, {
+    name: normalizedCategoryName,
+    position,
+  });
+  return created.id;
+}
 
 async function ensureProjectedFeed(
   pool: Pool,
   remoteFeed: FeverFeed,
 ): Promise<FeedRow> {
+  const resolvedCategoryId = await resolveFeverFeedCategoryId(pool, remoteFeed);
+  const resolvedSiteUrl = resolveFeverFeedSiteUrl(remoteFeed);
   const existing = await getFeedByUrl(pool, remoteFeed.url);
   if (existing) {
-    return existing;
+    const nextIconUrl = resolvedSiteUrl ? buildFeedFaviconPath(existing.id) : null;
+    const needsUpdate =
+      existing.categoryId !== resolvedCategoryId
+      || existing.siteUrl !== resolvedSiteUrl
+      || existing.iconUrl !== nextIconUrl;
+
+    if (!needsUpdate) {
+      return existing;
+    }
+
+    // Fever 投影视图需要补齐本地分类、可抓取的 siteUrl 和内部 favicon 路由。
+    return (await updateFeed(pool, existing.id, {
+      categoryId: resolvedCategoryId,
+      siteUrl: resolvedSiteUrl,
+      iconUrl: nextIconUrl,
+    })) ?? existing;
   }
 
-  // Fever feed 由上游托管，本地仅维护投影视图。
-  return createFeed(pool, {
+  const created = await createFeed(pool, {
     title: remoteFeed.title || remoteFeed.url,
     url: remoteFeed.url,
     provider: 'fever',
-    siteUrl: remoteFeed.siteUrl,
+    categoryId: resolvedCategoryId,
+    siteUrl: resolvedSiteUrl,
     iconUrl: null,
     enabled: true,
   });
+
+  if (!resolvedSiteUrl) {
+    return created;
+  }
+
+  // 统一走内部 favicon 路由，让 Fever 源复用现有缓存与抓取流程。
+  return (
+    await updateFeed(pool, created.id, {
+      iconUrl: buildFeedFaviconPath(created.id),
+    })
+  ) ?? {
+    ...created,
+    iconUrl: buildFeedFaviconPath(created.id),
+  };
 }
 
 export async function projectFeverItem(
@@ -123,8 +205,8 @@ export async function syncFeverAccount(
         localFeedId: localFeed.id,
         remoteTitle: remoteFeed.title,
         remoteUrl: remoteFeed.url,
-        remoteGroupName: null,
-        remoteFaviconUrl: null,
+        remoteGroupName: remoteFeed.groupName,
+        remoteFaviconUrl: localFeed.iconUrl,
       });
     }
 

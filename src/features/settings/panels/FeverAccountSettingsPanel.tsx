@@ -36,6 +36,7 @@ import {
   runImmediateFailure,
   runImmediateSuccess,
 } from '../../notifications/userOperationNotifier';
+import { useAppStore } from '../../../store/appStore';
 
 export default function FeverAccountSettingsPanel() {
   const baseUrlInputId = 'fever-account-base-url';
@@ -97,6 +98,11 @@ export default function FeverAccountSettingsPanel() {
     });
   }, []);
 
+  const reloadCurrentSnapshot = useCallback(async () => {
+    const { selectedView, loadSnapshot } = useAppStore.getState();
+    await loadSnapshot({ view: selectedView });
+  }, []);
+
   useEffect(() => {
     // 面板打开后立即回填远端已保存账号，避免刷新后列表丢失回显。
     void reloadAccounts();
@@ -156,6 +162,7 @@ export default function FeverAccountSettingsPanel() {
           lastSyncAt: currentAccount?.lastSyncAt ?? null,
           lastError: currentAccount?.lastError ?? null,
         });
+        await reloadCurrentSnapshot();
         runImmediateSuccess({ actionKey: 'fever.sync' });
         return;
       }
@@ -165,6 +172,7 @@ export default function FeverAccountSettingsPanel() {
           lastSyncAt: currentAccount?.lastSyncAt ?? null,
           lastError: currentAccount?.lastError ?? null,
         });
+        await reloadCurrentSnapshot();
         runImmediateSuccess({
           actionKey: 'fever.sync',
           context: { outcome: 'already_enqueued' },

@@ -155,9 +155,12 @@ describe('FeverAccountSettingsPanel', () => {
     });
   });
 
-  it('creates fever account and exposes sync action', async () => {
+  it('opens create modal and creates fever account card', async () => {
     render(<FeverAccountSettingsPanel />);
 
+    fireEvent.click(screen.getByRole('button', { name: '添加 Fever 账号' }));
+
+    expect(screen.getByRole('dialog', { name: '添加 Fever 账号' })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Base URL'), {
       target: { value: 'https://reader.example.com' },
     });
@@ -167,10 +170,12 @@ describe('FeverAccountSettingsPanel', () => {
     fireEvent.change(screen.getByLabelText('API Key'), {
       target: { value: 'secret' },
     });
-    fireEvent.click(screen.getByRole('button', { name: '添加 Fever 账号' }));
+    fireEvent.click(screen.getByRole('button', { name: '保存账号' }));
 
     await waitFor(() => {
+      expect(screen.getByText('demo')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: '立即同步' })).toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: '添加 Fever 账号' })).not.toBeInTheDocument();
     });
   });
 
@@ -433,7 +438,7 @@ describe('FeverAccountSettingsPanel', () => {
     fireEvent.click(await screen.findByRole('button', { name: '立即同步' }));
 
     await waitFor(() => {
-      expect(screen.getByText('上次同步：2026/05/23 08:23:37')).toBeInTheDocument();
+      expect(screen.getByText('2026/05/23 08:23:37')).toBeInTheDocument();
     });
   });
 
@@ -510,7 +515,7 @@ describe('FeverAccountSettingsPanel', () => {
     });
   });
 
-  it('updates auto sync settings for an existing fever account', async () => {
+  it('opens edit modal, updates auto sync settings, and reflects saved values', async () => {
     let accounts: FeverAccountFixture[] = [
       {
         id: '1',
@@ -568,6 +573,9 @@ describe('FeverAccountSettingsPanel', () => {
     render(<FeverAccountSettingsPanel />);
 
     await screen.findByText('demo');
+    fireEvent.click(screen.getByRole('button', { name: '编辑 demo' }));
+    expect(screen.getByRole('dialog', { name: '编辑 Fever 账号' })).toBeInTheDocument();
+    expect(screen.getByDisplayValue('30')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('switch', { name: '启用 demo 自动同步' }));
     fireEvent.change(screen.getByLabelText('自动同步间隔（分钟）'), {
       target: { value: '45' },
@@ -580,6 +588,60 @@ describe('FeverAccountSettingsPanel', () => {
         context: { outcome: 'settings_saved' },
       });
     });
-    expect(screen.getByDisplayValue('45')).toBeInTheDocument();
+    expect(screen.getByText('已关闭')).toBeInTheDocument();
+  });
+
+  it('shows compact account cards without inline create form fields', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url =
+          typeof input === 'string'
+            ? input
+            : typeof URL !== 'undefined' && input instanceof URL
+              ? input.toString()
+              : typeof Request !== 'undefined' && input instanceof Request
+                ? input.url
+                : String(input);
+        const method =
+          typeof Request !== 'undefined' && input instanceof Request
+            ? input.method
+            : init?.method ?? 'GET';
+
+        if (url.includes('/api/fever/accounts') && method === 'GET') {
+          return new Response(JSON.stringify({
+            ok: true,
+            data: [
+              {
+                id: '1',
+                baseUrl: 'https://reader.example.com',
+                username: 'demo',
+                enabled: true,
+                autoSyncEnabled: true,
+                autoSyncIntervalMinutes: 30,
+                lastSyncAt: null,
+                lastError: null,
+              },
+            ],
+          }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+
+        throw new Error(`Unexpected fetch: ${url}`);
+      }),
+    );
+
+    render(<FeverAccountSettingsPanel />);
+
+    await screen.findByText('demo');
+
+    expect(screen.queryByLabelText('Base URL')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('API Key')).not.toBeInTheDocument();
+    expect(screen.getByText('自动同步')).toBeInTheDocument();
+    expect(screen.getByText('https://reader.example.com')).toBeInTheDocument();
+    expect(screen.getByText('尚未同步')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '编辑 demo' })).toBeInTheDocument();
   });
 });

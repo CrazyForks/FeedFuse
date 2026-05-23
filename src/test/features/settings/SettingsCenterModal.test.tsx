@@ -398,7 +398,8 @@ describe('SettingsCenterModal', () => {
     fireEvent.click(screen.getByTestId('settings-section-tab-fever'));
 
     expect(await screen.findByRole('button', { name: '添加 Fever 账号' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Base URL')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Base URL')).not.toBeInTheDocument();
+    expect(screen.getByText('暂无 Fever 账号，点击右上角按钮添加。')).toBeInTheDocument();
   });
 
   it('does not show removed sidebar-collapsed and rss-fulltext settings items', async () => {

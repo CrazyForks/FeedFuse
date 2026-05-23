@@ -19,6 +19,9 @@ const isSafeExternalUrlMock = vi.fn();
 const writeUserOperationSucceededLogMock = vi.fn();
 const writeUserOperationFailedLogMock = vi.fn();
 const initializeFeedRefreshRunMock = vi.fn();
+const getFeedRefreshDispatchRowMock = vi.fn();
+const getFeverAccountByLocalFeedIdMock = vi.fn();
+const listActiveLocalFeedIdsByFeverAccountIdMock = vi.fn();
 
 vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
@@ -32,9 +35,16 @@ vi.mock('@/server/infra/db/pool', () => ({
 
 vi.mock('@/server/domains/feeds/repositories/feedsRepo', () => ({
   listFeeds: (...args: unknown[]) => listFeedsMock(...args),
+  getFeedRefreshDispatchRow: (...args: unknown[]) => getFeedRefreshDispatchRowMock(...args),
 }));
 vi.mock('@/server/domains/feeds/repositories/feedsRepo', () => ({
   listFeeds: (...args: unknown[]) => listFeedsMock(...args),
+  getFeedRefreshDispatchRow: (...args: unknown[]) => getFeedRefreshDispatchRowMock(...args),
+}));
+vi.mock('@/server/domains/fever/repositories/feverMappingsRepo', () => ({
+  getFeverAccountByLocalFeedId: (...args: unknown[]) => getFeverAccountByLocalFeedIdMock(...args),
+  listActiveLocalFeedIdsByFeverAccountId: (...args: unknown[]) =>
+    listActiveLocalFeedIdsByFeverAccountIdMock(...args),
 }));
 
 vi.mock('@/server/domains/feeds/services/feedCategoryLifecycleService', () => ({
@@ -122,8 +132,17 @@ describe('/api/feeds', () => {
     writeUserOperationSucceededLogMock.mockReset();
     writeUserOperationFailedLogMock.mockReset();
     initializeFeedRefreshRunMock.mockReset();
+    getFeedRefreshDispatchRowMock.mockReset();
+    getFeverAccountByLocalFeedIdMock.mockReset();
+    listActiveLocalFeedIdsByFeverAccountIdMock.mockReset();
     isSafeExternalUrlMock.mockResolvedValue(true);
     initializeFeedRefreshRunMock.mockResolvedValue({ id: 'run-1' });
+    getFeedRefreshDispatchRowMock.mockResolvedValue({
+      id: feedId,
+      kind: 'rss',
+      provider: 'local_rss',
+      enabled: true,
+    });
   });
 
   it('GET returns feeds with unreadCount', async () => {
@@ -838,6 +857,40 @@ describe('/api/feeds', () => {
     expect(json.data.runId).toBe('run-1');
   });
 
+  it('POST /refresh routes fever feeds to fever.sync', async () => {
+    getFeedRefreshDispatchRowMock.mockResolvedValue({
+      id: feedId,
+      kind: 'rss',
+      provider: 'fever',
+      enabled: true,
+    });
+    getFeverAccountByLocalFeedIdMock.mockResolvedValue({
+      feverAccountId: 'account-1',
+      localFeedId: feedId,
+    });
+    listActiveLocalFeedIdsByFeverAccountIdMock.mockResolvedValue([feedId, '1002']);
+    enqueueWithResultMock.mockResolvedValue({ status: 'enqueued', jobId: 'job-id-fever-1' });
+
+    const mod = await import('../../../../app/api/feeds/[id]/refresh/route');
+    const res = await mod.POST(new Request(`http://localhost/api/feeds/${feedId}/refresh`), {
+      params: Promise.resolve({ id: feedId }),
+    });
+    const json = await res.json();
+
+    expect(json.ok).toBe(true);
+    expect(initializeFeedRefreshRunMock).toHaveBeenCalledWith(pool, {
+      scope: 'single',
+      feedId,
+      targetFeedIds: [feedId, '1002'],
+    });
+    expect(enqueueWithResultMock).toHaveBeenCalledWith(
+      'fever.sync',
+      { accountId: 'account-1', runId: 'run-1', feedIds: [feedId, '1002'] },
+      getQueueSendOptions('fever.sync', { accountId: 'account-1', runId: 'run-1', feedIds: [feedId, '1002'] }),
+    );
+    expect(json.data.runId).toBe('run-1');
+  });
+
   it('POST /refresh (all) enqueues feed.refresh_all', async () => {
     enqueueWithResultMock.mockResolvedValue({ status: 'enqueued', jobId: 'job-id-1' });
 
@@ -865,5 +918,25 @@ describe('/api/feeds', () => {
       ok: true,
       data: { enqueued: true, runId: 'run-1' },
     });
+  });
+
+  it('POST /refresh returns not enqueued for disabled or unsupported feed', async () => {
+    getFeedRefreshDispatchRowMock.mockResolvedValue({
+      id: feedId,
+      kind: 'ai_digest',
+      provider: 'local_rss',
+      enabled: true,
+    });
+
+    const mod = await import('../../../../app/api/feeds/[id]/refresh/route');
+    const res = await mod.POST(new Request(`http://localhost/api/feeds/${feedId}/refresh`), {
+      params: Promise.resolve({ id: feedId }),
+    });
+
+    expect(await res.json()).toMatchObject({
+      ok: true,
+      data: { enqueued: false },
+    });
+    expect(enqueueWithResultMock).not.toHaveBeenCalled();
   });
 });

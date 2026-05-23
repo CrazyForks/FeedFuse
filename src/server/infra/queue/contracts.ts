@@ -118,7 +118,12 @@ export const QUEUE_CONTRACTS: Record<string, QueueContract> = {
     },
     worker: { localConcurrency: 1, batchSize: 1 },
     // 仅防止用户连点重复入队，完成后的下一次手动同步应当能很快再次触发。
-    send: (ctx) => (ctx.feedId ? { singletonKey: ctx.feedId, singletonSeconds: 5 } : {}),
+    send: (ctx) =>
+      ctx.runId && ctx.feedId
+        ? { singletonKey: `${ctx.runId}:${ctx.feedId}`, singletonSeconds: 3600 }
+        : ctx.feedId
+          ? { singletonKey: ctx.feedId, singletonSeconds: 5 }
+          : {},
   },
   'fever.sync_due': {
     queue: { warningQueueSize: 5 },

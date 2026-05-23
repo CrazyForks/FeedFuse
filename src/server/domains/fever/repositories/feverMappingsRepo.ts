@@ -13,6 +13,11 @@ export interface FeverFeedMappingRow {
   isActive: boolean;
 }
 
+export interface FeverAccountFeedRow {
+  feverAccountId: string;
+  localFeedId: string;
+}
+
 export interface FeverItemMappingRow {
   feverAccountId: string;
   feverItemId: string;
@@ -95,6 +100,42 @@ export async function getFeverFeedMappingByRemoteFeedId(
     [input.accountId, input.feverFeedId],
   );
   return rows[0] ?? null;
+}
+
+export async function getFeverAccountByLocalFeedId(
+  db: DbClient,
+  localFeedId: string,
+): Promise<FeverAccountFeedRow | null> {
+  const { rows } = await db.query<FeverAccountFeedRow>(
+    `
+      select
+        fever_account_id as "feverAccountId",
+        local_feed_id as "localFeedId"
+      from fever_feed_mappings
+      where local_feed_id = $1
+        and is_active = true
+      limit 1
+    `,
+    [localFeedId],
+  );
+  return rows[0] ?? null;
+}
+
+export async function listActiveLocalFeedIdsByFeverAccountId(
+  db: DbClient,
+  accountId: string,
+): Promise<string[]> {
+  const { rows } = await db.query<{ localFeedId: string }>(
+    `
+      select distinct local_feed_id as "localFeedId"
+      from fever_feed_mappings
+      where fever_account_id = $1
+        and is_active = true
+      order by local_feed_id asc
+    `,
+    [accountId],
+  );
+  return rows.map((row) => row.localFeedId);
 }
 
 export async function markMissingFeverFeedMappingsInactive(

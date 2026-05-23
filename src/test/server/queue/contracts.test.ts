@@ -45,6 +45,13 @@ describe('queue contracts', () => {
     });
   });
 
+  it('uses run-scoped dedupe for tracked fever sync jobs', () => {
+    expect(getQueueSendOptions('fever.sync', { feedId: 'account-1', runId: 'run-1' })).toEqual({
+      singletonKey: 'run-1:account-1',
+      singletonSeconds: 3600,
+    });
+  });
+
   it('dedupes fever auto sync scheduler jobs by queue singleton', () => {
     expect(getQueueSendOptions('fever.sync_due', {})).toEqual({
       singletonKey: 'fever.sync_due',

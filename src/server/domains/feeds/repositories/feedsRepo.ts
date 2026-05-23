@@ -31,6 +31,13 @@ export interface FeedRow {
   isPodcast: boolean;
 }
 
+export interface FeedRefreshDispatchRow {
+  id: string;
+  kind: FeedKind;
+  provider: FeedProvider;
+  enabled: boolean;
+}
+
 export async function listFeeds(db: DbClient): Promise<FeedRow[]> {
   const { rows } = await db.query<FeedRow>(`
     -- 返回 provider，供上层区分本地源和 Fever 托管源。
@@ -193,6 +200,26 @@ export async function getFeedByUrl(
       limit 1
     `,
     [url],
+  );
+  return rows[0] ?? null;
+}
+
+export async function getFeedRefreshDispatchRow(
+  db: DbClient,
+  id: string,
+): Promise<FeedRefreshDispatchRow | null> {
+  const { rows } = await db.query<FeedRefreshDispatchRow>(
+    `
+      select
+        id,
+        kind,
+        provider,
+        enabled
+      from feeds
+      where id = $1
+      limit 1
+    `,
+    [id],
   );
   return rows[0] ?? null;
 }
@@ -440,6 +467,7 @@ export interface FeedFetchRow {
 
 export async function listEnabledFeedsForFetch(db: DbClient): Promise<FeedFetchRow[]> {
   const { rows } = await db.query<FeedFetchRow>(`
+    -- 仅让本地 RSS 进入抓取队列，Fever 源走独立同步链路。
     select
       id,
       url,
@@ -453,7 +481,7 @@ export async function listEnabledFeedsForFetch(db: DbClient): Promise<FeedFetchR
       fetch_interval_minutes as "fetchIntervalMinutes",
       last_fetched_at as "lastFetchedAt"
     from feeds
-    where enabled = true and kind = 'rss'
+    where enabled = true and kind = 'rss' and provider = 'local_rss'
     order by created_at asc, id asc
   `);
   return rows;
@@ -473,12 +501,12 @@ export async function getFeedForFetch(
         title_translate_enabled as "titleTranslateEnabled",
         ai_summary_on_fetch_enabled as "aiSummaryOnFetchEnabled",
         body_translate_on_fetch_enabled as "bodyTranslateOnFetchEnabled",
-        etag,
-        last_modified as "lastModified",
-        fetch_interval_minutes as "fetchIntervalMinutes",
-        last_fetched_at as "lastFetchedAt"
+      etag,
+      last_modified as "lastModified",
+      fetch_interval_minutes as "fetchIntervalMinutes",
+      last_fetched_at as "lastFetchedAt"
       from feeds
-      where id = $1 and kind = 'rss'
+      where id = $1 and kind = 'rss' and provider = 'local_rss'
       limit 1
     `,
     [id],

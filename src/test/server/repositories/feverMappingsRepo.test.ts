@@ -35,4 +35,30 @@ describe('feverMappingsRepo', () => {
     expect(sql).toContain('update fever_item_mappings');
     expect(sql).toContain("not (fever_item_id = any($2::text[]))");
   });
+
+  it('gets fever account by local feed id from active mapping', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [{ feverAccountId: '1', localFeedId: '10' }] });
+    const pool = { query } as unknown as Pool;
+    const mod = await import('@/server/domains/fever/repositories/feverMappingsRepo');
+
+    await mod.getFeverAccountByLocalFeedId(pool, '10');
+
+    const sql = String(query.mock.calls[0]?.[0] ?? '');
+    expect(sql).toContain('from fever_feed_mappings');
+    expect(sql).toContain('local_feed_id = $1');
+    expect(sql).toContain('is_active = true');
+  });
+
+  it('lists active local feed ids by fever account id', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [{ localFeedId: '10' }, { localFeedId: '11' }] });
+    const pool = { query } as unknown as Pool;
+    const mod = await import('@/server/domains/fever/repositories/feverMappingsRepo');
+
+    const result = await mod.listActiveLocalFeedIdsByFeverAccountId(pool, '1');
+
+    expect(result).toEqual(['10', '11']);
+    const sql = String(query.mock.calls[0]?.[0] ?? '');
+    expect(sql).toContain('select distinct local_feed_id as "localFeedId"');
+    expect(sql).toContain('fever_account_id = $1');
+  });
 });

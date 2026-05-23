@@ -4,10 +4,12 @@ import { ok, fail } from '@/server/infra/http/apiResponse';
 import { ValidationError } from '@/server/infra/http/errors';
 import { numericIdSchema } from '@/server/infra/http/idSchemas';
 import { getQueueSendOptions } from '@/server/infra/queue/contracts';
-import { JOB_FEED_FETCH } from '@/server/infra/queue/jobs';
+import { JOB_FEED_FETCH, JOB_FEVER_SYNC } from '@/server/infra/queue/jobs';
 import { enqueueWithResult } from '@/server/infra/queue/queue';
 import { getPool } from '@/server/infra/db/pool';
 import { initializeFeedRefreshRun } from '@/server/domains/feeds/services/feedRefreshRunService';
+import { getFeedRefreshDispatchRow } from '@/server/domains/feeds/repositories/feedsRepo';
+import { getFeverAccountByLocalFeedId, listActiveLocalFeedIdsByFeverAccountId } from '@/server/domains/fever/repositories/feverMappingsRepo';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -41,6 +43,39 @@ export async function POST(
       return fail(
         new ValidationError('Invalid route params', zodIssuesToFields(paramsParsed.error)),
       );
+    }
+
+    const pool = getPool();
+    const feed = await getFeedRefreshDispatchRow(pool, paramsParsed.data.id);
+    if (!feed || !feed.enabled || feed.kind !== 'rss') {
+      return ok({ enqueued: false });
+    }
+
+    if (feed.provider === 'fever') {
+      // Fever 源是账号级同步，单个源刷新也要切到对应账号的同步队列。
+      const mapping = await getFeverAccountByLocalFeedId(pool, paramsParsed.data.id);
+      if (!mapping) {
+        return ok({ enqueued: false });
+      }
+
+      const targetFeedIds = await listActiveLocalFeedIdsByFeverAccountId(pool, mapping.feverAccountId);
+      const run = await initializeFeedRefreshRun(pool, {
+        scope: 'single',
+        feedId: paramsParsed.data.id,
+        targetFeedIds: targetFeedIds.length > 0 ? targetFeedIds : [paramsParsed.data.id],
+      });
+      const payload = {
+        accountId: mapping.feverAccountId,
+        runId: run.id,
+        feedIds: targetFeedIds.length > 0 ? targetFeedIds : [paramsParsed.data.id],
+      };
+      const result = await enqueueWithResult(
+        JOB_FEVER_SYNC,
+        payload,
+        getQueueSendOptions(JOB_FEVER_SYNC, payload),
+      );
+      if (result.status !== 'enqueued') return ok({ enqueued: false, runId: run.id });
+      return ok({ enqueued: true, jobId: result.jobId, runId: run.id });
     }
 
     const run = await initializeFeedRefreshRun(getPool(), {

@@ -25,7 +25,7 @@ describe('feverSync worker', () => {
     const { runFeverSyncWorker } = await import('@/worker/feverSync');
     await runFeverSyncWorker({
       pool,
-      data: { accountId: '1' },
+      data: { accountId: '1', runId: 'run-1', feedIds: ['10'] },
     });
 
     expect(createClientForAccountMock).toHaveBeenCalledWith(pool, '1');

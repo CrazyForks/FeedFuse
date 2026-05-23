@@ -72,6 +72,18 @@ export async function listFeverAccounts(db: DbClient): Promise<FeverAccountRow[]
   return rows;
 }
 
+export async function listEnabledFeverAccounts(db: DbClient): Promise<FeverAccountRow[]> {
+  const { rows } = await db.query<FeverAccountRow>(
+    `
+      select ${FEVER_ACCOUNT_COLUMNS}
+      from fever_accounts
+      where enabled = true
+      order by created_at asc, id asc
+    `,
+  );
+  return rows;
+}
+
 export async function deleteFeverAccount(db: DbClient, id: string): Promise<boolean> {
   const result = await db.query(
     `

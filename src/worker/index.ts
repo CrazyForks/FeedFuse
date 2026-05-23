@@ -74,6 +74,8 @@ import {
   completeFeedRefreshRunItem,
   markFeedRefreshRunItemRunning,
 } from '@/server/domains/feeds/services/feedRefreshRunService';
+import { listEnabledFeverAccounts } from '@/server/domains/fever/repositories/feverAccountsRepo';
+import { listActiveLocalFeedIdsByFeverAccountId } from '@/server/domains/fever/repositories/feverMappingsRepo';
 
 const DEFAULT_TRANSLATION_MODEL = 'gpt-4o-mini';
 const DEFAULT_TRANSLATION_API_BASE_URL = 'https://api.openai.com/v1';
@@ -140,21 +142,44 @@ async function enqueueRefreshAll(boss: PgBoss, input?: { force?: boolean; runId?
   const now = new Date();
   const force = Boolean(input?.force);
   const targetFeeds = selectFeedsForRefreshAll(feeds, now, { force });
+  // 用户主动全量刷新时，要把 Fever 账号同步也并入同一轮 run 跟踪里。
+  const feverAccounts = force ? await listEnabledFeverAccounts(pool) : [];
+  const feverTargets = await Promise.all(
+    feverAccounts.map(async (account) => ({
+      accountId: account.id,
+      feedIds: await listActiveLocalFeedIdsByFeverAccountId(pool, account.id),
+    })),
+  );
+  const targetFeverJobs = feverTargets.filter((target) => target.feedIds.length > 0);
+  const allTargetFeedIds = [
+    ...targetFeeds.map((feed) => feed.id),
+    ...targetFeverJobs.flatMap((target) => target.feedIds),
+  ];
 
   if (input?.runId) {
     await attachFeedRefreshRunItems(pool, {
       runId: input.runId,
-      targetFeedIds: targetFeeds.map((feed) => feed.id),
+      targetFeedIds: allTargetFeedIds,
     });
   }
 
   await Promise.all(
-    targetFeeds.map((feed) => {
-      const payload = buildFeedFetchJobData(feed.id, { force, runId: input?.runId });
-      return boss.send(JOB_FEED_FETCH, payload, getQueueSendOptions(JOB_FEED_FETCH, payload));
-    }),
+    [
+      ...targetFeeds.map((feed) => {
+        const payload = buildFeedFetchJobData(feed.id, { force, runId: input?.runId });
+        return boss.send(JOB_FEED_FETCH, payload, getQueueSendOptions(JOB_FEED_FETCH, payload));
+      }),
+      ...targetFeverJobs.map((target) => {
+        const payload = {
+          accountId: target.accountId,
+          ...(input?.runId ? { runId: input.runId } : {}),
+          feedIds: target.feedIds,
+        };
+        return boss.send(JOB_FEVER_SYNC, payload, getQueueSendOptions(JOB_FEVER_SYNC, payload));
+      }),
+    ],
   );
-  return { enqueued: targetFeeds.length };
+  return { enqueued: targetFeeds.length + targetFeverJobs.length };
 }
 
 export async function fetchAndIngestFeed(
@@ -857,16 +882,54 @@ async function main() {
   };
 
   const feverSyncHandler = async (jobs: unknown[]) => {
-    for (const job of jobs as Array<{ data?: { accountId?: string } }>) {
+    for (const job of jobs as Array<{ data?: { accountId?: string; runId?: string; feedIds?: string[] } }>) {
       const accountId = job.data?.accountId;
       if (!accountId) {
         continue;
       }
 
-      await runFeverSyncWorker({
-        pool,
-        data: { accountId },
-      });
+      const runId = typeof job.data?.runId === 'string' ? job.data.runId : null;
+      const feedIds = Array.isArray(job.data?.feedIds)
+        ? job.data.feedIds.filter((feedId): feedId is string => typeof feedId === 'string')
+        : [];
+
+      if (runId) {
+        for (const feedId of feedIds) {
+          await markFeedRefreshRunItemRunning(getPool(), { runId, feedId });
+        }
+      }
+
+      try {
+        await runFeverSyncWorker({
+          pool,
+          data: { accountId, runId, feedIds },
+        });
+
+        if (runId) {
+          for (const feedId of feedIds) {
+            await completeFeedRefreshRunItem(getPool(), {
+              runId,
+              feedId,
+              status: 'succeeded',
+              errorMessage: null,
+            });
+          }
+        }
+      } catch (error) {
+        if (runId) {
+          const errorMessage =
+            error instanceof Error && error.message.trim() ? error.message : 'Fever 同步失败，请稍后重试';
+          for (const feedId of feedIds) {
+            await completeFeedRefreshRunItem(getPool(), {
+              runId,
+              feedId,
+              status: 'failed',
+              errorMessage,
+            });
+          }
+        }
+        throw error;
+      }
     }
   };
 

@@ -42,11 +42,13 @@ describe('feedsRepo (kind)', () => {
     await mod.listEnabledFeedsForFetch(pool);
     const listSql = String(query.mock.calls[0]?.[0] ?? '');
     expect(listSql).toContain("kind = 'rss'");
+    expect(listSql).toContain("provider = 'local_rss'");
 
     query.mockClear();
     await mod.getFeedForFetch(pool, 'feed-1');
     const getSql = String(query.mock.calls[0]?.[0] ?? '');
     expect(getSql).toContain("kind = 'rss'");
+    expect(getSql).toContain("provider = 'local_rss'");
   });
 
   it('updateAllFeedsFetchIntervalMinutes only updates rss feeds', async () => {

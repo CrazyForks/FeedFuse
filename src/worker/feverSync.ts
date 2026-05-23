@@ -4,7 +4,7 @@ import { createClientForAccount } from '@/server/domains/fever/services/feverWri
 
 export async function runFeverSyncWorker(input: {
   pool: Pool;
-  data: { accountId: string };
+  data: { accountId: string; runId?: string | null; feedIds?: string[] };
 }) {
   const client = await createClientForAccount(input.pool, input.data.accountId);
   await syncFeverAccount(input.pool, {

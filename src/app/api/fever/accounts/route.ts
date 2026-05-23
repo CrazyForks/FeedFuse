@@ -8,7 +8,7 @@ import {
   deleteFeverAccount,
   listFeverAccounts,
   type FeverAccountRow,
-  updateFeverAccountAutoSyncSettings,
+  updateFeverAccount,
 } from '@/server/domains/fever/repositories/feverAccountsRepo';
 
 export const runtime = 'nodejs';
@@ -22,6 +22,9 @@ const bodySchema = z.object({
 
 const patchBodySchema = z.object({
   id: z.string().trim().min(1),
+  baseUrl: z.string().trim().url(),
+  username: z.string().trim().min(1),
+  apiKey: z.string().trim().optional().default(''),
   autoSyncEnabled: z.boolean(),
   autoSyncIntervalMinutes: z.number().int().min(5).max(1440),
 });
@@ -88,8 +91,11 @@ export async function PATCH(request: Request) {
       return fail(new ValidationError('Invalid request body', zodIssuesToFields(parsed.error)));
     }
 
-    const account = await updateFeverAccountAutoSyncSettings(getPool(), {
+    const account = await updateFeverAccount(getPool(), {
       accountId: parsed.data.id,
+      baseUrl: parsed.data.baseUrl,
+      username: parsed.data.username,
+      apiKey: parsed.data.apiKey,
       autoSyncEnabled: parsed.data.autoSyncEnabled,
       autoSyncIntervalMinutes: parsed.data.autoSyncIntervalMinutes,
     });

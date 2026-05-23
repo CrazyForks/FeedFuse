@@ -23,6 +23,18 @@ type FeverAccountFixture = {
   lastError: string | null;
 };
 
+async function readJsonBody(input: RequestInfo | URL, init?: RequestInit): Promise<Record<string, unknown>> {
+  if (typeof Request !== 'undefined' && input instanceof Request) {
+    return input.json().catch(() => ({}));
+  }
+
+  if (!init?.body) {
+    return {};
+  }
+
+  return JSON.parse(String(init.body)) as Record<string, unknown>;
+}
+
 describe('FeverAccountSettingsPanel', () => {
   beforeEach(() => {
     runImmediateSuccessMock.mockReset();
@@ -75,11 +87,13 @@ describe('FeverAccountSettingsPanel', () => {
         }
 
         if (url.includes('/api/fever/accounts') && method === 'PATCH') {
-          const body = init?.body ? JSON.parse(String(init.body)) : {};
+          const body = await readJsonBody(input, init);
           accounts = accounts.map((account) => (
             account.id === body.id
               ? {
                   ...account,
+                  baseUrl: String(body.baseUrl ?? account.baseUrl),
+                  username: String(body.username ?? account.username),
                   autoSyncEnabled: body.autoSyncEnabled,
                   autoSyncIntervalMinutes: body.autoSyncIntervalMinutes,
                 }
@@ -553,11 +567,14 @@ describe('FeverAccountSettingsPanel', () => {
         }
 
         if (url.includes('/api/fever/accounts') && method === 'PATCH') {
+          const body = await readJsonBody(input, init);
           accounts = [
             {
               ...accounts[0],
-              autoSyncEnabled: false,
-              autoSyncIntervalMinutes: 45,
+              baseUrl: String(body.baseUrl ?? accounts[0].baseUrl),
+              username: String(body.username ?? accounts[0].username),
+              autoSyncEnabled: Boolean(body.autoSyncEnabled),
+              autoSyncIntervalMinutes: Number(body.autoSyncIntervalMinutes ?? accounts[0].autoSyncIntervalMinutes),
             },
           ];
           return new Response(JSON.stringify({ ok: true, data: accounts[0] }), {
@@ -575,12 +592,21 @@ describe('FeverAccountSettingsPanel', () => {
     await screen.findByText('demo');
     fireEvent.click(screen.getByRole('button', { name: '编辑 demo' }));
     expect(screen.getByRole('dialog', { name: '编辑 Fever 账号' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Base URL'), {
+      target: { value: 'https://updated.example.com' },
+    });
+    fireEvent.change(screen.getByLabelText('Username'), {
+      target: { value: 'updated-demo' },
+    });
+    fireEvent.change(screen.getByLabelText('API Key（留空表示不修改）'), {
+      target: { value: 'updated-secret' },
+    });
     expect(screen.getByDisplayValue('30')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('switch', { name: '启用 demo 自动同步' }));
     fireEvent.change(screen.getByLabelText('自动同步间隔（分钟）'), {
       target: { value: '45' },
     });
-    fireEvent.click(screen.getByRole('button', { name: '保存自动同步' }));
+    fireEvent.click(screen.getByRole('button', { name: '保存账号设置' }));
 
     await waitFor(() => {
       expect(runImmediateSuccessMock).toHaveBeenCalledWith({
@@ -588,6 +614,8 @@ describe('FeverAccountSettingsPanel', () => {
         context: { outcome: 'settings_saved' },
       });
     });
+    expect(screen.getByText('updated-demo')).toBeInTheDocument();
+    expect(screen.getByText('https://updated.example.com')).toBeInTheDocument();
     expect(screen.getByText('已关闭')).toBeInTheDocument();
   });
 

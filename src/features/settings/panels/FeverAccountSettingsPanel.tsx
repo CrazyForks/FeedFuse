@@ -29,7 +29,7 @@ import {
   listFeverAccounts,
   syncFeverAccountNow,
   type FeverAccountDto,
-  updateFeverAccountAutoSyncSettings,
+  updateFeverAccountSettings,
 } from '@/lib/api/apiClient';
 import { DIALOG_FORM_CONTENT_CLASS_NAME } from '@/lib/ui/designSystem';
 import {
@@ -45,6 +45,11 @@ export default function FeverAccountSettingsPanel() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editAccountId, setEditAccountId] = useState<string | null>(null);
   const [createDraft, setCreateDraft] = useState({
+    baseUrl: '',
+    username: '',
+    apiKey: '',
+  });
+  const [editDraft, setEditDraft] = useState({
     baseUrl: '',
     username: '',
     apiKey: '',
@@ -65,6 +70,13 @@ export default function FeverAccountSettingsPanel() {
 
   const updateCreateDraft = (patch: Partial<typeof createDraft>) => {
     setCreateDraft((current) => ({
+      ...current,
+      ...patch,
+    }));
+  };
+
+  const updateEditDraft = (patch: Partial<typeof editDraft>) => {
+    setEditDraft((current) => ({
       ...current,
       ...patch,
     }));
@@ -195,16 +207,19 @@ export default function FeverAccountSettingsPanel() {
     });
   };
 
-  const handleSaveAutoSync = async (account: FeverAccountDto) => {
+  const handleSaveAccount = async (account: FeverAccountDto) => {
     const draft = autoSyncDrafts[account.id] ?? buildAutoSyncDraft(account);
     const normalizedInterval = Math.max(5, Math.min(1440, Math.round(draft.autoSyncIntervalMinutes)));
 
     setSavingAutoSyncAccountId(account.id);
 
     try {
-      const updated = await updateFeverAccountAutoSyncSettings(
+      const updated = await updateFeverAccountSettings(
         {
           id: account.id,
+          baseUrl: editDraft.baseUrl.trim(),
+          username: editDraft.username.trim(),
+          apiKey: editDraft.apiKey.trim(),
           autoSyncEnabled: draft.autoSyncEnabled,
           autoSyncIntervalMinutes: normalizedInterval,
         },
@@ -351,7 +366,12 @@ export default function FeverAccountSettingsPanel() {
                       variant="outline"
                       aria-label={`编辑 ${account.username}`}
                       onClick={() => {
-                        // 编辑只允许调整可持久化的自动同步配置，保持前后端契约稳定。
+                        // 进入编辑弹窗时同步回填当前账号配置，避免本地表单沿用上一次草稿。
+                        setEditDraft({
+                          baseUrl: account.baseUrl,
+                          username: account.username,
+                          apiKey: '',
+                        });
                         setEditAccountId(account.id);
                       }}
                     >
@@ -477,13 +497,40 @@ export default function FeverAccountSettingsPanel() {
         <DialogContent closeLabel="关闭编辑 Fever 账号" className={DIALOG_FORM_CONTENT_CLASS_NAME}>
           <DialogHeader>
             <DialogTitle>编辑 Fever 账号</DialogTitle>
-            <DialogDescription>这里只调整自动同步策略，不修改远端账号凭据。</DialogDescription>
+            <DialogDescription>修改账号连接信息和自动同步策略。</DialogDescription>
           </DialogHeader>
           {editingAccount ? (
             <div className="grid gap-4">
-              <div className="rounded-xl border border-border/70 bg-muted/25 px-4 py-3">
-                <p className="text-sm font-medium text-foreground">{editingAccount.username}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{editingAccount.baseUrl}</p>
+              <div className="space-y-2">
+                <Label htmlFor={`fever-edit-base-url-${editingAccount.id}`}>Base URL</Label>
+                <Input
+                  id={`fever-edit-base-url-${editingAccount.id}`}
+                  type="url"
+                  value={editDraft.baseUrl}
+                  onChange={(event) => {
+                    updateEditDraft({ baseUrl: event.target.value });
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`fever-edit-username-${editingAccount.id}`}>Username</Label>
+                <Input
+                  id={`fever-edit-username-${editingAccount.id}`}
+                  value={editDraft.username}
+                  onChange={(event) => {
+                    updateEditDraft({ username: event.target.value });
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`fever-edit-api-key-${editingAccount.id}`}>API Key（留空表示不修改）</Label>
+                <Input
+                  id={`fever-edit-api-key-${editingAccount.id}`}
+                  value={editDraft.apiKey}
+                  onChange={(event) => {
+                    updateEditDraft({ apiKey: event.target.value });
+                  }}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor={`fever-auto-sync-interval-${editingAccount.id}`}>自动同步间隔（分钟）</Label>
@@ -535,11 +582,11 @@ export default function FeverAccountSettingsPanel() {
               disabled={!editingAccount || savingAutoSyncAccountId === editingAccount.id}
               onClick={() => {
                 if (editingAccount) {
-                  void handleSaveAutoSync(editingAccount);
+                  void handleSaveAccount(editingAccount);
                 }
               }}
             >
-              {savingAutoSyncAccountId === editingAccount?.id ? '保存中…' : '保存自动同步'}
+              {savingAutoSyncAccountId === editingAccount?.id ? '保存中…' : '保存账号设置'}
             </Button>
           </DialogFooter>
         </DialogContent>

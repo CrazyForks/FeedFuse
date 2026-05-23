@@ -4,7 +4,7 @@ const pool = {};
 const listFeverAccountsMock = vi.fn();
 const createFeverAccountMock = vi.fn();
 const deleteFeverAccountMock = vi.fn();
-const updateFeverAccountAutoSyncSettingsMock = vi.fn();
+const updateFeverAccountMock = vi.fn();
 const markFeverAccountSyncAttemptedMock = vi.fn();
 const enqueueWithResultMock = vi.fn();
 
@@ -16,8 +16,7 @@ vi.mock('@/server/domains/fever/repositories/feverAccountsRepo', () => ({
   listFeverAccounts: (...args: unknown[]) => listFeverAccountsMock(...args),
   createFeverAccount: (...args: unknown[]) => createFeverAccountMock(...args),
   deleteFeverAccount: (...args: unknown[]) => deleteFeverAccountMock(...args),
-  updateFeverAccountAutoSyncSettings: (...args: unknown[]) =>
-    updateFeverAccountAutoSyncSettingsMock(...args),
+  updateFeverAccount: (...args: unknown[]) => updateFeverAccountMock(...args),
   markFeverAccountSyncAttempted: (...args: unknown[]) => markFeverAccountSyncAttemptedMock(...args),
 }));
 
@@ -30,7 +29,7 @@ describe('/api/fever/accounts', () => {
     listFeverAccountsMock.mockReset();
     createFeverAccountMock.mockReset();
     deleteFeverAccountMock.mockReset();
-    updateFeverAccountAutoSyncSettingsMock.mockReset();
+    updateFeverAccountMock.mockReset();
     markFeverAccountSyncAttemptedMock.mockReset();
     enqueueWithResultMock.mockReset();
   });
@@ -125,15 +124,15 @@ describe('/api/fever/accounts', () => {
     expect(json.data).toEqual({ queued: false, reason: 'already_enqueued' });
   });
 
-  it('PATCH updates fever account auto sync settings', async () => {
-    updateFeverAccountAutoSyncSettingsMock.mockResolvedValue({
+  it('PATCH updates fever account settings', async () => {
+    updateFeverAccountMock.mockResolvedValue({
       id: '1',
-      baseUrl: 'https://reader.example.com',
-      username: 'demo',
+      baseUrl: 'https://updated.example.com',
+      username: 'updated-demo',
       apiKey: 'secret',
       enabled: true,
-      autoSyncEnabled: true,
-      autoSyncIntervalMinutes: 30,
+      autoSyncEnabled: false,
+      autoSyncIntervalMinutes: 45,
       lastSyncAt: null,
       lastError: null,
     });
@@ -145,22 +144,30 @@ describe('/api/fever/accounts', () => {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           id: '1',
-          autoSyncEnabled: true,
-          autoSyncIntervalMinutes: 30,
+          baseUrl: 'https://updated.example.com',
+          username: 'updated-demo',
+          apiKey: 'updated-secret',
+          autoSyncEnabled: false,
+          autoSyncIntervalMinutes: 45,
         }),
       }),
     );
     const json = await response.json();
 
     expect(json.ok).toBe(true);
-    expect(updateFeverAccountAutoSyncSettingsMock).toHaveBeenCalledWith(pool, {
+    expect(updateFeverAccountMock).toHaveBeenCalledWith(pool, {
       accountId: '1',
-      autoSyncEnabled: true,
-      autoSyncIntervalMinutes: 30,
+      baseUrl: 'https://updated.example.com',
+      username: 'updated-demo',
+      apiKey: 'updated-secret',
+      autoSyncEnabled: false,
+      autoSyncIntervalMinutes: 45,
     });
     expect(json.data.apiKey).toBeUndefined();
-    expect(json.data.autoSyncEnabled).toBe(true);
-    expect(json.data.autoSyncIntervalMinutes).toBe(30);
+    expect(json.data.baseUrl).toBe('https://updated.example.com');
+    expect(json.data.username).toBe('updated-demo');
+    expect(json.data.autoSyncEnabled).toBe(false);
+    expect(json.data.autoSyncIntervalMinutes).toBe(45);
   });
 
   it('DELETE removes a fever account', async () => {

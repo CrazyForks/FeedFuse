@@ -853,8 +853,15 @@ export async function createFeverAccount(
   );
 }
 
-export async function updateFeverAccountAutoSyncSettings(
-  input: { id: string; autoSyncEnabled: boolean; autoSyncIntervalMinutes: number },
+export async function updateFeverAccountSettings(
+  input: {
+    id: string;
+    baseUrl: string;
+    username: string;
+    apiKey?: string;
+    autoSyncEnabled: boolean;
+    autoSyncIntervalMinutes: number;
+  },
   options?: RequestApiOptions,
 ): Promise<FeverAccountDto> {
   return requestApi(

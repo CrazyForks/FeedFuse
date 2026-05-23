@@ -152,6 +152,43 @@ export async function updateFeverAccountAutoSyncSettings(
   return rows[0] ?? null;
 }
 
+export async function updateFeverAccount(
+  db: DbClient,
+  input: {
+    accountId: string;
+    baseUrl: string;
+    username: string;
+    apiKey?: string;
+    autoSyncEnabled: boolean;
+    autoSyncIntervalMinutes: number;
+  },
+): Promise<FeverAccountRow | null> {
+  const { rows } = await db.query<FeverAccountRow>(
+    `
+      update fever_accounts
+      set
+        base_url = $2,
+        username = $3,
+        api_key = coalesce(nullif($4, ''), api_key),
+        auto_sync_enabled = $5,
+        auto_sync_interval_minutes = $6,
+        updated_at = now()
+      where id = $1
+      returning ${FEVER_ACCOUNT_COLUMNS}
+    `,
+    [
+      input.accountId,
+      input.baseUrl,
+      input.username,
+      input.apiKey ?? '',
+      input.autoSyncEnabled,
+      input.autoSyncIntervalMinutes,
+    ],
+  );
+
+  return rows[0] ?? null;
+}
+
 export async function listEnabledFeverAccountsForAutoSync(
   db: DbClient,
 ): Promise<FeverAccountRow[]> {

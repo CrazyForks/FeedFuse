@@ -102,7 +102,7 @@ function mapMediaAttachments(
 
 async function loadParsedFeedSnapshot(
   deps: FeverSyncDeps,
-  pool: Pool,
+  appSettings: Awaited<ReturnType<FeverSyncDeps['getAppSettings']>>,
   remoteFeed: FeverFeed,
   cache: Map<string, ParsedFeed | null>,
 ): Promise<ParsedFeed | null> {
@@ -111,7 +111,6 @@ async function loadParsedFeedSnapshot(
     return cache.get(cacheKey) ?? null;
   }
 
-  const appSettings = await deps.getAppSettings(pool);
   const res = await deps.fetchFeedXml(remoteFeed.url, {
     timeoutMs: appSettings.rssTimeoutMs,
     userAgent: appSettings.rssUserAgent,
@@ -154,6 +153,7 @@ export async function runFeverSyncWorker(input: {
 }) {
   const deps = { ...defaultDeps, ...(input.deps ?? {}) };
   const client = await createClientForAccount(input.pool, input.data.accountId);
+  const appSettings = await deps.getAppSettings(input.pool);
   const uiSettings = normalizePersistedSettings(await deps.getUiSettings(input.pool));
   const parsedFeedCache = new Map<string, ParsedFeed | null>();
   const syncState = await getFeverSyncStateByAccountId(input.pool, input.data.accountId);
@@ -163,12 +163,12 @@ export async function runFeverSyncWorker(input: {
       accountId: input.data.accountId,
       client,
       sinceItemId,
-      targetLocalFeedIds: input.data.feedIds,
       // Fever 仍由独立 worker 编排，但文章内容统一回到 RSS XML 解析与清洗链路。
+      // 单点刷新 Fever feed 也必须升级成账号级同步，不能再做 feed 级 scoped sync。
       resolveArticleProjection: async ({ remoteFeed, localFeed, remoteItem }) => {
         const parsed = await loadParsedFeedSnapshot(
           deps,
-          input.pool,
+          appSettings,
           remoteFeed,
           parsedFeedCache,
         );

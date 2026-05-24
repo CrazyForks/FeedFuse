@@ -100,10 +100,10 @@ describe('feverSync worker', () => {
       expect.objectContaining({
         accountId: '1',
         client,
-        targetLocalFeedIds: ['10'],
         sinceItemId: 'remote-9',
       }),
     );
+    expect(syncFeverAccountMock.mock.calls[0]?.[1]).not.toHaveProperty('targetLocalFeedIds');
 
     const syncInput = syncFeverAccountMock.mock.calls[0]?.[1];
     const feed = {

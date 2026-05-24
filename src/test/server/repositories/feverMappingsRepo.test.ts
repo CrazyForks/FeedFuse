@@ -62,6 +62,21 @@ describe('feverMappingsRepo', () => {
     expect(sql).toContain('fever_account_id = $1');
   });
 
+  it('counts only other enabled fever accounts for shared local feed cleanup', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [{ activeAccountCount: 0 }] });
+    const pool = { query } as unknown as Pool;
+    const mod = await import('@/server/domains/fever/repositories/feverMappingsRepo');
+
+    await mod.countOtherActiveFeverAccountsByLocalFeedId(pool, {
+      accountId: '1',
+      localFeedId: '10',
+    });
+
+    const sql = String(query.mock.calls[0]?.[0] ?? '');
+    expect(sql).toContain('join fever_accounts fa on fa.id = fever_feed_mappings.fever_account_id');
+    expect(sql).toContain('fa.enabled = true');
+  });
+
   it('gets fever item mapping by local article id only from active mapping', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const pool = { query } as unknown as Pool;

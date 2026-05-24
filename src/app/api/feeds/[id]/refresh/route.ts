@@ -56,7 +56,7 @@ export async function POST(
     }
 
     if (feed.provider === 'fever') {
-      // Fever 源是账号级同步，单个源刷新也要切到对应账号的同步队列。
+      // Fever 源不支持单独刷新，任意一个源入口都直接升级成账号级同步。
       const mapping = await getFeverAccountByLocalFeedId(pool, paramsParsed.data.id);
       if (!mapping) {
         return ok({ enqueued: false });

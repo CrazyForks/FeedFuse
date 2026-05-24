@@ -224,7 +224,6 @@ export async function syncFeverAccount(
     accountId: string;
     client: FeverClient;
     sinceItemId?: string | null;
-    targetLocalFeedIds?: string[];
     resolveArticleProjection?: (payload: {
       remoteFeed: FeverFeed;
       localFeed: FeedRow;
@@ -239,22 +238,15 @@ export async function syncFeverAccount(
     let createdFeeds = 0;
     let createdArticles = 0;
     const localFeedByRemoteFeedId = new Map<string, FeedRow>();
-    const targetLocalFeedIds = new Set(input.targetLocalFeedIds ?? []);
-    const isScopedSync = targetLocalFeedIds.size > 0;
     const processedRemoteFeedIds: string[] = [];
+    const remoteFeedById = new Map<string, FeverFeed>();
 
     for (const remoteFeed of feeds) {
+      remoteFeedById.set(remoteFeed.id, remoteFeed);
       const existingMapping = await getFeverFeedMappingByRemoteFeedId(pool, {
         accountId: input.accountId,
         feverFeedId: remoteFeed.id,
       });
-      if (
-        isScopedSync &&
-        existingMapping?.localFeedId &&
-        !targetLocalFeedIds.has(existingMapping.localFeedId)
-      ) {
-        continue;
-      }
       const localFeed = await ensureProjectedFeed(
         pool,
         remoteFeed,
@@ -284,7 +276,7 @@ export async function syncFeverAccount(
         continue;
       }
 
-      const remoteFeed = feeds.find((feed) => feed.id === remoteItem.feedId);
+      const remoteFeed = remoteFeedById.get(remoteItem.feedId);
       const projectedArticle =
         remoteFeed && input.resolveArticleProjection
           ? await input.resolveArticleProjection({ remoteFeed, localFeed, remoteItem })
@@ -301,12 +293,10 @@ export async function syncFeverAccount(
       }
     }
 
-    if (!isScopedSync) {
-      await markMissingFeverFeedMappingsInactive(pool, {
-        accountId: input.accountId,
-        seenRemoteFeedIds: processedRemoteFeedIds,
-      });
-    }
+    await markMissingFeverFeedMappingsInactive(pool, {
+      accountId: input.accountId,
+      seenRemoteFeedIds: processedRemoteFeedIds,
+    });
     // Fever items 可能按窗口或分页返回，单次响应不能安全代表账号下的完整 item 集合。
     // 在没有稳定全量校正语义前，避免把未返回的历史文章误判为上游已删除。
     await updateFeverAccountSyncState(pool, {

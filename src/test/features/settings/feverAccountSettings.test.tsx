@@ -190,6 +190,10 @@ describe('FeverAccountSettingsPanel', () => {
     expect(screen.getByLabelText('用户名')).toBeInTheDocument();
     expect(screen.getByLabelText('密码')).toHaveAttribute('type', 'password');
     expect(screen.getByLabelText('密码')).toHaveAttribute('placeholder', '留空表示不修改');
+    const passwordField = screen.getByLabelText('密码');
+    const intervalField = screen.getByLabelText('同步间隔（分钟）');
+    const passwordPosition = passwordField.compareDocumentPosition(intervalField);
+    expect(passwordPosition & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByText('启用')).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: '启用该 Fever 服务' })).toBeChecked();
     fireEvent.change(screen.getByLabelText('fever 地址'), {

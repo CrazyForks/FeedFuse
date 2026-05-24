@@ -52,7 +52,7 @@
 - 手动 `POST /api/fever/accounts/[id]/sync` 和后台 `fever.sync_due` 在成功入队后都要写入 `lastSyncAttemptAt`，避免长时间同步期间被重复调度。
 - 手动 `POST /api/fever/accounts/[id]/sync` 还必须先校验账号存在且处于启用状态；不存在或已停用账号不能返回“已入队”成功态。
 - `POST /api/feeds/[id]/refresh` 在分流到 `fever.sync` 前，也必须校验关联 Fever account 仍然启用；停用账号不能通过 feed 级入口绕过账号状态约束。
-- 用户触发 `POST /api/feeds/[id]/refresh` 或 `POST /api/feeds/refresh` 时，如果目标包含 `provider = 'fever'` 的 feed，必须分流到对应账号的 `fever.sync`，并把该账号关联的本地 feed item 一并纳入 `feed_refresh_runs` 跟踪。
+- 用户触发 `POST /api/feeds/[id]/refresh` 或 `POST /api/feeds/refresh` 时，如果目标包含 `provider = 'fever'` 的 feed，必须分流到对应账号的 `fever.sync`，并把该账号关联的本地 feed item 一并纳入 `feed_refresh_runs` 跟踪；Fever feed 不支持 feed 级 scoped sync，单点入口也只能触发账号级同步。
 - `PATCH /api/articles/[id]` 对 Fever article 必须先远端 `mark item`，成功后再提交本地 `is_read` / `is_starred`；本地 RSS article 保持直接本地更新。
 - 阅读快照和 feed 列表必须过滤 `fever_item_mappings.is_active = false` 的 article，并返回 `provider`、`remoteManaged`、`remoteSource`，让前端能区分远端托管源。
 - 阅读快照还必须同时过滤关联 `fever_feed_mappings.is_active = false` 的 article；不能出现左栏源已消失但聚合视图和未读计数仍保留旧文章。

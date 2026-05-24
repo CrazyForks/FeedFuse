@@ -511,6 +511,18 @@ export default function FeverAccountSettingsPanel() {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="fever-service-password">密码</Label>
+              <Input
+                id="fever-service-password"
+                type="password"
+                value={formDraft.apiKey}
+                placeholder="留空表示不修改"
+                onChange={(event) => {
+                  updateFormDraft({ apiKey: event.target.value });
+                }}
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="fever-service-auto-sync-interval">同步间隔（分钟）</Label>
               <Input
                 id="fever-service-auto-sync-interval"
@@ -524,18 +536,6 @@ export default function FeverAccountSettingsPanel() {
                   updateFormDraft({
                     autoSyncIntervalMinutes: Number(event.target.value) || 0,
                   });
-                }}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="fever-service-password">密码</Label>
-              <Input
-                id="fever-service-password"
-                type="password"
-                value={formDraft.apiKey}
-                placeholder="留空表示不修改"
-                onChange={(event) => {
-                  updateFormDraft({ apiKey: event.target.value });
                 }}
               />
             </div>

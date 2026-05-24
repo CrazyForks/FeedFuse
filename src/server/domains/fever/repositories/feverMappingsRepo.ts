@@ -168,9 +168,11 @@ export async function countOtherActiveFeverAccountsByLocalFeedId(
     `
       select count(distinct fever_account_id)::int as "activeAccountCount"
       from fever_feed_mappings
+      join fever_accounts fa on fa.id = fever_feed_mappings.fever_account_id
       where local_feed_id = $1
         and fever_account_id <> $2
         and is_active = true
+        and fa.enabled = true
     `,
     [input.localFeedId, input.accountId],
   );

@@ -1,7 +1,8 @@
 import { requireApiSession } from '@/server/domains/auth/services/session';
 import { getPool } from '@/server/infra/db/pool';
-import { markFeverAccountSyncAttempted } from '@/server/domains/fever/repositories/feverAccountsRepo';
+import { getFeverAccountById, markFeverAccountSyncAttempted } from '@/server/domains/fever/repositories/feverAccountsRepo';
 import { ok, fail } from '@/server/infra/http/apiResponse';
+import { NotFoundError, ValidationError } from '@/server/infra/http/errors';
 import { enqueueWithResult } from '@/server/infra/queue/queue';
 import { getQueueSendOptions } from '@/server/infra/queue/contracts';
 import { JOB_FEVER_SYNC } from '@/server/infra/queue/jobs';
@@ -20,6 +21,13 @@ export async function POST(
 
   try {
     const { id } = await context.params;
+    const account = await getFeverAccountById(getPool(), id);
+    if (!account) {
+      return fail(new NotFoundError('Fever 账号不存在'));
+    }
+    if (!account.enabled) {
+      return fail(new ValidationError('Invalid request body', { id: 'Fever 账号已停用' }));
+    }
     const payload = { accountId: id };
     const attemptedAt = new Date().toISOString();
     const result = await enqueueWithResult(

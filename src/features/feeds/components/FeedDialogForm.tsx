@@ -14,6 +14,7 @@ interface FeedDialogFormProps {
   canSave: boolean;
   categoryInput: string;
   categoryOptions: Category[];
+  categoryDisabled?: boolean;
   fieldIdPrefix: string;
   messageTone: string;
   onCancel: () => void;
@@ -47,6 +48,7 @@ export default function FeedDialogForm({
   canSave,
   categoryInput,
   categoryOptions,
+  categoryDisabled = false,
   fieldIdPrefix,
   messageTone,
   onCancel,
@@ -174,6 +176,7 @@ export default function FeedDialogForm({
               value={categoryInput}
               options={categoryOptions}
               onChange={onCategoryChange}
+              disabled={categoryDisabled}
             />
             <p id={categoryHintId} className="text-xs text-muted-foreground">
               可直接输入新分类名称，保存时会自动创建并归类到该分类。

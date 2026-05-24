@@ -15,6 +15,12 @@ const ACTIVE_FEVER_ARTICLE_SQL = `
     where fim.local_article_id = articles.id
       and fim.is_active = false
   )
+  and not exists (
+    select 1
+    from fever_feed_mappings ffm
+    where ffm.local_feed_id = articles.feed_id
+      and ffm.is_active = false
+  )
 `;
 
 export interface CursorPayload {

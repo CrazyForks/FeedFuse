@@ -13,6 +13,7 @@ import {
   deleteFeedAndCleanupCategory,
   updateFeedWithCategoryResolution,
 } from '@/server/domains/feeds/services/feedCategoryLifecycleService';
+import { getFeedById } from '@/server/domains/feeds/repositories/feedsRepo';
 import { normalizeFeedAutoTriggerFlags } from '@/lib/feeds/feedAutoTriggerPolicy';
 import {
   writeUserOperationFailedLog,
@@ -96,6 +97,27 @@ function isUniqueViolation(
 const patchOperationSource = 'app/api/feeds/[id]';
 const deleteOperationSource = 'app/api/feeds/[id]';
 
+function validateFeverManagedFeedMutation(
+  existingFeed: Awaited<ReturnType<typeof getFeedById>>,
+  input: Record<string, unknown>,
+) {
+  if (!existingFeed || existingFeed.provider !== 'fever') {
+    return null;
+  }
+
+  const forbiddenFields = ['title', 'url', 'siteUrl', 'categoryId', 'categoryName'];
+  const touchedForbiddenFields = forbiddenFields.filter((field) => typeof input[field] !== 'undefined');
+  if (touchedForbiddenFields.length === 0) {
+    return null;
+  }
+
+  const fields: Record<string, string> = {};
+  touchedForbiddenFields.forEach((field) => {
+    fields[field] = 'Fever 托管源不支持修改该字段';
+  });
+  return new ValidationError('Invalid request body', fields);
+}
+
 function resolveFeedPatchActionKey(input: Record<string, unknown>) {
   const keys = Object.keys(input);
   if (keys.length === 1 && keys[0] === 'enabled' && typeof input.enabled === 'boolean') {
@@ -177,6 +199,12 @@ export async function PATCH(
     });
 
     const pool = getPool();
+    const existingFeed = await getFeedById(pool, paramsParsed.data.id);
+    const managedFeedMutationError = validateFeverManagedFeedMutation(existingFeed, input);
+    if (managedFeedMutationError) {
+      await writeFeedPatchFailure(actionKey, managedFeedMutationError, { feedId: paramsParsed.data.id });
+      return fail(managedFeedMutationError);
+    }
     const updated = await updateFeedWithCategoryResolution(pool, paramsParsed.data.id, input);
     if (!updated) {
       const error = new NotFoundError('Feed not found');
@@ -224,6 +252,12 @@ export async function DELETE(
     }
 
     const pool = getPool();
+    const existingFeed = await getFeedById(pool, paramsParsed.data.id);
+    if (existingFeed?.provider === 'fever') {
+      const error = new ValidationError('Invalid request body', { id: 'Fever 托管源不支持从此入口删除' });
+      await writeFeedDeleteFailure(error, { feedId: paramsParsed.data.id });
+      return fail(error);
+    }
     const deleted = await deleteFeedAndCleanupCategory(pool, paramsParsed.data.id);
     if (!deleted) {
       const error = new NotFoundError('Feed not found');

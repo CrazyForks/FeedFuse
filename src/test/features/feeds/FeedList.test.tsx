@@ -687,6 +687,48 @@ describe('FeedList manage', () => {
     expect(await screen.findByText('Fever')).toBeInTheDocument();
   });
 
+  it('hides move-to-category and delete actions for fever feeds', async () => {
+    useAppStore.setState({
+      feeds: [
+        {
+          id: 'fever-1',
+          kind: 'rss',
+          provider: 'fever',
+          remoteManaged: true,
+          remoteSource: 'fever',
+          title: 'Fever Feed',
+          url: 'https://example.com/feed.xml',
+          unreadCount: 0,
+          enabled: true,
+          fullTextOnOpenEnabled: false,
+          fullTextOnFetchEnabled: false,
+          aiSummaryOnOpenEnabled: false,
+          aiSummaryOnFetchEnabled: false,
+          bodyTranslateOnFetchEnabled: false,
+          bodyTranslateOnOpenEnabled: false,
+          titleTranslateEnabled: false,
+          bodyTranslateEnabled: false,
+          articleListDisplayMode: 'card',
+          fetchStatus: null,
+          fetchError: null,
+          fetchRawError: null,
+          categoryId: null,
+        },
+      ],
+      categories: [{ id: 'cat-uncategorized', name: '未分类', expanded: true }],
+      articles: [],
+      selectedView: 'all',
+    });
+
+    render(<FeedList initialSelectedView="all" />);
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: /Fever Feed/ }));
+
+    await screen.findByRole('menuitem', { name: '编辑' });
+    expect(screen.queryByRole('menuitem', { name: '移动到分类' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: '删除' })).not.toBeInTheDocument();
+  });
+
   it('renders feed icon from persisted icon url instead of feed url derived value', () => {
     useAppStore.setState((state) => ({
       feeds: state.feeds.map((feed) =>

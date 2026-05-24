@@ -7,7 +7,9 @@ const deleteFeverAccountMock = vi.fn();
 const deleteFeverAccountAndSourcesMock = vi.fn();
 const updateFeverAccountMock = vi.fn();
 const markFeverAccountSyncAttemptedMock = vi.fn();
+const getFeverAccountByIdMock = vi.fn();
 const enqueueWithResultMock = vi.fn();
+const createFeverClientMock = vi.fn();
 
 vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
@@ -19,6 +21,7 @@ vi.mock('@/server/domains/fever/repositories/feverAccountsRepo', () => ({
   deleteFeverAccount: (...args: unknown[]) => deleteFeverAccountMock(...args),
   updateFeverAccount: (...args: unknown[]) => updateFeverAccountMock(...args),
   markFeverAccountSyncAttempted: (...args: unknown[]) => markFeverAccountSyncAttemptedMock(...args),
+  getFeverAccountById: (...args: unknown[]) => getFeverAccountByIdMock(...args),
 }));
 
 vi.mock('@/server/domains/fever/services/feverAccountLifecycleService', () => ({
@@ -29,6 +32,10 @@ vi.mock('@/server/infra/queue/queue', () => ({
   enqueueWithResult: (...args: unknown[]) => enqueueWithResultMock(...args),
 }));
 
+vi.mock('@/server/integrations/fever/feverClient', () => ({
+  createFeverClient: (...args: unknown[]) => createFeverClientMock(...args),
+}));
+
 describe('/api/fever/accounts', () => {
   beforeEach(() => {
     listFeverAccountsMock.mockReset();
@@ -37,10 +44,15 @@ describe('/api/fever/accounts', () => {
     deleteFeverAccountAndSourcesMock.mockReset();
     updateFeverAccountMock.mockReset();
     markFeverAccountSyncAttemptedMock.mockReset();
+    getFeverAccountByIdMock.mockReset();
     enqueueWithResultMock.mockReset();
+    createFeverClientMock.mockReset();
   });
 
   it('POST creates fever account and returns connection status', async () => {
+    createFeverClientMock.mockReturnValue({
+      listFeeds: vi.fn().mockResolvedValue([]),
+    });
     createFeverAccountMock.mockResolvedValue({
       id: '1',
       baseUrl: 'https://reader.example.com',
@@ -80,6 +92,29 @@ describe('/api/fever/accounts', () => {
     });
   });
 
+  it('POST validates fever account connection before saving', async () => {
+    createFeverClientMock.mockReturnValue({
+      listFeeds: vi.fn().mockRejectedValue(new Error('Fever 认证失败')),
+    });
+
+    const mod = await import('../../../../../app/api/fever/accounts/route');
+    const response = await mod.POST(
+      new Request('http://localhost/api/fever/accounts', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          baseUrl: 'https://reader.example.com',
+          username: 'demo',
+          apiKey: 'secret',
+        }),
+      }),
+    );
+    const json = await response.json();
+
+    expect(json.ok).toBe(false);
+    expect(createFeverAccountMock).not.toHaveBeenCalled();
+  });
+
   it('GET lists fever accounts without api key', async () => {
     listFeverAccountsMock.mockResolvedValue([
       {
@@ -104,6 +139,19 @@ describe('/api/fever/accounts', () => {
   });
 
   it('POST /sync enqueues fever sync job', async () => {
+    getFeverAccountByIdMock.mockResolvedValue({
+      id: '1',
+      baseUrl: 'https://reader.example.com',
+      username: 'demo',
+      apiKey: 'secret',
+      enabled: true,
+      autoSyncEnabled: true,
+      autoSyncIntervalMinutes: 30,
+      lastSyncAt: null,
+      lastSyncAttemptAt: null,
+      lastError: null,
+      createdAt: '2026-05-24T00:00:00.000Z',
+    });
     enqueueWithResultMock.mockResolvedValue({ status: 'enqueued', jobId: 'job-1' });
 
     const mod = await import('../../../../../app/api/fever/accounts/[id]/sync/route.ts');
@@ -123,7 +171,36 @@ describe('/api/fever/accounts', () => {
     );
   });
 
+  it('POST /sync rejects missing fever account before enqueue', async () => {
+    getFeverAccountByIdMock.mockResolvedValue(null);
+
+    const mod = await import('../../../../../app/api/fever/accounts/[id]/sync/route.ts');
+    const response = await mod.POST(
+      new Request('http://localhost/api/fever/accounts/1/sync', {
+        method: 'POST',
+      }),
+      { params: Promise.resolve({ id: '1' }) },
+    );
+    const json = await response.json();
+
+    expect(json.ok).toBe(false);
+    expect(enqueueWithResultMock).not.toHaveBeenCalled();
+  });
+
   it('POST /sync returns already_enqueued when fever sync is duplicated', async () => {
+    getFeverAccountByIdMock.mockResolvedValue({
+      id: '1',
+      baseUrl: 'https://reader.example.com',
+      username: 'demo',
+      apiKey: 'secret',
+      enabled: true,
+      autoSyncEnabled: true,
+      autoSyncIntervalMinutes: 30,
+      lastSyncAt: null,
+      lastSyncAttemptAt: null,
+      lastError: null,
+      createdAt: '2026-05-24T00:00:00.000Z',
+    });
     enqueueWithResultMock.mockResolvedValue({ status: 'throttled_or_duplicate' });
 
     const mod = await import('../../../../../app/api/fever/accounts/[id]/sync/route.ts');
@@ -140,6 +217,9 @@ describe('/api/fever/accounts', () => {
   });
 
   it('PATCH updates fever account settings', async () => {
+    createFeverClientMock.mockReturnValue({
+      listFeeds: vi.fn().mockResolvedValue([]),
+    });
     updateFeverAccountMock.mockResolvedValue({
       id: '1',
       baseUrl: 'https://updated.example.com',

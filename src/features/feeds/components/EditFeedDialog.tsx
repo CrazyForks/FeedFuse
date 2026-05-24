@@ -24,7 +24,7 @@ export default function EditFeedDialog({ open, feed, categories, onOpenChange, o
         siteUrl: feed.siteUrl ?? null,
         categoryId: feed.categoryId ?? null,
       }}
-      readOnlyFields={{ title: isRemoteManaged, url: isRemoteManaged }}
+      readOnlyFields={{ title: isRemoteManaged, url: isRemoteManaged, category: isRemoteManaged }}
       onSubmit={onSubmit}
     />
   );

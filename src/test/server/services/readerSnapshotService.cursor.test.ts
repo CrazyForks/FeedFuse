@@ -157,4 +157,29 @@ describe('readerSnapshotService (cursor)', () => {
     expect(totalCountSql).toContain('not exists');
     expect(totalCountSql).toContain('from fever_item_mappings fim');
   });
+
+  it('filters articles whose fever feed mapping is inactive', async () => {
+    listCategoriesMock.mockResolvedValue([]);
+    listFeedsMock.mockResolvedValue([]);
+
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ totalCount: 0 }] });
+
+    const pool = { query } as unknown as Pool;
+    const mod = (await import('@/server/domains/reader/services/readerSnapshotService')) as typeof import('@/server/domains/reader/services/readerSnapshotService');
+    await mod.getReaderSnapshot(pool, { view: 'all', limit: 1 });
+
+    const sqlStatements = query.mock.calls.map(([statement]) => String(statement ?? ''));
+    const articleSql = sqlStatements.find((statement) => statement.includes('left join lateral'));
+    const unreadSql = sqlStatements.find((statement) => statement.includes('count(*)::int as "unreadCount"'));
+    const totalCountSql = sqlStatements.find((statement) => statement.includes('count(*)::int as "totalCount"'));
+
+    expect(articleSql).toContain('from fever_feed_mappings ffm');
+    expect(articleSql).toContain('ffm.is_active = false');
+    expect(unreadSql).toContain('from fever_feed_mappings ffm');
+    expect(totalCountSql).toContain('from fever_feed_mappings ffm');
+  });
 });

@@ -37,5 +37,6 @@ describe('EditFeedDialog', () => {
 
     expect(screen.getByLabelText('名称')).toBeDisabled();
     expect(screen.getByLabelText('URL')).toBeDisabled();
+    expect(screen.getByLabelText('分类')).toBeDisabled();
   });
 });

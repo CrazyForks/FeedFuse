@@ -642,63 +642,65 @@ export default function FeedList({
                             <ContextMenuItemLabel>编辑</ContextMenuItemLabel>
                           </ContextMenuItem>
                           <ContextMenuSeparator />
-                          <ContextMenuSub>
-                            <ContextMenuSubTrigger>
-                              <ContextMenuItemIcon aria-hidden="true">
-                                <FolderTree className="h-3.5 w-3.5" />
-                              </ContextMenuItemIcon>
-                              <ContextMenuItemLabel>移动到分类</ContextMenuItemLabel>
-                            </ContextMenuSubTrigger>
-                            <ContextMenuSubContent className="w-48">
-                              {categoryMaster.map((category) => {
-                                const isCurrentCategory = feed.categoryId === category.id;
-
-                                return (
-                                  <ContextMenuItem
-                                    key={category.id}
-                                    disabled={isCurrentCategory}
-                                    onSelect={() => void moveFeedToCategory(feed.id, category.id, category.name)}
-                                  >
-                                    <ContextMenuItemIcon
-                                      aria-hidden="true"
-                                      className={cn(isCurrentCategory && 'text-primary')}
-                                    >
-                                      <FolderTree className="h-3.5 w-3.5" />
-                                    </ContextMenuItemIcon>
-                                    <ContextMenuItemLabel>{category.name}</ContextMenuItemLabel>
-                                    {isCurrentCategory ? (
-                                      <ContextMenuItemHint
-                                        aria-hidden="true"
-                                        className="border-primary/20 bg-primary/10 text-primary"
-                                      >
-                                        当前
-                                      </ContextMenuItemHint>
-                                    ) : null}
-                                  </ContextMenuItem>
-                                );
-                              })}
-                              <ContextMenuItem
-                                disabled={!feed.categoryId}
-                                onSelect={() => void moveFeedToCategory(feed.id, null, uncategorizedName)}
-                              >
-                                <ContextMenuItemIcon
-                                  aria-hidden="true"
-                                  className={cn(!feed.categoryId && 'text-primary')}
-                                >
+                          {feed.provider !== 'fever' ? (
+                            <ContextMenuSub>
+                              <ContextMenuSubTrigger>
+                                <ContextMenuItemIcon aria-hidden="true">
                                   <FolderTree className="h-3.5 w-3.5" />
                                 </ContextMenuItemIcon>
-                                <ContextMenuItemLabel>{uncategorizedName}</ContextMenuItemLabel>
-                                {!feed.categoryId ? (
-                                  <ContextMenuItemHint
+                                <ContextMenuItemLabel>移动到分类</ContextMenuItemLabel>
+                              </ContextMenuSubTrigger>
+                              <ContextMenuSubContent className="w-48">
+                                {categoryMaster.map((category) => {
+                                  const isCurrentCategory = feed.categoryId === category.id;
+
+                                  return (
+                                    <ContextMenuItem
+                                      key={category.id}
+                                      disabled={isCurrentCategory}
+                                      onSelect={() => void moveFeedToCategory(feed.id, category.id, category.name)}
+                                    >
+                                      <ContextMenuItemIcon
+                                        aria-hidden="true"
+                                        className={cn(isCurrentCategory && 'text-primary')}
+                                      >
+                                        <FolderTree className="h-3.5 w-3.5" />
+                                      </ContextMenuItemIcon>
+                                      <ContextMenuItemLabel>{category.name}</ContextMenuItemLabel>
+                                      {isCurrentCategory ? (
+                                        <ContextMenuItemHint
+                                          aria-hidden="true"
+                                          className="border-primary/20 bg-primary/10 text-primary"
+                                        >
+                                          当前
+                                        </ContextMenuItemHint>
+                                      ) : null}
+                                    </ContextMenuItem>
+                                  );
+                                })}
+                                <ContextMenuItem
+                                  disabled={!feed.categoryId}
+                                  onSelect={() => void moveFeedToCategory(feed.id, null, uncategorizedName)}
+                                >
+                                  <ContextMenuItemIcon
                                     aria-hidden="true"
-                                    className="border-primary/20 bg-primary/10 text-primary"
+                                    className={cn(!feed.categoryId && 'text-primary')}
                                   >
-                                    当前
-                                  </ContextMenuItemHint>
-                                ) : null}
-                              </ContextMenuItem>
-                            </ContextMenuSubContent>
-                          </ContextMenuSub>
+                                    <FolderTree className="h-3.5 w-3.5" />
+                                  </ContextMenuItemIcon>
+                                  <ContextMenuItemLabel>{uncategorizedName}</ContextMenuItemLabel>
+                                  {!feed.categoryId ? (
+                                    <ContextMenuItemHint
+                                      aria-hidden="true"
+                                      className="border-primary/20 bg-primary/10 text-primary"
+                                    >
+                                      当前
+                                    </ContextMenuItemHint>
+                                  ) : null}
+                                </ContextMenuItem>
+                              </ContextMenuSubContent>
+                            </ContextMenuSub>
+                          ) : null}
                           {isRssFeed ? (
                             <>
                               <ContextMenuSeparator />
@@ -770,17 +772,19 @@ export default function FeedList({
                             </ContextMenuItemIcon>
                             <ContextMenuItemLabel>{feed.enabled ? '停用' : '启用'}</ContextMenuItemLabel>
                           </ContextMenuItem>
-                          <ContextMenuItem
-                            variant="destructive"
-                            onSelect={() => {
-                              setDeleteFeedId(feed.id);
-                            }}
-                          >
-                            <ContextMenuItemIcon aria-hidden="true" className="text-current">
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </ContextMenuItemIcon>
-                            <ContextMenuItemLabel>删除</ContextMenuItemLabel>
-                          </ContextMenuItem>
+                          {feed.provider !== 'fever' ? (
+                            <ContextMenuItem
+                              variant="destructive"
+                              onSelect={() => {
+                                setDeleteFeedId(feed.id);
+                              }}
+                            >
+                              <ContextMenuItemIcon aria-hidden="true" className="text-current">
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </ContextMenuItemIcon>
+                              <ContextMenuItemLabel>删除</ContextMenuItemLabel>
+                            </ContextMenuItem>
+                          ) : null}
                         </ContextMenuContent>
                       </ContextMenu>
                     );})}

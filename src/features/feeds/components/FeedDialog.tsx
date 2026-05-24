@@ -26,7 +26,7 @@ interface FeedDialogProps {
   onOpenChange: (open: boolean) => void;
   categories: Category[];
   initialValues?: Partial<FeedDialogInitialValues>;
-  readOnlyFields?: { title?: boolean; url?: boolean };
+  readOnlyFields?: { title?: boolean; url?: boolean; category?: boolean };
   onSubmit: (payload: FeedDialogSubmitPayload) => Promise<void>;
 }
 
@@ -139,6 +139,7 @@ export default function FeedDialog({
           canSave={form.canSave}
           categoryInput={form.categoryInput}
           categoryOptions={form.categoryOptions}
+          categoryDisabled={Boolean(readOnlyFields?.category)}
           fieldIdPrefix={fieldIdPrefix}
           messageTone={validationMeta.messageTone}
           onCancel={() => onOpenChange(false)}

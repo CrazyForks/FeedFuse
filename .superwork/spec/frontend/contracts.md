@@ -35,10 +35,12 @@
 
 - 前端统一通过 `src/lib/api/apiClient.ts` 消费 Fever 账号接口，不直接在组件里拼 `/api/fever/**` 请求。
 - `Feed.provider === 'fever'` 时，UI 必须把该 feed 视为远端托管源：展示 `Fever` 来源标记，并通过 `remoteManaged` / `remoteSource` 驱动只读或受限交互。
-- Fever feed 仍出现在阅读器左栏和快照里，但编辑弹窗中的标题、URL 等上游托管字段必须只读，避免把本地表单当成上游配置入口。
+- Fever feed 仍出现在阅读器左栏和快照里，但编辑弹窗中的标题、URL、分类等上游托管字段必须只读，避免把本地表单当成上游配置入口。
+- Fever feed 的右键菜单不能暴露本地删除、改分类这类会与上游权威状态冲突的入口；这类操作只能通过 Fever account 级入口处理。
 - 设置中心为 Fever account 提供独立分区入口；新增账号和手动同步通过该分区完成，不在普通添加 RSS 源对话框中混入 Fever feed 创建，也不与密码/登录安全操作混放。
 - Fever account 分区还必须提供自动同步配置入口，并通过 `src/lib/api/apiClient.ts` 的 `/api/fever/accounts` PATCH 保存 `autoSyncEnabled` 与 `autoSyncIntervalMinutes`。
 - Fever account 的新增和编辑共用同一个弹窗表单，避免新增/编辑表单规则分叉；卡片右上角还必须提供服务级启用开关，支持不进弹窗快速启用/停用账号。
 - Fever account 分区通过 `src/lib/api/apiClient.ts` 的 `/api/fever/accounts` 保存 `enabled` 与 `autoSyncIntervalMinutes`；当同步间隔大于 `0` 时自动启用自动同步，等于 `0` 时视为关闭自动同步，不再单独暴露自动同步开关字段给表单。
+- Fever account 的新增和编辑必须在前端显示后端返回的连接校验失败，而不是先乐观保存再等同步阶段报错。
 - 自动同步配置使用显式保存动作而不是隐式表单提交；保存成功后前端必须回显后端返回的账号配置，避免本地草稿与真实调度状态漂移。
 - Fever 账号分区必须暴露删除账号配置入口；同步失败后需要显示后端返回的账号级错误结果，避免用户只看到开始态而没有终态反馈。

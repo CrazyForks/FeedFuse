@@ -10,6 +10,7 @@ const listFeedsMock = vi.fn();
 const createFeedWithCategoryResolutionMock = vi.fn();
 const updateFeedWithCategoryResolutionMock = vi.fn();
 const deleteFeedAndCleanupCategoryMock = vi.fn();
+const getFeedByIdMock = vi.fn();
 const getUiSettingsMock = vi.fn();
 const updateUiSettingsMock = vi.fn();
 
@@ -36,10 +37,12 @@ vi.mock('@/server/infra/db/pool', () => ({
 vi.mock('@/server/domains/feeds/repositories/feedsRepo', () => ({
   listFeeds: (...args: unknown[]) => listFeedsMock(...args),
   getFeedRefreshDispatchRow: (...args: unknown[]) => getFeedRefreshDispatchRowMock(...args),
+  getFeedById: (...args: unknown[]) => getFeedByIdMock(...args),
 }));
 vi.mock('@/server/domains/feeds/repositories/feedsRepo', () => ({
   listFeeds: (...args: unknown[]) => listFeedsMock(...args),
   getFeedRefreshDispatchRow: (...args: unknown[]) => getFeedRefreshDispatchRowMock(...args),
+  getFeedById: (...args: unknown[]) => getFeedByIdMock(...args),
 }));
 vi.mock('@/server/domains/fever/repositories/feverMappingsRepo', () => ({
   getFeverAccountByLocalFeedId: (...args: unknown[]) => getFeverAccountByLocalFeedIdMock(...args),
@@ -124,6 +127,7 @@ describe('/api/feeds', () => {
     createFeedWithCategoryResolutionMock.mockReset();
     updateFeedWithCategoryResolutionMock.mockReset();
     deleteFeedAndCleanupCategoryMock.mockReset();
+    getFeedByIdMock.mockReset();
     getUiSettingsMock.mockReset();
     updateUiSettingsMock.mockReset();
     enqueueMock.mockReset();
@@ -142,6 +146,31 @@ describe('/api/feeds', () => {
       kind: 'rss',
       provider: 'local_rss',
       enabled: true,
+    });
+    getFeedByIdMock.mockResolvedValue({
+      id: feedId,
+      kind: 'rss',
+      provider: 'local_rss',
+      title: 'My Feed',
+      url: 'https://example.com/rss.xml',
+      siteUrl: null,
+      iconUrl: null,
+      enabled: true,
+      fullTextOnOpenEnabled: false,
+      fullTextOnFetchEnabled: false,
+      aiSummaryOnOpenEnabled: false,
+      aiSummaryOnFetchEnabled: false,
+      bodyTranslateOnFetchEnabled: false,
+      bodyTranslateOnOpenEnabled: false,
+      titleTranslateEnabled: false,
+      bodyTranslateEnabled: false,
+      articleListDisplayMode: 'card',
+      categoryId: null,
+      fetchIntervalMinutes: 30,
+      lastFetchStatus: null,
+      lastFetchError: null,
+      lastFetchRawError: null,
+      isPodcast: false,
     });
   });
 
@@ -519,6 +548,93 @@ describe('/api/feeds', () => {
       pool,
       expect.objectContaining({ actionKey: 'feed.update' }),
     );
+  });
+
+  it('PATCH rejects remote-managed fever feed updates to remote-owned fields', async () => {
+    getFeedByIdMock.mockResolvedValue({
+      id: feedId,
+      kind: 'rss',
+      provider: 'fever',
+      title: 'Fever Feed',
+      url: 'https://example.com/feed.xml',
+      siteUrl: 'https://example.com',
+      iconUrl: '/api/feeds/1001/favicon',
+      enabled: true,
+      fullTextOnOpenEnabled: false,
+      fullTextOnFetchEnabled: false,
+      aiSummaryOnOpenEnabled: false,
+      aiSummaryOnFetchEnabled: false,
+      bodyTranslateOnFetchEnabled: false,
+      bodyTranslateOnOpenEnabled: false,
+      titleTranslateEnabled: false,
+      bodyTranslateEnabled: false,
+      articleListDisplayMode: 'card',
+      categoryId: '2001',
+      fetchIntervalMinutes: 30,
+      lastFetchStatus: null,
+      lastFetchError: null,
+      lastFetchRawError: null,
+      isPodcast: false,
+    });
+
+    const mod = await import('../../../../app/api/feeds/[id]/route');
+    const res = await mod.PATCH(
+      new Request(`http://localhost/api/feeds/${feedId}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          title: 'Changed',
+          categoryId: '2999',
+        }),
+      }),
+      { params: Promise.resolve({ id: feedId }) },
+    );
+    const json = await res.json();
+
+    expect(json.ok).toBe(false);
+    expect(json.error.code).toBe('validation_error');
+    expect(updateFeedWithCategoryResolutionMock).not.toHaveBeenCalled();
+  });
+
+  it('DELETE rejects remote-managed fever feed deletion', async () => {
+    getFeedByIdMock.mockResolvedValue({
+      id: feedId,
+      kind: 'rss',
+      provider: 'fever',
+      title: 'Fever Feed',
+      url: 'https://example.com/feed.xml',
+      siteUrl: null,
+      iconUrl: null,
+      enabled: true,
+      fullTextOnOpenEnabled: false,
+      fullTextOnFetchEnabled: false,
+      aiSummaryOnOpenEnabled: false,
+      aiSummaryOnFetchEnabled: false,
+      bodyTranslateOnFetchEnabled: false,
+      bodyTranslateOnOpenEnabled: false,
+      titleTranslateEnabled: false,
+      bodyTranslateEnabled: false,
+      articleListDisplayMode: 'card',
+      categoryId: null,
+      fetchIntervalMinutes: 30,
+      lastFetchStatus: null,
+      lastFetchError: null,
+      lastFetchRawError: null,
+      isPodcast: false,
+    });
+
+    const mod = await import('../../../../app/api/feeds/[id]/route');
+    const res = await mod.DELETE(
+      new Request(`http://localhost/api/feeds/${feedId}`, {
+        method: 'DELETE',
+      }),
+      { params: Promise.resolve({ id: feedId }) },
+    );
+    const json = await res.json();
+
+    expect(json.ok).toBe(false);
+    expect(json.error.code).toBe('validation_error');
+    expect(deleteFeedAndCleanupCategoryMock).not.toHaveBeenCalled();
   });
 
   it('PATCH accepts numeric route id', async () => {

@@ -10,6 +10,7 @@ import {
   updateFeverAccount,
 } from '@/server/domains/fever/repositories/feverAccountsRepo';
 import { deleteFeverAccountAndSources } from '@/server/domains/fever/services/feverAccountLifecycleService';
+import { createFeverClient } from '@/server/integrations/fever/feverClient';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -46,6 +47,15 @@ function sanitizeFeverAccount(account: FeverAccountRow) {
   return sanitized;
 }
 
+async function verifyFeverAccountConnection(input: {
+  baseUrl: string;
+  username: string;
+  apiKey: string;
+}) {
+  const client = createFeverClient(input);
+  await client.listFeeds();
+}
+
 export async function GET() {
   const authResponse = await requireApiSession();
   if (authResponse) {
@@ -73,6 +83,8 @@ export async function POST(request: Request) {
       return fail(new ValidationError('Invalid request body', zodIssuesToFields(parsed.error)));
     }
 
+    // 保存前先校验凭据和服务可用性，避免把错误配置写成“成功”状态。
+    await verifyFeverAccountConnection(parsed.data);
     const account = await createFeverAccount(getPool(), parsed.data);
     return ok(sanitizeFeverAccount(account));
   } catch (err) {
@@ -93,6 +105,13 @@ export async function PATCH(request: Request) {
       return fail(new ValidationError('Invalid request body', zodIssuesToFields(parsed.error)));
     }
 
+    if (parsed.data.apiKey.trim()) {
+      await verifyFeverAccountConnection({
+        baseUrl: parsed.data.baseUrl,
+        username: parsed.data.username,
+        apiKey: parsed.data.apiKey,
+      });
+    }
     const account = await updateFeverAccount(getPool(), {
       accountId: parsed.data.id,
       baseUrl: parsed.data.baseUrl,

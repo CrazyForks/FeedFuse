@@ -242,11 +242,13 @@ describe('feverSyncService', () => {
     expect(updateFeedMock).toHaveBeenCalledWith(
       expect.anything(),
       '10',
-      {
+      expect.objectContaining({
+        title: 'Feed',
+        url: 'https://example.com/feed.xml',
         categoryId: 'cat-tech',
         siteUrl: 'https://example.com',
         iconUrl: '/api/feeds/10/favicon',
-      },
+      }),
     );
     expect(upsertFeverFeedMappingMock).toHaveBeenCalledWith(
       expect.anything(),
@@ -256,6 +258,106 @@ describe('feverSyncService', () => {
         remoteFaviconUrl: '/api/feeds/10/favicon',
       }),
     );
+  });
+
+  it('updates projected feed title and url when remote feed metadata changes', async () => {
+    findCategoryByNormalizedNameMock.mockResolvedValue({ id: 'cat-tech', name: 'Tech', position: 0 });
+    getFeedByIdMock.mockResolvedValue({
+      id: '10',
+      kind: 'rss',
+      provider: 'fever',
+      title: 'Old title',
+      url: 'https://example.com/old.xml',
+      siteUrl: 'https://example.com',
+      iconUrl: '/api/feeds/10/favicon',
+      enabled: true,
+      fullTextOnOpenEnabled: false,
+      fullTextOnFetchEnabled: false,
+      aiSummaryOnOpenEnabled: false,
+      aiSummaryOnFetchEnabled: false,
+      bodyTranslateOnFetchEnabled: false,
+      bodyTranslateOnOpenEnabled: false,
+      titleTranslateEnabled: false,
+      bodyTranslateEnabled: false,
+      articleListDisplayMode: 'card',
+      categoryId: 'cat-tech',
+      fetchIntervalMinutes: 30,
+      lastFetchStatus: null,
+      lastFetchError: null,
+      lastFetchRawError: null,
+      isPodcast: false,
+    });
+    updateFeedMock.mockResolvedValue(buildLocalFeed());
+    getFeverFeedMappingByRemoteFeedIdMock.mockResolvedValue({ localFeedId: '10' });
+
+    const { syncFeverAccount } = await import('@/server/domains/fever/services/feverSyncService');
+
+    await syncFeverAccount({} as never, {
+      accountId: '1',
+      client: {
+        listFeeds: vi.fn().mockResolvedValue([
+          {
+            id: 'feed-1',
+            title: 'New title',
+            url: 'https://example.com/new.xml',
+            siteUrl: 'https://example.com',
+            faviconId: null,
+            groupName: 'Tech',
+          },
+        ]),
+        listItems: vi.fn().mockResolvedValue([]),
+      },
+    });
+
+    expect(updateFeedMock).toHaveBeenCalledWith(
+      expect.anything(),
+      '10',
+      expect.objectContaining({
+        title: 'New title',
+        url: 'https://example.com/new.xml',
+      }),
+    );
+  });
+
+  it('does not mark missing remote items inactive during incremental sync', async () => {
+    findCategoryByNormalizedNameMock.mockResolvedValue({ id: 'cat-tech', name: 'Tech', position: 0 });
+    getFeverFeedMappingByRemoteFeedIdMock.mockResolvedValue({ localFeedId: '10' });
+    getFeedByIdMock.mockResolvedValue(buildLocalFeed());
+    insertArticleIgnoreDuplicateMock.mockResolvedValue({ id: 'article-1' });
+    getArticleByFeedAndDedupeKeyMock.mockResolvedValue(null);
+
+    const { syncFeverAccount } = await import('@/server/domains/fever/services/feverSyncService');
+
+    await syncFeverAccount({} as never, {
+      accountId: '1',
+      client: {
+        listFeeds: vi.fn().mockResolvedValue([
+          {
+            id: 'feed-1',
+            title: 'Feed',
+            url: 'https://example.com/feed.xml',
+            siteUrl: 'https://example.com',
+            faviconId: null,
+            groupName: 'Tech',
+          },
+        ]),
+        listItems: vi.fn().mockResolvedValue([
+          {
+            id: 'remote-2',
+            feedId: 'feed-1',
+            title: 'Hello',
+            url: 'https://example.com/post',
+            author: null,
+            html: null,
+            createdAt: null,
+            isRead: false,
+            isSaved: false,
+          },
+        ]),
+      },
+    });
+
+    expect(markMissingFeverItemMappingsInactiveMock).not.toHaveBeenCalled();
   });
 
   it('creates local category when remote fever group does not exist yet', async () => {

@@ -8,6 +8,14 @@ import { listFeeds } from '@/server/domains/feeds/repositories/feedsRepo';
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
+const ACTIVE_FEVER_ARTICLE_SQL = `
+  not exists (
+    select 1
+    from fever_item_mappings fim
+    where fim.local_article_id = articles.id
+      and fim.is_active = false
+  )
+`;
 
 export interface CursorPayload {
   publishedAt: string;
@@ -330,12 +338,7 @@ async function queryArticleRows(
         limit 1
       ) ai_summary_session on true
       ${whereSql}
-      ${whereSql ? 'and' : 'where'} not exists (
-        select 1
-        from fever_item_mappings fim
-        where fim.local_article_id = articles.id
-          and fim.is_active = false
-      )
+      ${whereSql ? 'and' : 'where'} ${ACTIVE_FEVER_ARTICLE_SQL}
       order by "sortPublishedAt" desc, articles.id desc
       limit $${limitParamIndex}
     `,
@@ -360,6 +363,7 @@ async function queryArticleTotalCount(
       select count(*)::int as "totalCount"
       from articles
       ${whereSql}
+      ${whereSql ? 'and' : 'where'} ${ACTIVE_FEVER_ARTICLE_SQL}
     `,
     params,
   );
@@ -387,7 +391,9 @@ export async function getReaderSnapshot(
   }>(`
     select feed_id as "feedId", count(*)::int as "unreadCount"
     from articles
-    where is_read = false and filter_status = any('{passed,error}'::text[])
+    where is_read = false
+      and filter_status = any('{passed,error}'::text[])
+      and ${ACTIVE_FEVER_ARTICLE_SQL}
     group by feed_id
   `);
 

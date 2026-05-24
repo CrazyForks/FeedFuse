@@ -53,3 +53,7 @@
 - 用户触发 `POST /api/feeds/[id]/refresh` 或 `POST /api/feeds/refresh` 时，如果目标包含 `provider = 'fever'` 的 feed，必须分流到对应账号的 `fever.sync`，并把该账号关联的本地 feed item 一并纳入 `feed_refresh_runs` 跟踪。
 - `PATCH /api/articles/[id]` 对 Fever article 必须先远端 `mark item`，成功后再提交本地 `is_read` / `is_starred`；本地 RSS article 保持直接本地更新。
 - 阅读快照和 feed 列表必须过滤 `fever_item_mappings.is_active = false` 的 article，并返回 `provider`、`remoteManaged`、`remoteSource`，让前端能区分远端托管源。
+- 阅读快照的文章列表、`totalCount` 和左栏 `unreadCount` 必须使用同一套 Fever active 过滤条件；不能只在列表查询里隐藏失效 article，否则会出现“列表为空但计数仍大于 0”的漂移。
+- `listFeeds` 必须隐藏没有任何 `fever_feed_mappings.is_active = true` 记录的 `provider = 'fever'` 本地投影 feed，避免上游删除后左栏残留孤儿来源。
+- Fever feed 已存在本地投影时，同步仍必须回写远端 `title`、`url`、分类和 `siteUrl/iconUrl` 变化；Fever 是权威源，不能只更新 mapping 快照而不更新本地 feed DTO。
+- 在没有可靠全量校正语义前，`fever.sync` 不能根据单次 `items` 响应把未返回的 Fever item 直接标记为 inactive；单次响应可能只是分页或窗口结果。

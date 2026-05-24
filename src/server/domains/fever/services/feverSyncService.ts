@@ -100,8 +100,10 @@ async function ensureProjectedFeed(
   if (existing) {
     const nextIconUrl = resolvedSiteUrl ? buildFeedFaviconPath(existing.id) : null;
     const needsUpdate =
-      existing.categoryId !== resolvedCategoryId
+      existing.title !== (remoteFeed.title || remoteFeed.url)
+      || existing.url !== remoteFeed.url
       || existing.siteUrl !== resolvedSiteUrl
+      || existing.categoryId !== resolvedCategoryId
       || existing.iconUrl !== nextIconUrl;
 
     if (!needsUpdate) {
@@ -110,6 +112,8 @@ async function ensureProjectedFeed(
 
     // Fever 投影视图需要补齐本地分类、可抓取的 siteUrl 和内部 favicon 路由。
     return (await updateFeed(pool, existing.id, {
+      title: remoteFeed.title || remoteFeed.url,
+      url: remoteFeed.url,
       categoryId: resolvedCategoryId,
       siteUrl: resolvedSiteUrl,
       iconUrl: nextIconUrl,
@@ -288,10 +292,8 @@ export async function syncFeverAccount(
       accountId: input.accountId,
       seenRemoteFeedIds: feeds.map((feed) => feed.id),
     });
-    await reconcileFeverItems(pool, {
-      accountId: input.accountId,
-      seenRemoteItemIds: items.map((item) => item.id),
-    });
+    // Fever items 可能按窗口或分页返回，单次响应不能安全代表账号下的完整 item 集合。
+    // 在没有稳定全量校正语义前，避免把未返回的历史文章误判为上游已删除。
     await updateFeverAccountSyncState(pool, {
       accountId: input.accountId,
       syncedAt: new Date().toISOString(),

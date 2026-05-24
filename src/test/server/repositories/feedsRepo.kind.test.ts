@@ -60,4 +60,17 @@ describe('feedsRepo (kind)', () => {
     const sql = String(query.mock.calls[0]?.[0] ?? '');
     expect(sql).toContain("where kind = 'rss'");
   });
+
+  it('listFeeds hides fever feeds whose active mapping has disappeared', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    const pool = { query } as unknown as Pool;
+    const mod = (await import('@/server/domains/feeds/repositories/feedsRepo')) as typeof import('@/server/domains/feeds/repositories/feedsRepo');
+
+    await mod.listFeeds(pool);
+    const sql = String(query.mock.calls[0]?.[0] ?? '');
+
+    expect(sql).toContain("provider <> 'fever'");
+    expect(sql).toContain('from fever_feed_mappings');
+    expect(sql).toContain('is_active = true');
+  });
 });

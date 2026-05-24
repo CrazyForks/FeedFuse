@@ -72,6 +72,15 @@ export async function listFeeds(db: DbClient): Promise<FeedRow[]> {
         limit 1
       ) as "isPodcast"
     from feeds
+    where (
+      feeds.provider <> 'fever'
+      or exists (
+        select 1
+        from fever_feed_mappings ffm
+        where ffm.local_feed_id = feeds.id
+          and ffm.is_active = true
+      )
+    )
     order by created_at asc, id asc
   `);
   return rows;

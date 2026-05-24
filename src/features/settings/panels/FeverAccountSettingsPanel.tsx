@@ -508,6 +508,7 @@ export default function FeverAccountSettingsPanel() {
               <Label htmlFor="fever-service-password">密码</Label>
               <Input
                 id="fever-service-password"
+                type="password"
                 value={formDraft.apiKey}
                 placeholder="留空表示不修改"
                 onChange={(event) => {

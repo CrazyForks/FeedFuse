@@ -133,4 +133,28 @@ describe('readerSnapshotService (cursor)', () => {
       id: 'art-2',
     });
   });
+
+  it('filters inactive fever items from unread counts and total counts', async () => {
+    listCategoriesMock.mockResolvedValue([]);
+    listFeedsMock.mockResolvedValue([]);
+
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ totalCount: 0 }] });
+
+    const pool = { query } as unknown as Pool;
+    const mod = (await import('@/server/domains/reader/services/readerSnapshotService')) as typeof import('@/server/domains/reader/services/readerSnapshotService');
+    await mod.getReaderSnapshot(pool, { view: 'all', limit: 1 });
+
+    const sqlStatements = query.mock.calls.map(([statement]) => String(statement ?? ''));
+    const unreadSql = sqlStatements.find((statement) => statement.includes('count(*)::int as "unreadCount"'));
+    const totalCountSql = sqlStatements.find((statement) => statement.includes('count(*)::int as "totalCount"'));
+
+    expect(unreadSql).toContain('not exists');
+    expect(unreadSql).toContain('from fever_item_mappings fim');
+    expect(totalCountSql).toContain('not exists');
+    expect(totalCountSql).toContain('from fever_item_mappings fim');
+  });
 });

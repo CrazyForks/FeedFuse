@@ -183,6 +183,7 @@ describe('FeverAccountSettingsPanel', () => {
     expect(screen.getByRole('dialog', { name: '添加 Fever 服务' })).toBeInTheDocument();
     expect(screen.getByLabelText('fever 地址')).toBeInTheDocument();
     expect(screen.getByLabelText('用户名')).toBeInTheDocument();
+    expect(screen.getByLabelText('密码')).toHaveAttribute('type', 'password');
     expect(screen.getByLabelText('密码')).toHaveAttribute('placeholder', '留空表示不修改');
     expect(screen.getByText('启用')).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: '启用该 Fever 服务' })).toBeChecked();

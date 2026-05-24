@@ -428,7 +428,7 @@ describe('FeverAccountSettingsPanel', () => {
   });
 
   it('deletes fever account after confirmation and refreshes sidebar data', async () => {
-    let accounts: FeverAccountFixture[] = [
+    const accounts: FeverAccountFixture[] = [
       {
         id: '1',
         baseUrl: 'https://reader.example.com',
@@ -495,7 +495,7 @@ describe('FeverAccountSettingsPanel', () => {
   });
 
   it('does not emit delete success when backend returns deleted=false', async () => {
-    let accounts: FeverAccountFixture[] = [
+    const accounts: FeverAccountFixture[] = [
       {
         id: '1',
         baseUrl: 'https://reader.example.com',

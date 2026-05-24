@@ -115,6 +115,38 @@ describe('/api/fever/accounts', () => {
     expect(createFeverAccountMock).not.toHaveBeenCalled();
   });
 
+  it('POST returns conflict when fever account already exists', async () => {
+    createFeverClientMock.mockReturnValue({
+      listFeeds: vi.fn().mockResolvedValue([]),
+    });
+    createFeverAccountMock.mockRejectedValue({
+      code: '23505',
+      constraint: 'fever_accounts_base_url_username_unique',
+    });
+
+    const mod = await import('../../../../../app/api/fever/accounts/route');
+    const response = await mod.POST(
+      new Request('http://localhost/api/fever/accounts', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          baseUrl: 'https://reader.example.com',
+          username: 'demo',
+          apiKey: 'secret',
+        }),
+      }),
+    );
+    const json = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(json.ok).toBe(false);
+    expect(json.error.code).toBe('conflict');
+    expect(json.error.fields).toEqual({
+      baseUrl: 'duplicate',
+      username: 'duplicate',
+    });
+  });
+
   it('GET lists fever accounts without api key', async () => {
     listFeverAccountsMock.mockResolvedValue([
       {
@@ -136,6 +168,50 @@ describe('/api/fever/accounts', () => {
 
     expect(json.ok).toBe(true);
     expect(json.data[0].apiKey).toBeUndefined();
+  });
+
+  it('PATCH returns conflict when updating to an existing fever account identity', async () => {
+    getFeverAccountByIdMock.mockResolvedValue({
+      id: '1',
+      baseUrl: 'https://reader.example.com',
+      username: 'demo',
+      apiKey: 'secret',
+      enabled: true,
+      autoSyncEnabled: true,
+      autoSyncIntervalMinutes: 30,
+      lastSyncAt: null,
+      lastSyncAttemptAt: null,
+      lastError: null,
+      createdAt: '2026-05-24T00:00:00.000Z',
+    });
+    updateFeverAccountMock.mockRejectedValue({
+      code: '23505',
+      constraint: 'fever_accounts_base_url_username_unique',
+    });
+
+    const mod = await import('../../../../../app/api/fever/accounts/route');
+    const response = await mod.PATCH(
+      new Request('http://localhost/api/fever/accounts', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          id: '1',
+          baseUrl: 'https://reader.example.com',
+          username: 'demo',
+          apiKey: '',
+          enabled: true,
+          autoSyncIntervalMinutes: 30,
+        }),
+      }),
+    );
+    const json = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(json.ok).toBe(false);
+    expect(json.error.fields).toEqual({
+      baseUrl: 'duplicate',
+      username: 'duplicate',
+    });
   });
 
   it('POST /sync enqueues fever sync job', async () => {

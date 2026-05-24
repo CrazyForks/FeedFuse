@@ -115,11 +115,13 @@ export async function getFeverAccountByLocalFeedId(
   const { rows } = await db.query<FeverAccountFeedRow>(
     `
       select
-        fever_account_id as "feverAccountId",
-        local_feed_id as "localFeedId"
+        fever_feed_mappings.fever_account_id as "feverAccountId",
+        fever_feed_mappings.local_feed_id as "localFeedId"
       from fever_feed_mappings
-      where local_feed_id = $1
+      join fever_accounts fa on fa.id = fever_feed_mappings.fever_account_id
+      where fever_feed_mappings.local_feed_id = $1
         and is_active = true
+        and fa.enabled = true
       limit 1
     `,
     [localFeedId],
@@ -158,25 +160,6 @@ export async function listActiveLocalFeedIdsByFeverAccountId(
     [accountId],
   );
   return rows.map((row) => row.localFeedId);
-}
-
-export async function countOtherActiveFeverAccountsByLocalFeedId(
-  db: DbClient,
-  input: { accountId: string; localFeedId: string },
-): Promise<number> {
-  const { rows } = await db.query<{ activeAccountCount: number }>(
-    `
-      select count(distinct fever_account_id)::int as "activeAccountCount"
-      from fever_feed_mappings
-      join fever_accounts fa on fa.id = fever_feed_mappings.fever_account_id
-      where local_feed_id = $1
-        and fever_account_id <> $2
-        and is_active = true
-        and fa.enabled = true
-    `,
-    [input.localFeedId, input.accountId],
-  );
-  return rows[0]?.activeAccountCount ?? 0;
 }
 
 export async function markMissingFeverFeedMappingsInactive(

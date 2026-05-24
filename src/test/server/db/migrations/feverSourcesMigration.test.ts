@@ -34,4 +34,15 @@ describe('db migrations', () => {
     expect(sql).toContain('drop constraint if exists fever_accounts_auto_sync_interval_minutes_check');
     expect(sql).toContain('check (auto_sync_interval_minutes between 0 and 1440)');
   });
+
+  it('enforces one-to-one mapping between local fever feed and remote mapping row', () => {
+    const migrationPath = 'src/server/infra/db/migrations/0033_fever_feed_mapping_local_feed_unique.sql';
+    expect(existsSync(migrationPath)).toBe(true);
+
+    const sql = readFileSync(migrationPath, 'utf8');
+    expect(sql).toContain('create unique index if not exists fever_feed_mappings_local_feed_id_unique');
+    expect(sql).toContain('on fever_feed_mappings (local_feed_id)');
+    expect(sql).toContain('create unique index if not exists fever_accounts_base_url_username_unique');
+    expect(sql).toContain('on fever_accounts (base_url, username)');
+  });
 });

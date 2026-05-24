@@ -27,11 +27,9 @@ describe('feverAccountLifecycleService', () => {
     client.query
       .mockResolvedValueOnce(undefined)
       .mockResolvedValueOnce({ rows: [{ localFeedId: '10' }, { localFeedId: '11' }] })
-      .mockResolvedValueOnce({ rows: [{ activeAccountCount: 0 }] })
       .mockResolvedValueOnce({ rows: [{ id: '10', categoryId: 'cat-fever', siteUrl: null }] })
       .mockResolvedValueOnce({ rowCount: 1 })
       .mockResolvedValueOnce({ rows: [{ count: 1 }] })
-      .mockResolvedValueOnce({ rows: [{ activeAccountCount: 0 }] })
       .mockResolvedValueOnce({ rows: [{ id: '11', categoryId: 'cat-empty', siteUrl: null }] })
       .mockResolvedValueOnce({ rowCount: 1 })
       .mockResolvedValueOnce({ rows: [{ count: 0 }] })
@@ -64,32 +62,12 @@ describe('feverAccountLifecycleService', () => {
     );
   });
 
-  it('keeps shared local feeds that are still mapped to another fever account', async () => {
-    const { pool, client } = createMockPool();
-
-    client.query
-      .mockResolvedValueOnce(undefined)
-      .mockResolvedValueOnce({ rows: [{ localFeedId: '10' }] })
-      .mockResolvedValueOnce({ rows: [{ activeAccountCount: 1 }] })
-      .mockResolvedValueOnce({ rowCount: 1 })
-      .mockResolvedValueOnce(undefined);
-
-    const deleted = await deleteFeverAccountAndSources(pool, '1');
-
-    expect(deleted).toBe(true);
-    expect(client.query).not.toHaveBeenCalledWith(
-      expect.stringContaining('delete from feeds where id = $1'),
-      ['10'],
-    );
-  });
-
   it('collects all mapped local feeds before deleting the account, including inactive mappings', async () => {
     const { pool, client } = createMockPool();
 
     client.query
       .mockResolvedValueOnce(undefined)
       .mockResolvedValueOnce({ rows: [{ localFeedId: '12' }] })
-      .mockResolvedValueOnce({ rows: [{ activeAccountCount: 0 }] })
       .mockResolvedValueOnce({ rows: [{ id: '12', categoryId: null, siteUrl: null }] })
       .mockResolvedValueOnce({ rowCount: 1 })
       .mockResolvedValueOnce({ rowCount: 1 })

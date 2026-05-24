@@ -7,7 +7,6 @@ import {
 } from '@/server/domains/feeds/repositories/feedsRepo';
 import { deleteFeverAccount } from '@/server/domains/fever/repositories/feverAccountsRepo';
 import {
-  countOtherActiveFeverAccountsByLocalFeedId,
   listLocalFeedIdsByFeverAccountId,
 } from '@/server/domains/fever/repositories/feverMappingsRepo';
 
@@ -38,15 +37,6 @@ export async function deleteFeverAccountAndSources(
     const localFeedIds = await listLocalFeedIdsByFeverAccountId(client, accountId);
 
     for (const localFeedId of localFeedIds) {
-      // 只有仍处于启用状态的其他账号，才算这个投影源的有效共享引用。
-      const sharedAccountCount = await countOtherActiveFeverAccountsByLocalFeedId(client, {
-        accountId,
-        localFeedId,
-      });
-      if (sharedAccountCount > 0) {
-        continue;
-      }
-
       const existing = await getFeedCategoryAssignment(client, localFeedId);
       if (!existing) {
         continue;

@@ -2,7 +2,7 @@ import { requireApiSession } from '@/server/domains/auth/services/session';
 import { z } from 'zod';
 import { getPool } from '@/server/infra/db/pool';
 import { ok, fail } from '@/server/infra/http/apiResponse';
-import { ValidationError } from '@/server/infra/http/errors';
+import { ConflictError, ValidationError } from '@/server/infra/http/errors';
 import {
   createFeverAccount,
   getFeverAccountById,
@@ -40,6 +40,19 @@ function zodIssuesToFields(error: z.ZodError): Record<string, string> {
     if (!fields[key]) fields[key] = issue.message;
   }
   return fields;
+}
+
+function isUniqueViolation(
+  err: unknown,
+  constraint: string,
+): err is { code: string; constraint?: string } {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code?: unknown }).code === '23505' &&
+    (!('constraint' in err) || (err as { constraint?: unknown }).constraint === constraint)
+  );
 }
 
 function sanitizeFeverAccount(account: FeverAccountRow) {
@@ -89,6 +102,12 @@ export async function POST(request: Request) {
     const account = await createFeverAccount(getPool(), parsed.data);
     return ok(sanitizeFeverAccount(account));
   } catch (err) {
+    if (isUniqueViolation(err, 'fever_accounts_base_url_username_unique')) {
+      return fail(new ConflictError('Fever 账号已存在', {
+        baseUrl: 'duplicate',
+        username: 'duplicate',
+      }));
+    }
     return fail(err);
   }
 }
@@ -138,6 +157,12 @@ export async function PATCH(request: Request) {
 
     return ok(sanitizeFeverAccount(account));
   } catch (err) {
+    if (isUniqueViolation(err, 'fever_accounts_base_url_username_unique')) {
+      return fail(new ConflictError('Fever 账号已存在', {
+        baseUrl: 'duplicate',
+        username: 'duplicate',
+      }));
+    }
     return fail(err);
   }
 }

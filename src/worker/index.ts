@@ -66,6 +66,7 @@ import { runAiSummaryStreamWorker } from '@/worker/aiSummaryStreamWorker';
 import { runAiDigestTick } from '@/worker/aiDigestTick';
 import { runAiDigestGenerate } from '@/worker/aiDigestGenerate';
 import { runFeverAutoSyncWorker } from '@/worker/feverAutoSync';
+import { enqueueFeverRefreshAllTargets } from '@/worker/feverRefreshAll';
 import { runFeverSyncWorker } from '@/worker/feverSync';
 import { runArticleFilterWorker, type ArticleFilterJobData } from '@/worker/articleFilterWorker';
 import { runSystemLogCleanup } from '@/worker/systemLogCleanup';
@@ -74,7 +75,7 @@ import {
   completeFeedRefreshRunItem,
   markFeedRefreshRunItemRunning,
 } from '@/server/domains/feeds/services/feedRefreshRunService';
-import { listEnabledFeverAccounts } from '@/server/domains/fever/repositories/feverAccountsRepo';
+import { listEnabledFeverAccounts, markFeverAccountSyncAttempted } from '@/server/domains/fever/repositories/feverAccountsRepo';
 import { listActiveLocalFeedIdsByFeverAccountId } from '@/server/domains/fever/repositories/feverMappingsRepo';
 
 const DEFAULT_TRANSLATION_MODEL = 'gpt-4o-mini';
@@ -136,10 +137,13 @@ const defaultFeedIngestionDeps: FeedIngestionDeps = {
   isFeedDue,
 };
 
-async function enqueueRefreshAll(boss: PgBoss, input?: { force?: boolean; runId?: string }) {
+export async function enqueueRefreshAll(
+  boss: PgBoss,
+  input?: { force?: boolean; runId?: string; now?: Date },
+) {
   const pool = getPool();
   const feeds = await listEnabledFeedsForFetch(pool);
-  const now = new Date();
+  const now = input?.now ?? new Date();
   const force = Boolean(input?.force);
   const targetFeeds = selectFeedsForRefreshAll(feeds, now, { force });
   // 用户主动全量刷新时，要把 Fever 账号同步也并入同一轮 run 跟踪里。
@@ -169,17 +173,17 @@ async function enqueueRefreshAll(boss: PgBoss, input?: { force?: boolean; runId?
         const payload = buildFeedFetchJobData(feed.id, { force, runId: input?.runId });
         return boss.send(JOB_FEED_FETCH, payload, getQueueSendOptions(JOB_FEED_FETCH, payload));
       }),
-      ...targetFeverJobs.map((target) => {
-        const payload = {
-          accountId: target.accountId,
-          ...(input?.runId ? { runId: input.runId } : {}),
-          feedIds: target.feedIds,
-        };
-        return boss.send(JOB_FEVER_SYNC, payload, getQueueSendOptions(JOB_FEVER_SYNC, payload));
-      }),
     ],
   );
-  return { enqueued: targetFeeds.length + targetFeverJobs.length };
+  const feverEnqueued = await enqueueFeverRefreshAllTargets({
+    boss,
+    pool,
+    runId: input?.runId,
+    now,
+    feverTargets: targetFeverJobs,
+    markFeverAccountSyncAttempted,
+  });
+  return { enqueued: targetFeeds.length + feverEnqueued };
 }
 
 export async function fetchAndIngestFeed(

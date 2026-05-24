@@ -38,64 +38,64 @@ import {
 } from '../../notifications/userOperationNotifier';
 import { useAppStore } from '../../../store/appStore';
 
+type AccountDialogMode = 'create' | 'edit' | null;
+
+type AccountFormDraft = {
+  id: string | null;
+  baseUrl: string;
+  username: string;
+  apiKey: string;
+  enabled: boolean;
+  autoSyncIntervalMinutes: number;
+};
+
+const DEFAULT_FORM_DRAFT: AccountFormDraft = {
+  id: null,
+  baseUrl: '',
+  username: '',
+  apiKey: '',
+  enabled: true,
+  autoSyncIntervalMinutes: 30,
+};
+
+function buildDraftFromAccount(account: FeverAccountDto): AccountFormDraft {
+  return {
+    id: account.id,
+    baseUrl: account.baseUrl,
+    username: account.username,
+    apiKey: '',
+    enabled: account.enabled,
+    autoSyncIntervalMinutes: account.autoSyncEnabled ? account.autoSyncIntervalMinutes : 0,
+  };
+}
+
 export default function FeverAccountSettingsPanel() {
-  const baseUrlInputId = 'fever-account-base-url';
-  const usernameInputId = 'fever-account-username';
-  const apiKeyInputId = 'fever-account-api-key';
   const [accounts, setAccounts] = useState<FeverAccountDto[]>([]);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [editAccountId, setEditAccountId] = useState<string | null>(null);
-  const [createDraft, setCreateDraft] = useState({
-    baseUrl: '',
-    username: '',
-    apiKey: '',
-  });
-  const [editDraft, setEditDraft] = useState({
-    baseUrl: '',
-    username: '',
-    apiKey: '',
-  });
-  const [creatingAccount, setCreatingAccount] = useState(false);
+  const [dialogMode, setDialogMode] = useState<AccountDialogMode>(null);
+  const [formDraft, setFormDraft] = useState<AccountFormDraft>(DEFAULT_FORM_DRAFT);
+  const [submittingDialog, setSubmittingDialog] = useState(false);
   const [syncingAccountId, setSyncingAccountId] = useState<string | null>(null);
-  const [savingAutoSyncAccountId, setSavingAutoSyncAccountId] = useState<string | null>(null);
+  const [togglingAccountId, setTogglingAccountId] = useState<string | null>(null);
   const [deleteAccountId, setDeleteAccountId] = useState<string | null>(null);
   const [deletingAccountId, setDeletingAccountId] = useState<string | null>(null);
-  const [autoSyncDrafts, setAutoSyncDrafts] = useState<
-    Record<string, { autoSyncEnabled: boolean; autoSyncIntervalMinutes: number }>
-  >({});
 
-  const buildAutoSyncDraft = (account: FeverAccountDto) => ({
-    autoSyncEnabled: account.autoSyncEnabled,
-    autoSyncIntervalMinutes: account.autoSyncIntervalMinutes,
-  });
-
-  const updateCreateDraft = (patch: Partial<typeof createDraft>) => {
-    setCreateDraft((current) => ({
-      ...current,
-      ...patch,
-    }));
-  };
-
-  const updateEditDraft = (patch: Partial<typeof editDraft>) => {
-    setEditDraft((current) => ({
-      ...current,
-      ...patch,
-    }));
-  };
+  const activeDeleteAccount =
+    deleteAccountId ? accounts.find((account) => account.id === deleteAccountId) ?? null : null;
+  const editingAccount =
+    dialogMode === 'edit' && formDraft.id
+      ? accounts.find((account) => account.id === formDraft.id) ?? null
+      : null;
+  const dialogOpen = dialogMode !== null;
+  const dialogTitle = dialogMode === 'edit' ? '编辑 Fever 服务' : '添加 Fever 服务';
+  const dialogDescription =
+    dialogMode === 'edit'
+      ? '修改服务连接、启用状态和同步间隔。'
+      : '填写连接信息后即可把远端订阅同步到本地。';
+  const dialogSubmitLabel = dialogMode === 'edit' ? '保存服务设置' : '保存服务';
 
   const reloadAccounts = useCallback(async () => {
     const nextAccounts = await listFeverAccounts({ notifyOnError: false });
     setAccounts(nextAccounts);
-    setAutoSyncDrafts((currentDrafts) => {
-      const nextDrafts: Record<string, { autoSyncEnabled: boolean; autoSyncIntervalMinutes: number }> = {};
-
-      // 列表刷新后同步重建每个账号的本地草稿，避免保存后界面仍显示旧值。
-      for (const account of nextAccounts) {
-        nextDrafts[account.id] = currentDrafts[account.id] ?? buildAutoSyncDraft(account);
-      }
-
-      return nextDrafts;
-    });
   }, []);
 
   const reloadCurrentSnapshot = useCallback(async () => {
@@ -104,7 +104,7 @@ export default function FeverAccountSettingsPanel() {
   }, []);
 
   useEffect(() => {
-    // 面板打开后立即回填远端已保存账号，避免刷新后列表丢失回显。
+    // 面板打开后立即拉取远端账号，保证卡片状态与服务端一致。
     void reloadAccounts();
   }, [reloadAccounts]);
 
@@ -145,6 +145,136 @@ export default function FeverAccountSettingsPanel() {
     }
 
     return null;
+  };
+
+  const resetDialog = () => {
+    setDialogMode(null);
+    setFormDraft(DEFAULT_FORM_DRAFT);
+  };
+
+  const updateFormDraft = (patch: Partial<AccountFormDraft>) => {
+    setFormDraft((current) => ({
+      ...current,
+      ...patch,
+    }));
+  };
+
+  const openCreateDialog = () => {
+    setFormDraft(DEFAULT_FORM_DRAFT);
+    setDialogMode('create');
+  };
+
+  const openEditDialog = (account: FeverAccountDto) => {
+    // 编辑时用远端最新值覆盖本地草稿，避免残留上一次输入。
+    setFormDraft(buildDraftFromAccount(account));
+    setDialogMode('edit');
+  };
+
+  const normalizeInterval = (value: number): number => {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+
+    return Math.max(0, Math.min(1440, Math.round(value)));
+  };
+
+  const saveAccountToList = (updated: FeverAccountDto) => {
+    setAccounts((currentAccounts) => {
+      const existed = currentAccounts.some((account) => account.id === updated.id);
+      if (!existed) {
+        return [...currentAccounts, updated];
+      }
+
+      return currentAccounts.map((account) => (account.id === updated.id ? updated : account));
+    });
+  };
+
+  const handleSubmitDialog = async () => {
+    const normalizedInterval = normalizeInterval(formDraft.autoSyncIntervalMinutes);
+
+    setSubmittingDialog(true);
+
+    try {
+      if (dialogMode === 'create') {
+        const created = await createFeverAccount(
+          {
+            baseUrl: formDraft.baseUrl.trim(),
+            username: formDraft.username.trim(),
+            apiKey: formDraft.apiKey.trim(),
+            enabled: formDraft.enabled,
+            autoSyncIntervalMinutes: normalizedInterval,
+          },
+          { notifyOnError: false },
+        );
+        saveAccountToList(created);
+        resetDialog();
+        runImmediateSuccess({
+          actionKey: 'fever.sync',
+          context: { outcome: 'settings_saved' },
+        });
+        return;
+      }
+
+      if (dialogMode === 'edit' && formDraft.id) {
+        const updated = await updateFeverAccountSettings(
+          {
+            id: formDraft.id,
+            baseUrl: formDraft.baseUrl.trim(),
+            username: formDraft.username.trim(),
+            apiKey: formDraft.apiKey.trim(),
+            enabled: formDraft.enabled,
+            autoSyncIntervalMinutes: normalizedInterval,
+          },
+          { notifyOnError: false },
+        );
+        saveAccountToList(updated);
+        resetDialog();
+        runImmediateSuccess({
+          actionKey: 'fever.sync',
+          context: { outcome: 'settings_saved' },
+        });
+      }
+    } catch (err) {
+      runImmediateFailure({
+        actionKey: 'fever.sync',
+        err,
+      });
+    } finally {
+      setSubmittingDialog(false);
+    }
+  };
+
+  const handleToggleAccountEnabled = async (account: FeverAccountDto, enabled: boolean) => {
+    if (togglingAccountId) {
+      return;
+    }
+
+    setTogglingAccountId(account.id);
+
+    try {
+      const updated = await updateFeverAccountSettings(
+        {
+          id: account.id,
+          baseUrl: account.baseUrl,
+          username: account.username,
+          enabled,
+          autoSyncIntervalMinutes: account.autoSyncEnabled ? account.autoSyncIntervalMinutes : 0,
+        },
+        { notifyOnError: false },
+      );
+      saveAccountToList(updated);
+      runImmediateSuccess({
+        actionKey: 'fever.sync',
+        context: { outcome: 'settings_saved' },
+      });
+    } catch (err) {
+      runImmediateFailure({
+        actionKey: 'fever.sync',
+        err,
+      });
+    } finally {
+      setTogglingAccountId(null);
+    }
   };
 
   const handleSyncAccount = async (accountId: string) => {
@@ -194,99 +324,6 @@ export default function FeverAccountSettingsPanel() {
     }
   };
 
-  const updateAccountDraft = (
-    accountId: string,
-    patch: Partial<{ autoSyncEnabled: boolean; autoSyncIntervalMinutes: number }>,
-  ) => {
-    setAutoSyncDrafts((currentDrafts) => {
-      const currentDraft = currentDrafts[accountId]
-        ?? {
-          autoSyncEnabled: true,
-          autoSyncIntervalMinutes: 30,
-        };
-
-      return {
-        ...currentDrafts,
-        [accountId]: {
-          ...currentDraft,
-          ...patch,
-        },
-      };
-    });
-  };
-
-  const handleSaveAccount = async (account: FeverAccountDto) => {
-    const draft = autoSyncDrafts[account.id] ?? buildAutoSyncDraft(account);
-    const normalizedInterval = Math.max(5, Math.min(1440, Math.round(draft.autoSyncIntervalMinutes)));
-
-    setSavingAutoSyncAccountId(account.id);
-
-    try {
-      const updated = await updateFeverAccountSettings(
-        {
-          id: account.id,
-          baseUrl: editDraft.baseUrl.trim(),
-          username: editDraft.username.trim(),
-          apiKey: editDraft.apiKey.trim(),
-          autoSyncEnabled: draft.autoSyncEnabled,
-          autoSyncIntervalMinutes: normalizedInterval,
-        },
-        { notifyOnError: false },
-      );
-
-      setAccounts((currentAccounts) => currentAccounts.map((currentAccount) => (
-        currentAccount.id === updated.id ? updated : currentAccount
-      )));
-      setAutoSyncDrafts((currentDrafts) => ({
-        ...currentDrafts,
-        [account.id]: {
-          autoSyncEnabled: updated.autoSyncEnabled,
-          autoSyncIntervalMinutes: updated.autoSyncIntervalMinutes,
-        },
-      }));
-      setEditAccountId(null);
-      runImmediateSuccess({
-        actionKey: 'fever.sync',
-        context: { outcome: 'settings_saved' },
-      });
-    } catch (err) {
-      runImmediateFailure({
-        actionKey: 'fever.sync',
-        err,
-      });
-    } finally {
-      setSavingAutoSyncAccountId(null);
-    }
-  };
-
-  const handleCreateAccount = async () => {
-    setCreatingAccount(true);
-
-    try {
-      await createFeverAccount(createDraft, { notifyOnError: false });
-      // 新增账号使用独立 modal，避免主面板长期占据大块表单空间。
-      setCreateDraft({
-        baseUrl: '',
-        username: '',
-        apiKey: '',
-      });
-      setCreateDialogOpen(false);
-      await reloadAccounts();
-    } catch (err) {
-      runImmediateFailure({
-        actionKey: 'fever.sync',
-        err,
-      });
-    } finally {
-      setCreatingAccount(false);
-    }
-  };
-
-  const activeDeleteAccount =
-    deleteAccountId ? accounts.find((account) => account.id === deleteAccountId) ?? null : null;
-  const editingAccount =
-    editAccountId ? accounts.find((account) => account.id === editAccountId) ?? null : null;
-
   const handleDeleteAccount = async () => {
     if (!deleteAccountId) {
       return;
@@ -296,7 +333,7 @@ export default function FeverAccountSettingsPanel() {
 
     try {
       await deleteFeverAccount(deleteAccountId, { notifyOnError: false });
-      // 删除 Fever 服务后，立即刷新左栏快照，确保关联的 fever 源同步消失。
+      // 删除服务后同步刷新左栏，确保投影的 fever 源立即消失。
       await reloadCurrentSnapshot();
       await reloadAccounts();
       setDeleteAccountId(null);
@@ -319,17 +356,11 @@ export default function FeverAccountSettingsPanel() {
       <section className="space-y-3 rounded-lg border border-border bg-background p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
-            <h3 className="text-sm font-medium text-foreground">Fever 账号</h3>
-            <p className="text-xs text-muted-foreground">统一管理远端账号与同步状态。</p>
+            <h3 className="text-sm font-medium text-foreground">Fever 服务</h3>
+            <p className="text-xs text-muted-foreground">统一管理远端服务、启用状态与同步节奏。</p>
           </div>
-          <Button
-            type="button"
-            size="compact"
-            onClick={() => {
-              setCreateDialogOpen(true);
-            }}
-          >
-            添加 Fever 账号
+          <Button type="button" size="compact" onClick={openCreateDialog}>
+            添加 Fever 服务
           </Button>
         </div>
 
@@ -341,24 +372,16 @@ export default function FeverAccountSettingsPanel() {
             >
               <div className="flex items-stretch justify-between gap-3">
                 <div className="min-w-0 flex-1 space-y-2">
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                  <div className="min-w-0 space-y-1">
                     <p className="text-sm font-semibold text-foreground">{account.username}</p>
-                    <p className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">{account.baseUrl}</p>
+                    <p className="truncate text-[11px] text-muted-foreground">{account.baseUrl}</p>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
-                    <div className="inline-flex items-center gap-1.5 rounded-md bg-muted/35 px-2 py-1">
-                      <span className="text-muted-foreground">自动同步</span>
-                      <span className="font-medium text-foreground">
-                        {account.autoSyncEnabled ? `${account.autoSyncIntervalMinutes} 分钟` : '已关闭'}
-                      </span>
-                    </div>
-                    <div className="inline-flex items-center gap-1.5 rounded-md bg-muted/35 px-2 py-1">
-                      <span className="text-muted-foreground">上次同步</span>
-                      <span className="text-foreground">
-                        {account.lastSyncAt ? formatSyncTime(account.lastSyncAt) : '尚未同步'}
-                      </span>
-                    </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    <span>上次同步 </span>
+                    <span className="text-foreground">
+                      {account.lastSyncAt ? formatSyncTime(account.lastSyncAt) : '尚未同步'}
+                    </span>
                   </div>
 
                   {account.lastError ? (
@@ -368,7 +391,15 @@ export default function FeverAccountSettingsPanel() {
                   ) : null}
                 </div>
 
-                <div className="flex shrink-0 items-end">
+                <div className="flex shrink-0 flex-col items-end justify-between gap-3">
+                  <Switch
+                    aria-label={`${account.username} 启用状态`}
+                    checked={account.enabled}
+                    disabled={togglingAccountId === account.id}
+                    onCheckedChange={(checked) => {
+                      void handleToggleAccountEnabled(account, checked);
+                    }}
+                  />
                   <div className="flex flex-wrap justify-end gap-1.5">
                     <Button
                       type="button"
@@ -376,13 +407,7 @@ export default function FeverAccountSettingsPanel() {
                       variant="outline"
                       aria-label={`编辑 ${account.username}`}
                       onClick={() => {
-                        // 进入编辑弹窗时同步回填当前账号配置，避免本地表单沿用上一次草稿。
-                        setEditDraft({
-                          baseUrl: account.baseUrl,
-                          username: account.username,
-                          apiKey: '',
-                        });
-                        setEditAccountId(account.id);
+                        openEditDialog(account);
                       }}
                     >
                       编辑
@@ -395,7 +420,7 @@ export default function FeverAccountSettingsPanel() {
                         setDeleteAccountId(account.id);
                       }}
                     >
-                      删除账号
+                      删除服务
                     </Button>
                     <Button
                       type="button"
@@ -415,60 +440,89 @@ export default function FeverAccountSettingsPanel() {
 
           {accounts.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 px-3 py-4 text-sm text-muted-foreground">
-              暂无 Fever 账号，点击右上角按钮添加。
+              暂无 Fever 服务，点击右上角按钮添加。
             </div>
           ) : null}
         </div>
       </section>
 
       <Dialog
-        open={createDialogOpen}
+        open={dialogOpen}
         onOpenChange={(open) => {
-          if (!creatingAccount) {
-            setCreateDialogOpen(open);
+          if (!open && !submittingDialog) {
+            resetDialog();
           }
         }}
       >
         <DialogContent
-          closeLabel="关闭添加 Fever 账号"
+          closeLabel={dialogMode === 'edit' ? '关闭编辑 Fever 服务' : '关闭添加 Fever 服务'}
           className={DIALOG_FORM_CONTENT_CLASS_NAME}
           onOpenAutoFocus={(event) => {
             event.preventDefault();
           }}
         >
           <DialogHeader>
-            <DialogTitle>添加 Fever 账号</DialogTitle>
-            <DialogDescription>填写连接信息后即可把远端订阅同步到本地。</DialogDescription>
+            <DialogTitle>{dialogTitle}</DialogTitle>
+            <DialogDescription>{dialogDescription}</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
             <div className="space-y-2">
-              <Label htmlFor={baseUrlInputId}>Base URL</Label>
+              <Label htmlFor="fever-service-base-url">fever 地址</Label>
               <Input
-                id={baseUrlInputId}
+                id="fever-service-base-url"
                 type="url"
-                value={createDraft.baseUrl}
+                value={formDraft.baseUrl}
                 onChange={(event) => {
-                  updateCreateDraft({ baseUrl: event.target.value });
+                  updateFormDraft({ baseUrl: event.target.value });
                 }}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor={usernameInputId}>Username</Label>
+              <Label htmlFor="fever-service-username">用户名</Label>
               <Input
-                id={usernameInputId}
-                value={createDraft.username}
+                id="fever-service-username"
+                value={formDraft.username}
                 onChange={(event) => {
-                  updateCreateDraft({ username: event.target.value });
+                  updateFormDraft({ username: event.target.value });
                 }}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor={apiKeyInputId}>API Key</Label>
+              <Label htmlFor="fever-service-auto-sync-interval">同步间隔（分钟）</Label>
               <Input
-                id={apiKeyInputId}
-                value={createDraft.apiKey}
+                id="fever-service-auto-sync-interval"
+                aria-label="同步间隔（分钟）"
+                type="number"
+                min={0}
+                max={1440}
+                step={5}
+                value={String(formDraft.autoSyncIntervalMinutes)}
                 onChange={(event) => {
-                  updateCreateDraft({ apiKey: event.target.value });
+                  updateFormDraft({
+                    autoSyncIntervalMinutes: Number(event.target.value) || 0,
+                  });
+                }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="fever-service-password">密码</Label>
+              <Input
+                id="fever-service-password"
+                value={formDraft.apiKey}
+                placeholder="留空表示不修改"
+                onChange={(event) => {
+                  updateFormDraft({ apiKey: event.target.value });
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor="fever-service-enabled">启用</Label>
+              <Switch
+                id="fever-service-enabled"
+                aria-label="启用该 Fever 服务"
+                checked={formDraft.enabled}
+                onCheckedChange={(checked) => {
+                  updateFormDraft({ enabled: checked });
                 }}
               />
             </div>
@@ -478,125 +532,19 @@ export default function FeverAccountSettingsPanel() {
               type="button"
               variant="outline"
               onClick={() => {
-                setCreateDialogOpen(false);
+                resetDialog();
               }}
             >
               取消
             </Button>
             <Button
               type="button"
-              disabled={creatingAccount}
+              disabled={submittingDialog || (dialogMode === 'edit' && !editingAccount)}
               onClick={() => {
-                void handleCreateAccount();
+                void handleSubmitDialog();
               }}
             >
-              {creatingAccount ? '保存中…' : '保存账号'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={Boolean(editingAccount)}
-        onOpenChange={(open) => {
-          if (!open && !savingAutoSyncAccountId) {
-            setEditAccountId(null);
-          }
-        }}
-      >
-        <DialogContent closeLabel="关闭编辑 Fever 账号" className={DIALOG_FORM_CONTENT_CLASS_NAME}>
-          <DialogHeader>
-            <DialogTitle>编辑 Fever 账号</DialogTitle>
-            <DialogDescription>修改账号连接信息和自动同步策略。</DialogDescription>
-          </DialogHeader>
-          {editingAccount ? (
-            <div className="grid gap-4">
-              <div className="space-y-2">
-                <Label htmlFor={`fever-edit-base-url-${editingAccount.id}`}>Base URL</Label>
-                <Input
-                  id={`fever-edit-base-url-${editingAccount.id}`}
-                  type="url"
-                  value={editDraft.baseUrl}
-                  onChange={(event) => {
-                    updateEditDraft({ baseUrl: event.target.value });
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor={`fever-edit-username-${editingAccount.id}`}>Username</Label>
-                <Input
-                  id={`fever-edit-username-${editingAccount.id}`}
-                  value={editDraft.username}
-                  onChange={(event) => {
-                    updateEditDraft({ username: event.target.value });
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor={`fever-edit-api-key-${editingAccount.id}`}>API Key（留空表示不修改）</Label>
-                <Input
-                  id={`fever-edit-api-key-${editingAccount.id}`}
-                  value={editDraft.apiKey}
-                  onChange={(event) => {
-                    updateEditDraft({ apiKey: event.target.value });
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor={`fever-auto-sync-interval-${editingAccount.id}`}>自动同步间隔（分钟）</Label>
-                <Input
-                  id={`fever-auto-sync-interval-${editingAccount.id}`}
-                  aria-label="自动同步间隔（分钟）"
-                  type="number"
-                  min={5}
-                  max={1440}
-                  step={5}
-                  value={String(
-                    autoSyncDrafts[editingAccount.id]?.autoSyncIntervalMinutes
-                    ?? buildAutoSyncDraft(editingAccount).autoSyncIntervalMinutes,
-                  )}
-                  onChange={(event) => {
-                    updateAccountDraft(editingAccount.id, {
-                      autoSyncIntervalMinutes: Number(event.target.value) || 5,
-                    });
-                  }}
-                />
-              </div>
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/20 px-4 py-3">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-foreground">启用自动同步</p>
-                  <p className="text-xs text-muted-foreground">worker 会按间隔自动入队同步任务。</p>
-                </div>
-                <Switch
-                  aria-label={`启用 ${editingAccount.username} 自动同步`}
-                  checked={autoSyncDrafts[editingAccount.id]?.autoSyncEnabled ?? editingAccount.autoSyncEnabled}
-                  onCheckedChange={(checked) => {
-                    updateAccountDraft(editingAccount.id, { autoSyncEnabled: checked });
-                  }}
-                />
-              </div>
-            </div>
-          ) : null}
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setEditAccountId(null);
-              }}
-            >
-              取消
-            </Button>
-            <Button
-              type="button"
-              disabled={!editingAccount || savingAutoSyncAccountId === editingAccount.id}
-              onClick={() => {
-                if (editingAccount) {
-                  void handleSaveAccount(editingAccount);
-                }
-              }}
-            >
-              {savingAutoSyncAccountId === editingAccount?.id ? '保存中…' : '保存账号设置'}
+              {submittingDialog ? '保存中…' : dialogSubmitLabel}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -612,7 +560,7 @@ export default function FeverAccountSettingsPanel() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除 Fever 账号</AlertDialogTitle>
+            <AlertDialogTitle>确认删除 Fever 服务</AlertDialogTitle>
             <AlertDialogDescription className="break-words">
               {activeDeleteAccount
                 ? `确定删除 Fever 服务「${activeDeleteAccount.username}」？`

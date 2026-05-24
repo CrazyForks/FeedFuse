@@ -32,15 +32,38 @@ export interface FeverAccountRow {
 
 export async function createFeverAccount(
   db: DbClient,
-  input: { baseUrl: string; username: string; apiKey: string; enabled?: boolean },
+  input: {
+    baseUrl: string;
+    username: string;
+    apiKey: string;
+    enabled?: boolean;
+    autoSyncIntervalMinutes?: number;
+  },
 ): Promise<FeverAccountRow> {
+  const autoSyncIntervalMinutes = input.autoSyncIntervalMinutes ?? 30;
+  const autoSyncEnabled = autoSyncIntervalMinutes > 0;
+
   const { rows } = await db.query<FeverAccountRow>(
     `
-      insert into fever_accounts(base_url, username, api_key, enabled)
-      values ($1, $2, $3, $4)
+      insert into fever_accounts(
+        base_url,
+        username,
+        api_key,
+        enabled,
+        auto_sync_enabled,
+        auto_sync_interval_minutes
+      )
+      values ($1, $2, $3, $4, $5, $6)
       returning ${FEVER_ACCOUNT_COLUMNS}
     `,
-    [input.baseUrl, input.username, input.apiKey, input.enabled ?? true],
+    [
+      input.baseUrl,
+      input.username,
+      input.apiKey,
+      input.enabled ?? true,
+      autoSyncEnabled,
+      autoSyncIntervalMinutes,
+    ],
   );
   return rows[0];
 }
@@ -171,10 +194,12 @@ export async function updateFeverAccount(
     baseUrl: string;
     username: string;
     apiKey?: string;
-    autoSyncEnabled: boolean;
+    enabled: boolean;
     autoSyncIntervalMinutes: number;
   },
 ): Promise<FeverAccountRow | null> {
+  const autoSyncEnabled = input.autoSyncIntervalMinutes > 0;
+
   const { rows } = await db.query<FeverAccountRow>(
     `
       update fever_accounts
@@ -182,8 +207,9 @@ export async function updateFeverAccount(
         base_url = $2,
         username = $3,
         api_key = coalesce(nullif($4, ''), api_key),
-        auto_sync_enabled = $5,
-        auto_sync_interval_minutes = $6,
+        enabled = $5,
+        auto_sync_enabled = $6,
+        auto_sync_interval_minutes = $7,
         updated_at = now()
       where id = $1
       returning ${FEVER_ACCOUNT_COLUMNS}
@@ -193,7 +219,8 @@ export async function updateFeverAccount(
       input.baseUrl,
       input.username,
       input.apiKey ?? '',
-      input.autoSyncEnabled,
+      input.enabled,
+      autoSyncEnabled,
       input.autoSyncIntervalMinutes,
     ],
   );

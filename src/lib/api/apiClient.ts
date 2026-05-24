@@ -839,7 +839,13 @@ export async function listFeverAccounts(
 }
 
 export async function createFeverAccount(
-  input: { baseUrl: string; username: string; apiKey: string },
+  input: {
+    baseUrl: string;
+    username: string;
+    apiKey: string;
+    enabled?: boolean;
+    autoSyncIntervalMinutes?: number;
+  },
   options?: RequestApiOptions,
 ): Promise<FeverAccountDto> {
   return requestApi(
@@ -859,7 +865,7 @@ export async function updateFeverAccountSettings(
     baseUrl: string;
     username: string;
     apiKey?: string;
-    autoSyncEnabled: boolean;
+    enabled: boolean;
     autoSyncIntervalMinutes: number;
   },
   options?: RequestApiOptions,

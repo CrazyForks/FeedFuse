@@ -46,9 +46,9 @@ describe('/api/fever/accounts', () => {
       baseUrl: 'https://reader.example.com',
       username: 'demo',
       apiKey: 'secret',
-      enabled: true,
-      autoSyncEnabled: true,
-      autoSyncIntervalMinutes: 30,
+      enabled: false,
+      autoSyncEnabled: false,
+      autoSyncIntervalMinutes: 0,
       lastSyncAt: null,
       lastError: null,
     });
@@ -62,6 +62,8 @@ describe('/api/fever/accounts', () => {
           baseUrl: 'https://reader.example.com',
           username: 'demo',
           apiKey: 'secret',
+          enabled: false,
+          autoSyncIntervalMinutes: 0,
         }),
       }),
     );
@@ -69,6 +71,13 @@ describe('/api/fever/accounts', () => {
     const json = await response.json();
     expect(json.ok).toBe(true);
     expect(json.data.apiKey).toBeUndefined();
+    expect(createFeverAccountMock).toHaveBeenCalledWith(pool, {
+      baseUrl: 'https://reader.example.com',
+      username: 'demo',
+      apiKey: 'secret',
+      enabled: false,
+      autoSyncIntervalMinutes: 0,
+    });
   });
 
   it('GET lists fever accounts without api key', async () => {
@@ -136,9 +145,9 @@ describe('/api/fever/accounts', () => {
       baseUrl: 'https://updated.example.com',
       username: 'updated-demo',
       apiKey: 'secret',
-      enabled: true,
+      enabled: false,
       autoSyncEnabled: false,
-      autoSyncIntervalMinutes: 45,
+      autoSyncIntervalMinutes: 0,
       lastSyncAt: null,
       lastError: null,
     });
@@ -153,8 +162,8 @@ describe('/api/fever/accounts', () => {
           baseUrl: 'https://updated.example.com',
           username: 'updated-demo',
           apiKey: 'updated-secret',
-          autoSyncEnabled: false,
-          autoSyncIntervalMinutes: 45,
+          enabled: false,
+          autoSyncIntervalMinutes: 0,
         }),
       }),
     );
@@ -166,14 +175,15 @@ describe('/api/fever/accounts', () => {
       baseUrl: 'https://updated.example.com',
       username: 'updated-demo',
       apiKey: 'updated-secret',
-      autoSyncEnabled: false,
-      autoSyncIntervalMinutes: 45,
+      enabled: false,
+      autoSyncIntervalMinutes: 0,
     });
     expect(json.data.apiKey).toBeUndefined();
     expect(json.data.baseUrl).toBe('https://updated.example.com');
     expect(json.data.username).toBe('updated-demo');
+    expect(json.data.enabled).toBe(false);
     expect(json.data.autoSyncEnabled).toBe(false);
-    expect(json.data.autoSyncIntervalMinutes).toBe(45);
+    expect(json.data.autoSyncIntervalMinutes).toBe(0);
   });
 
   it('DELETE removes a fever account and its local fever sources', async () => {

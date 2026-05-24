@@ -18,6 +18,8 @@ const bodySchema = z.object({
   baseUrl: z.string().trim().url(),
   username: z.string().trim().min(1),
   apiKey: z.string().trim().min(1),
+  enabled: z.boolean().optional().default(true),
+  autoSyncIntervalMinutes: z.number().int().min(0).max(1440).optional().default(30),
 });
 
 const patchBodySchema = z.object({
@@ -25,8 +27,8 @@ const patchBodySchema = z.object({
   baseUrl: z.string().trim().url(),
   username: z.string().trim().min(1),
   apiKey: z.string().trim().optional().default(''),
-  autoSyncEnabled: z.boolean(),
-  autoSyncIntervalMinutes: z.number().int().min(5).max(1440),
+  enabled: z.boolean(),
+  autoSyncIntervalMinutes: z.number().int().min(0).max(1440),
 });
 
 function zodIssuesToFields(error: z.ZodError): Record<string, string> {
@@ -96,7 +98,7 @@ export async function PATCH(request: Request) {
       baseUrl: parsed.data.baseUrl,
       username: parsed.data.username,
       apiKey: parsed.data.apiKey,
-      autoSyncEnabled: parsed.data.autoSyncEnabled,
+      enabled: parsed.data.enabled,
       autoSyncIntervalMinutes: parsed.data.autoSyncIntervalMinutes,
     });
     if (!account) {

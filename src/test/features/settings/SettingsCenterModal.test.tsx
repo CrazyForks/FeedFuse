@@ -393,13 +393,13 @@ describe('SettingsCenterModal', () => {
       expect(screen.getByTestId('settings-center-modal')).toBeInTheDocument();
     });
 
-    expect(screen.queryByText('添加 Fever 账号')).not.toBeInTheDocument();
+    expect(screen.queryByText('添加 Fever 服务')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('settings-section-tab-fever'));
 
-    expect(await screen.findByRole('button', { name: '添加 Fever 账号' })).toBeInTheDocument();
-    expect(screen.queryByLabelText('Base URL')).not.toBeInTheDocument();
-    expect(screen.getByText('暂无 Fever 账号，点击右上角按钮添加。')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: '添加 Fever 服务' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('fever 地址')).not.toBeInTheDocument();
+    expect(screen.getByText('暂无 Fever 服务，点击右上角按钮添加。')).toBeInTheDocument();
   });
 
   it('does not show removed sidebar-collapsed and rss-fulltext settings items', async () => {

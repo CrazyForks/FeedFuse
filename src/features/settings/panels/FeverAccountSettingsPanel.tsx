@@ -290,20 +290,34 @@ export default function FeverAccountSettingsPanel() {
     try {
       const result = await syncFeverAccountNow(accountId, { notifyOnError: false });
       if (result.queued) {
-        await waitForSyncResult(accountId, {
+        const terminalAccount = await waitForSyncResult(accountId, {
           lastSyncAt: currentAccount?.lastSyncAt ?? null,
           lastError: currentAccount?.lastError ?? null,
         });
+        if (!terminalAccount) {
+          runImmediateFailure({
+            actionKey: 'fever.sync',
+            err: 'Fever 同步仍在进行中，请稍后刷新查看结果',
+          });
+          return;
+        }
         await reloadCurrentSnapshot();
-        runImmediateSuccess({ actionKey: 'fever.sync' });
+        runImmediateSuccess({ actionKey: 'fever.sync', context: { outcome: 'synced' } });
         return;
       }
 
       if (result.reason === 'already_enqueued') {
-        await waitForSyncResult(accountId, {
+        const terminalAccount = await waitForSyncResult(accountId, {
           lastSyncAt: currentAccount?.lastSyncAt ?? null,
           lastError: currentAccount?.lastError ?? null,
         });
+        if (!terminalAccount) {
+          runImmediateFailure({
+            actionKey: 'fever.sync',
+            err: 'Fever 同步仍在进行中，请稍后刷新查看结果',
+          });
+          return;
+        }
         await reloadCurrentSnapshot();
         runImmediateSuccess({
           actionKey: 'fever.sync',
@@ -334,7 +348,14 @@ export default function FeverAccountSettingsPanel() {
     setDeletingAccountId(deleteAccountId);
 
     try {
-      await deleteFeverAccount(deleteAccountId, { notifyOnError: false });
+      const result = await deleteFeverAccount(deleteAccountId, { notifyOnError: false });
+      if (!result.deleted) {
+        runImmediateFailure({
+          actionKey: 'fever.sync',
+          err: 'Fever 服务不存在或已被删除',
+        });
+        return;
+      }
       // 删除服务后同步刷新左栏，确保投影的 fever 源立即消失。
       await reloadCurrentSnapshot();
       await reloadAccounts();

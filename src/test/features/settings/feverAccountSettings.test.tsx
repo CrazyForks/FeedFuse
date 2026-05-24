@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAppStore } from '../../../store/appStore';
 const { runImmediateSuccessMock, runImmediateFailureMock } = vi.hoisted(() => ({
   runImmediateSuccessMock: vi.fn(),
@@ -38,6 +38,7 @@ async function readJsonBody(input: RequestInfo | URL, init?: RequestInit): Promi
 
 describe('FeverAccountSettingsPanel', () => {
   beforeEach(() => {
+    vi.useRealTimers();
     runImmediateSuccessMock.mockReset();
     runImmediateFailureMock.mockReset();
     useAppStore.setState({
@@ -123,6 +124,10 @@ describe('FeverAccountSettingsPanel', () => {
         throw new Error(`Unexpected fetch: ${url}`);
       }),
     );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('loads existing fever accounts on mount', async () => {
@@ -285,11 +290,88 @@ describe('FeverAccountSettingsPanel', () => {
     });
 
     await waitFor(() => {
-      expect(runImmediateSuccessMock).toHaveBeenCalledWith({ actionKey: 'fever.sync' });
+      expect(runImmediateSuccessMock).toHaveBeenCalledWith({
+        actionKey: 'fever.sync',
+        context: { outcome: 'synced' },
+      });
       expect(screen.getByRole('button', { name: '立即同步' })).toBeEnabled();
     });
     expect(loadSnapshotMock).toHaveBeenCalledWith({ view: 'all' });
     expect(runImmediateFailureMock).not.toHaveBeenCalled();
+  });
+
+  it('does not emit sync success when backend state does not reach a new terminal result in time', async () => {
+    const loadSnapshotMock = vi.fn().mockResolvedValue(undefined);
+    useAppStore.setState({
+      selectedView: 'all',
+      loadSnapshot: loadSnapshotMock,
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url =
+          typeof input === 'string'
+            ? input
+            : typeof URL !== 'undefined' && input instanceof URL
+              ? input.toString()
+              : typeof Request !== 'undefined' && input instanceof Request
+                ? input.url
+                : String(input);
+        const method =
+          typeof Request !== 'undefined' && input instanceof Request
+            ? input.method
+            : init?.method ?? 'GET';
+
+        if (url.includes('/api/fever/accounts') && method === 'GET') {
+          return new Response(JSON.stringify({
+            ok: true,
+            data: [
+              {
+                id: '1',
+                baseUrl: 'https://reader.example.com',
+                username: 'demo',
+                enabled: true,
+                autoSyncEnabled: true,
+                autoSyncIntervalMinutes: 30,
+                lastSyncAt: null,
+                lastError: null,
+              },
+            ],
+          }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+
+        if (url.includes('/api/fever/accounts/1/sync') && method === 'POST') {
+          return new Response(JSON.stringify({ ok: true, data: { queued: true } }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+
+        throw new Error(`Unexpected fetch: ${url}`);
+      }),
+    );
+
+    render(<FeverAccountSettingsPanel />);
+    const syncButton = await screen.findByRole('button', { name: '立即同步' });
+    vi.useFakeTimers();
+    fireEvent.click(syncButton);
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(runImmediateFailureMock).toHaveBeenCalledWith({
+      actionKey: 'fever.sync',
+      err: 'Fever 同步仍在进行中，请稍后刷新查看结果',
+    });
+    expect(runImmediateSuccessMock).not.toHaveBeenCalled();
+    expect(loadSnapshotMock).not.toHaveBeenCalled();
   });
 
   it('shows account lastError inline after reload', async () => {
@@ -406,6 +488,76 @@ describe('FeverAccountSettingsPanel', () => {
       expect(screen.queryByText('demo')).not.toBeInTheDocument();
     });
     expect(loadSnapshotMock).toHaveBeenCalledWith({ view: 'all' });
+  });
+
+  it('does not emit delete success when backend returns deleted=false', async () => {
+    let accounts: FeverAccountFixture[] = [
+      {
+        id: '1',
+        baseUrl: 'https://reader.example.com',
+        username: 'demo',
+        enabled: true,
+        autoSyncEnabled: true,
+        autoSyncIntervalMinutes: 30,
+        lastSyncAt: null,
+        lastError: null,
+      },
+    ];
+    const loadSnapshotMock = vi.fn().mockResolvedValue(undefined);
+    useAppStore.setState({
+      selectedView: 'all',
+      loadSnapshot: loadSnapshotMock,
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url =
+          typeof input === 'string'
+            ? input
+            : typeof URL !== 'undefined' && input instanceof URL
+              ? input.toString()
+              : typeof Request !== 'undefined' && input instanceof Request
+                ? input.url
+                : String(input);
+        const method =
+          typeof Request !== 'undefined' && input instanceof Request
+            ? input.method
+            : init?.method ?? 'GET';
+
+        if (url.includes('/api/fever/accounts') && method === 'GET') {
+          return new Response(JSON.stringify({ ok: true, data: accounts }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+
+        if (url.includes('/api/fever/accounts?id=1') && method === 'DELETE') {
+          return new Response(JSON.stringify({ ok: true, data: { deleted: false } }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+
+        throw new Error(`Unexpected fetch: ${url}`);
+      }),
+    );
+
+    render(<FeverAccountSettingsPanel />);
+
+    await screen.findByText('demo');
+    fireEvent.click(screen.getByRole('button', { name: '删除服务' }));
+    fireEvent.click(await screen.findByRole('button', { name: '确认删除' }));
+
+    await waitFor(() => {
+      expect(runImmediateFailureMock).toHaveBeenCalledWith({
+        actionKey: 'fever.sync',
+        err: 'Fever 服务不存在或已被删除',
+      });
+    });
+    expect(runImmediateSuccessMock).not.toHaveBeenCalled();
+    expect(loadSnapshotMock).not.toHaveBeenCalled();
+    expect(screen.getByText('demo')).toBeInTheDocument();
   });
 
   it('refreshes account status after sync completes and shows lastSyncAt', async () => {

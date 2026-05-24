@@ -127,6 +127,9 @@ const catalog: Record<UserOperationActionKey, UserOperationCatalogEntry> = {
     mode: 'immediate',
     category: 'settings',
     successMessage: (context) => {
+      if (context?.outcome === 'synced') {
+        return 'Fever 账号已同步';
+      }
       if (context?.outcome === 'already_enqueued') {
         return 'Fever 同步已在队列中';
       }

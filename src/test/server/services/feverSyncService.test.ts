@@ -319,6 +319,78 @@ describe('feverSyncService', () => {
     );
   });
 
+  it('only projects target local feeds during scoped fever sync', async () => {
+    findCategoryByNormalizedNameMock.mockResolvedValue({ id: 'cat-tech', name: 'Tech', position: 0 });
+    getFeverFeedMappingByRemoteFeedIdMock
+      .mockResolvedValueOnce({ localFeedId: '10' })
+      .mockResolvedValueOnce({ localFeedId: '20' });
+    getFeedByIdMock
+      .mockResolvedValueOnce({ ...buildLocalFeed(), id: '10', url: 'https://example.com/feed-1.xml' })
+      .mockResolvedValueOnce({ ...buildLocalFeed(), id: '20', url: 'https://example.com/feed-2.xml' });
+    insertArticleIgnoreDuplicateMock.mockResolvedValue({ id: 'article-1' });
+
+    const { syncFeverAccount } = await import('@/server/domains/fever/services/feverSyncService');
+
+    await syncFeverAccount({} as never, {
+      accountId: '1',
+      targetLocalFeedIds: ['10'],
+      client: {
+        listFeeds: vi.fn().mockResolvedValue([
+          {
+            id: 'feed-1',
+            title: 'Feed 1',
+            url: 'https://example.com/feed-1.xml',
+            siteUrl: 'https://example.com',
+            faviconId: null,
+            groupName: 'Tech',
+          },
+          {
+            id: 'feed-2',
+            title: 'Feed 2',
+            url: 'https://example.com/feed-2.xml',
+            siteUrl: 'https://example.com',
+            faviconId: null,
+            groupName: 'Tech',
+          },
+        ]),
+        listItems: vi.fn().mockResolvedValue([
+          {
+            id: 'remote-1',
+            feedId: 'feed-1',
+            title: 'Hello',
+            url: 'https://example.com/post-1',
+            author: null,
+            html: null,
+            createdAt: null,
+            isRead: false,
+            isSaved: false,
+          },
+          {
+            id: 'remote-2',
+            feedId: 'feed-2',
+            title: 'World',
+            url: 'https://example.com/post-2',
+            author: null,
+            html: null,
+            createdAt: null,
+            isRead: false,
+            isSaved: false,
+          },
+        ]),
+      },
+    });
+
+    expect(insertArticleIgnoreDuplicateMock).toHaveBeenCalledTimes(1);
+    expect(insertArticleIgnoreDuplicateMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        feedId: '10',
+        dedupeKey: 'fever:1:remote-1',
+      }),
+    );
+    expect(markMissingFeverFeedMappingsInactiveMock).not.toHaveBeenCalled();
+  });
+
   it('does not mark missing remote items inactive during incremental sync', async () => {
     findCategoryByNormalizedNameMock.mockResolvedValue({ id: 'cat-tech', name: 'Tech', position: 0 });
     getFeverFeedMappingByRemoteFeedIdMock.mockResolvedValue({ localFeedId: '10' });

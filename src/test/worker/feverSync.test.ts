@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const createClientForAccountMock = vi.hoisted(() => vi.fn());
 const syncFeverAccountMock = vi.hoisted(() => vi.fn());
+const getFeverSyncStateMock = vi.hoisted(() => vi.fn());
+const upsertFeverSyncStateMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/server/domains/fever/services/feverWritebackService', () => ({
   createClientForAccount: (...args: unknown[]) => createClientForAccountMock(...args),
@@ -11,10 +13,18 @@ vi.mock('@/server/domains/fever/services/feverSyncService', () => ({
   syncFeverAccount: (...args: unknown[]) => syncFeverAccountMock(...args),
 }));
 
+vi.mock('@/server/domains/fever/repositories/feverSyncStatesRepo', () => ({
+  getFeverSyncStateByAccountId: (...args: unknown[]) => getFeverSyncStateMock(...args),
+  upsertFeverSyncState: (...args: unknown[]) => upsertFeverSyncStateMock(...args),
+}));
+
 describe('feverSync worker', () => {
   beforeEach(() => {
+    vi.resetModules();
     createClientForAccountMock.mockReset();
     syncFeverAccountMock.mockReset();
+    getFeverSyncStateMock.mockReset();
+    upsertFeverSyncStateMock.mockReset();
   });
 
   it('runs fever sync worker with account id', async () => {
@@ -32,6 +42,19 @@ describe('feverSync worker', () => {
       lastModified: null,
     });
     createClientForAccountMock.mockResolvedValue(client);
+    getFeverSyncStateMock.mockResolvedValue({
+      feverAccountId: '1',
+      lastIncrementalItemId: 'remote-9',
+      lastIncrementalSyncedAt: '2026-05-22T00:00:00.000Z',
+      lastFullSyncAt: null,
+      lastError: null,
+      updatedAt: '2026-05-22T00:00:00.000Z',
+    });
+    syncFeverAccountMock.mockResolvedValue({
+      createdFeeds: 0,
+      createdArticles: 1,
+      items: [{ id: 'remote-1' }],
+    });
 
     const { runFeverSyncWorker } = await import('@/worker/feverSync');
     await runFeverSyncWorker({
@@ -77,6 +100,8 @@ describe('feverSync worker', () => {
       expect.objectContaining({
         accountId: '1',
         client,
+        targetLocalFeedIds: ['10'],
+        sinceItemId: 'remote-9',
       }),
     );
 
@@ -153,6 +178,15 @@ describe('feverSync worker', () => {
         }),
       }),
       expect.any(Object),
+    );
+
+    // 增量同步成功后要推进游标，后续调度才能真正复用 since_id。
+    expect(upsertFeverSyncStateMock).toHaveBeenCalledWith(
+      pool,
+      expect.objectContaining({
+        accountId: '1',
+        lastIncrementalItemId: 'remote-1',
+      }),
     );
   });
 });

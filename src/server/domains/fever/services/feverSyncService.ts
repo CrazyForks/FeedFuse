@@ -223,6 +223,8 @@ export async function syncFeverAccount(
   input: {
     accountId: string;
     client: FeverClient;
+    sinceItemId?: string | null;
+    targetLocalFeedIds?: string[];
     resolveArticleProjection?: (payload: {
       remoteFeed: FeverFeed;
       localFeed: FeedRow;
@@ -230,19 +232,29 @@ export async function syncFeverAccount(
     }) => Promise<FeverProjectedArticle | null>;
     onArticleCreated?: (payload: { articleId: string; feed: FeedRow }) => Promise<void>;
   },
-): Promise<{ createdFeeds: number; createdArticles: number }> {
+): Promise<{ createdFeeds: number; createdArticles: number; items: FeverItem[] }> {
   try {
     const feeds = await input.client.listFeeds();
-    const items = await input.client.listItems();
+    const items = await input.client.listItems(input.sinceItemId ?? undefined);
     let createdFeeds = 0;
     let createdArticles = 0;
     const localFeedByRemoteFeedId = new Map<string, FeedRow>();
+    const targetLocalFeedIds = new Set(input.targetLocalFeedIds ?? []);
+    const isScopedSync = targetLocalFeedIds.size > 0;
+    const processedRemoteFeedIds: string[] = [];
 
     for (const remoteFeed of feeds) {
       const existingMapping = await getFeverFeedMappingByRemoteFeedId(pool, {
         accountId: input.accountId,
         feverFeedId: remoteFeed.id,
       });
+      if (
+        isScopedSync &&
+        existingMapping?.localFeedId &&
+        !targetLocalFeedIds.has(existingMapping.localFeedId)
+      ) {
+        continue;
+      }
       const localFeed = await ensureProjectedFeed(
         pool,
         remoteFeed,
@@ -253,6 +265,7 @@ export async function syncFeverAccount(
       }
 
       localFeedByRemoteFeedId.set(remoteFeed.id, localFeed);
+      processedRemoteFeedIds.push(remoteFeed.id);
 
       await upsertFeverFeedMapping(pool, {
         accountId: input.accountId,
@@ -288,10 +301,12 @@ export async function syncFeverAccount(
       }
     }
 
-    await markMissingFeverFeedMappingsInactive(pool, {
-      accountId: input.accountId,
-      seenRemoteFeedIds: feeds.map((feed) => feed.id),
-    });
+    if (!isScopedSync) {
+      await markMissingFeverFeedMappingsInactive(pool, {
+        accountId: input.accountId,
+        seenRemoteFeedIds: processedRemoteFeedIds,
+      });
+    }
     // Fever items 可能按窗口或分页返回，单次响应不能安全代表账号下的完整 item 集合。
     // 在没有稳定全量校正语义前，避免把未返回的历史文章误判为上游已删除。
     await updateFeverAccountSyncState(pool, {
@@ -300,7 +315,7 @@ export async function syncFeverAccount(
       lastError: null,
     });
 
-    return { createdFeeds, createdArticles };
+    return { createdFeeds, createdArticles, items };
   } catch (err) {
     const lastError =
       err instanceof Error && err.message.trim() ? err.message : 'Fever 同步失败，请稍后重试';

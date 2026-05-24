@@ -1,4 +1,5 @@
 import type { Pool } from 'pg';
+import { ValidationError } from '@/server/infra/http/errors';
 import {
   markAllRead,
   setArticleRead,
@@ -7,6 +8,8 @@ import {
 import { getFeverAccountById } from '@/server/domains/fever/repositories/feverAccountsRepo';
 import {
   getFeverItemMappingByLocalArticleId,
+  hasAnyFeverItemMappingByLocalArticleId,
+  listAllFeverMappedArticleIds,
   listUnreadActiveFeverItemMappings,
 } from '@/server/domains/fever/repositories/feverMappingsRepo';
 import { createFeverClient, type FeverClient } from '@/server/integrations/fever/feverClient';
@@ -29,11 +32,24 @@ export async function createClientForAccount(
 
 export async function updateArticleStateWithWriteback(
   pool: Pool,
-  input: { articleId: string; isRead?: boolean; isStarred?: boolean },
+  input: {
+    articleId: string;
+    isRead?: boolean;
+    isStarred?: boolean;
+    requireRemoteWriteback?: boolean;
+  },
 ): Promise<void> {
   const mapping = await getFeverItemMappingByLocalArticleId(pool, input.articleId);
 
   if (!mapping) {
+    const hasFeverMapping = input.requireRemoteWriteback
+      ? await hasAnyFeverItemMappingByLocalArticleId(pool, input.articleId)
+      : false;
+    if (hasFeverMapping) {
+      throw new ValidationError('Invalid request body', {
+        articleId: 'Fever 来源已失效或账号已停用，无法写回远端状态',
+      });
+    }
     if (typeof input.isRead !== 'undefined') {
       await setArticleRead(pool, input.articleId, input.isRead);
     }
@@ -67,6 +83,8 @@ export async function markAllArticlesReadWithWriteback(
   input: { feedId?: string },
 ): Promise<number> {
   const unreadMappings = await listUnreadActiveFeverItemMappings(pool, input);
+  // 任意 Fever 映射文章都不能走本地批量兜底，否则会绕过远端权威状态。
+  const feverMappedArticleIds = await listAllFeverMappedArticleIds(pool, input);
   const clientByAccountId = new Map<string, FeverClient>();
 
   for (const mapping of unreadMappings) {
@@ -87,6 +105,9 @@ export async function markAllArticlesReadWithWriteback(
     await setArticleRead(pool, mapping.localArticleId, true);
   }
 
-  const updatedLocalCount = await markAllRead(pool, input);
+  const updatedLocalCount = await markAllRead(pool, {
+    ...input,
+    excludeArticleIds: feverMappedArticleIds,
+  });
   return updatedLocalCount;
 }

@@ -35,6 +35,23 @@ export interface FeverUnreadItemMappingRow {
   localArticleId: string;
 }
 
+export async function hasAnyFeverItemMappingByLocalArticleId(
+  db: DbClient,
+  localArticleId: string,
+): Promise<boolean> {
+  const { rows } = await db.query<{ exists: boolean }>(
+    `
+      select exists(
+        select 1
+        from fever_item_mappings
+        where local_article_id = $1
+      ) as "exists"
+    `,
+    [localArticleId],
+  );
+  return rows[0]?.exists ?? false;
+}
+
 export async function upsertFeverFeedMapping(
   db: DbClient,
   input: {
@@ -299,6 +316,32 @@ export async function listUnreadActiveFeverItemMappings(
     values,
   );
   return rows;
+}
+
+export async function listAllFeverMappedArticleIds(
+  db: DbClient,
+  input: { feedId?: string },
+): Promise<string[]> {
+  const values: string[] = [];
+  const whereParts = [
+    'articles.id = fever_item_mappings.local_article_id',
+  ];
+
+  if (input.feedId) {
+    values.push(input.feedId);
+    whereParts.push(`articles.feed_id = $${values.length}`);
+  }
+
+  const { rows } = await db.query<{ localArticleId: string }>(
+    `
+      select distinct fever_item_mappings.local_article_id as "localArticleId"
+      from fever_item_mappings
+      join articles on ${whereParts.join(' and ')}
+      order by fever_item_mappings.local_article_id asc
+    `,
+    values,
+  );
+  return rows.map((row) => row.localArticleId);
 }
 
 export async function markMissingFeverItemMappingsInactive(

@@ -226,6 +226,7 @@ export async function syncFeverAccount(
     sinceItemId?: string | null;
     maxItemId?: string | null;
     reconcileMissingItems?: boolean;
+    hasFullItemSnapshot?: boolean;
     resolveArticleProjection?: (payload: {
       remoteFeed: FeverFeed;
       localFeed: FeedRow;
@@ -302,7 +303,7 @@ export async function syncFeverAccount(
       accountId: input.accountId,
       seenRemoteFeedIds: processedRemoteFeedIds,
     });
-    if (input.reconcileMissingItems) {
+    if (input.reconcileMissingItems && input.hasFullItemSnapshot !== false) {
       // 只有明确走全量校正时，items 响应才能参与失效判定。
       await reconcileFeverItems(pool, {
         accountId: input.accountId,

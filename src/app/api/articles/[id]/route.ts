@@ -246,6 +246,7 @@ export async function PATCH(
       articleId: paramsParsed.data.id,
       isRead,
       isStarred,
+      requireRemoteWriteback: true,
     });
 
     if (operation) {

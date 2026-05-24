@@ -447,6 +447,35 @@ describe('feverSyncService', () => {
     );
   });
 
+  it('skips item reconciliation when there is no full item snapshot', async () => {
+    findCategoryByNormalizedNameMock.mockResolvedValue({ id: 'cat-tech', name: 'Tech', position: 0 });
+    getFeverFeedMappingByRemoteFeedIdMock.mockResolvedValue({ localFeedId: '10' });
+    getFeedByIdMock.mockResolvedValue(buildLocalFeed());
+
+    const { syncFeverAccount } = await import('@/server/domains/fever/services/feverSyncService');
+
+    await syncFeverAccount({} as never, {
+      accountId: '1',
+      reconcileMissingItems: true,
+      hasFullItemSnapshot: false,
+      client: {
+        listFeeds: vi.fn().mockResolvedValue([
+          {
+            id: 'feed-1',
+            title: 'Feed',
+            url: 'https://example.com/feed.xml',
+            siteUrl: 'https://example.com',
+            faviconId: null,
+            groupName: 'Tech',
+          },
+        ]),
+        listItems: vi.fn().mockResolvedValue([]),
+      },
+    });
+
+    expect(markMissingFeverItemMappingsInactiveMock).not.toHaveBeenCalled();
+  });
+
   it('creates projected articles with remote read and saved state', async () => {
     insertArticleIgnoreDuplicateMock.mockResolvedValue({ id: 'article-1' });
     getArticleByFeedAndDedupeKeyMock.mockResolvedValue(null);

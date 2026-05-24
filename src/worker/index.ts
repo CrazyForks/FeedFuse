@@ -183,7 +183,19 @@ export async function enqueueRefreshAll(
     feverTargets: targetFeverJobs,
     markFeverAccountSyncAttempted,
   });
-  return { enqueued: targetFeeds.length + feverEnqueued };
+  if (input?.runId) {
+    for (const target of feverEnqueued.skippedTargets) {
+      for (const feedId of target.feedIds) {
+        await completeFeedRefreshRunItem(pool, {
+          runId: input.runId,
+          feedId,
+          status: 'failed',
+          errorMessage: 'Fever 同步任务已在队列中',
+        });
+      }
+    }
+  }
+  return { enqueued: targetFeeds.length + feverEnqueued.enqueued };
 }
 
 export async function fetchAndIngestFeed(

@@ -514,7 +514,7 @@ export async function setArticleStarred(
 
 export async function markAllRead(
   pool: DbClient,
-  input: { feedId?: string },
+  input: { feedId?: string; excludeArticleIds?: string[] },
 ): Promise<number> {
   const params: string[] = [];
   const values: string[] = [];
@@ -523,6 +523,11 @@ export async function markAllRead(
   if (input.feedId) {
     params.push(`feed_id = $${index++}`);
     values.push(input.feedId);
+  }
+
+  if (input.excludeArticleIds?.length) {
+    params.push(`id <> all($${index++}::bigint[])`);
+    values.push(`{${input.excludeArticleIds.join(',')}}`);
   }
 
   const whereParts = [...params, 'is_read = false'];

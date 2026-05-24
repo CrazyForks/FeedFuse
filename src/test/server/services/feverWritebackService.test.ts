@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ValidationError } from '@/server/infra/http/errors';
 
 const getFeverItemMappingByLocalArticleIdMock = vi.hoisted(() => vi.fn());
 const getFeverAccountByIdMock = vi.hoisted(() => vi.fn());
@@ -6,11 +7,17 @@ const createFeverClientMock = vi.hoisted(() => vi.fn());
 const setArticleReadMock = vi.hoisted(() => vi.fn());
 const setArticleStarredMock = vi.hoisted(() => vi.fn());
 const markAllReadMock = vi.hoisted(() => vi.fn());
+const hasAnyFeverItemMappingByLocalArticleIdMock = vi.hoisted(() => vi.fn());
+const listAllFeverMappedArticleIdsMock = vi.hoisted(() => vi.fn());
 const listUnreadActiveFeverItemMappingsMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/server/domains/fever/repositories/feverMappingsRepo', () => ({
   getFeverItemMappingByLocalArticleId: (...args: unknown[]) =>
     getFeverItemMappingByLocalArticleIdMock(...args),
+  hasAnyFeverItemMappingByLocalArticleId: (...args: unknown[]) =>
+    hasAnyFeverItemMappingByLocalArticleIdMock(...args),
+  listAllFeverMappedArticleIds: (...args: unknown[]) =>
+    listAllFeverMappedArticleIdsMock(...args),
   listUnreadActiveFeverItemMappings: (...args: unknown[]) =>
     listUnreadActiveFeverItemMappingsMock(...args),
 }));
@@ -37,6 +44,8 @@ describe('feverWritebackService', () => {
     setArticleReadMock.mockReset();
     setArticleStarredMock.mockReset();
     markAllReadMock.mockReset();
+    hasAnyFeverItemMappingByLocalArticleIdMock.mockReset();
+    listAllFeverMappedArticleIdsMock.mockReset();
     listUnreadActiveFeverItemMappingsMock.mockReset();
   });
 
@@ -94,6 +103,7 @@ describe('feverWritebackService', () => {
 
   it('writes active fever unread items back before local markAllRead fallback', async () => {
     const markItemMock = vi.fn().mockResolvedValue(undefined);
+    listAllFeverMappedArticleIdsMock.mockResolvedValue(['article-1', 'article-2']);
     listUnreadActiveFeverItemMappingsMock.mockResolvedValue([
       {
         feverAccountId: '10',
@@ -128,7 +138,10 @@ describe('feverWritebackService', () => {
     });
     expect(setArticleReadMock).toHaveBeenNthCalledWith(1, expect.anything(), 'article-1', true);
     expect(setArticleReadMock).toHaveBeenNthCalledWith(2, expect.anything(), 'article-2', true);
-    expect(markAllReadMock).toHaveBeenCalledWith(expect.anything(), { feedId: 'feed-1' });
+    expect(markAllReadMock).toHaveBeenCalledWith(expect.anything(), {
+      feedId: 'feed-1',
+      excludeArticleIds: ['article-1', 'article-2'],
+    });
   });
 
   it('treats articles without active fever mapping as local-only updates', async () => {
@@ -146,5 +159,56 @@ describe('feverWritebackService', () => {
     expect(createFeverClientMock).not.toHaveBeenCalled();
     expect(setArticleReadMock).toHaveBeenCalledWith(pool, '1', true);
     expect(setArticleStarredMock).toHaveBeenCalledWith(pool, '1', false);
+  });
+
+  it('rejects writeback updates when a fever article loses its active mapping', async () => {
+    getFeverItemMappingByLocalArticleIdMock.mockResolvedValue(null);
+    hasAnyFeverItemMappingByLocalArticleIdMock.mockResolvedValue(true);
+
+    const { updateArticleStateWithWriteback } = await import('@/server/domains/fever/services/feverWritebackService');
+
+    await expect(
+      updateArticleStateWithWriteback({} as never, {
+        articleId: '1',
+        isRead: true,
+        requireRemoteWriteback: true,
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+
+    expect(setArticleReadMock).not.toHaveBeenCalled();
+    expect(setArticleStarredMock).not.toHaveBeenCalled();
+  });
+
+  it('excludes already written fever articles from the local markAllRead fallback', async () => {
+    const markItemMock = vi.fn().mockResolvedValue(undefined);
+    listAllFeverMappedArticleIdsMock.mockResolvedValue(['article-1']);
+    listUnreadActiveFeverItemMappingsMock.mockResolvedValue([
+      {
+        feverAccountId: '10',
+        feverItemId: 'remote-1',
+        localArticleId: 'article-1',
+      },
+    ]);
+    getFeverAccountByIdMock.mockResolvedValue({
+      id: '10',
+      baseUrl: 'https://reader.example.com',
+      username: 'demo',
+      apiKey: 'secret',
+    });
+    createFeverClientMock.mockReturnValue({ markItem: markItemMock });
+    markAllReadMock.mockResolvedValue(3);
+
+    const { markAllArticlesReadWithWriteback } = await import('@/server/domains/fever/services/feverWritebackService');
+
+    await expect(
+      markAllArticlesReadWithWriteback({} as never, { feedId: 'feed-1' }),
+    ).resolves.toBe(3);
+
+    expect(markItemMock).toHaveBeenCalledTimes(1);
+    expect(setArticleReadMock).toHaveBeenCalledTimes(1);
+    expect(markAllReadMock).toHaveBeenCalledWith(expect.anything(), {
+      feedId: 'feed-1',
+      excludeArticleIds: ['article-1'],
+    });
   });
 });

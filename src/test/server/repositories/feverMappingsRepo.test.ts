@@ -95,4 +95,45 @@ describe('feverMappingsRepo', () => {
     expect(sql).toContain('ffm.is_active = true');
     expect(sql).toContain('fa.enabled = true');
   });
+
+  it('checks whether a local article has any fever mapping', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [{ exists: true }] });
+    const pool = { query } as unknown as Pool;
+    const mod = await import('@/server/domains/fever/repositories/feverMappingsRepo');
+
+    const result = await mod.hasAnyFeverItemMappingByLocalArticleId(pool, 'article-1');
+
+    expect(result).toBe(true);
+    const sql = String(query.mock.calls[0]?.[0] ?? '');
+    expect(sql).toContain('from fever_item_mappings');
+    expect(sql).toContain('local_article_id = $1');
+  });
+
+  it('lists all fever mapped article ids for local mark-all exclusion', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [{ localArticleId: '100' }, { localArticleId: '101' }] });
+    const pool = { query } as unknown as Pool;
+    const mod = await import('@/server/domains/fever/repositories/feverMappingsRepo');
+
+    const result = await mod.listAllFeverMappedArticleIds(pool, { feedId: '10' });
+
+    expect(result).toEqual(['100', '101']);
+    const sql = String(query.mock.calls[0]?.[0] ?? '');
+    expect(sql).toContain('from fever_item_mappings');
+    expect(sql).toContain('join articles on');
+    expect(sql).toContain('articles.feed_id = $1');
+  });
+
+  it('builds local markAllRead SQL with excluded article ids when provided', async () => {
+    const query = vi.fn().mockResolvedValue({ rowCount: 2 });
+    const pool = { query } as unknown as Pool;
+    const mod = await import('@/server/domains/articles/repositories/articlesRepo');
+
+    await mod.markAllRead(pool as never, {
+      feedId: '10',
+      excludeArticleIds: ['100', '101'],
+    });
+
+    const sql = String(query.mock.calls[0]?.[0] ?? '');
+    expect(sql).toContain('id <> all');
+  });
 });

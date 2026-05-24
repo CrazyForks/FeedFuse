@@ -189,6 +189,7 @@ export async function runFeverSyncWorker(input: {
       sinceItemId,
       maxItemId,
       reconcileMissingItems: runFullSync,
+      hasFullItemSnapshot: false,
       // Fever 仍由独立 worker 编排，但文章内容统一回到 RSS XML 解析与清洗链路。
       // 单点刷新 Fever feed 也必须升级成账号级同步，不能再做 feed 级 scoped sync。
       resolveArticleProjection: async ({ remoteFeed, localFeed, remoteItem }) => {

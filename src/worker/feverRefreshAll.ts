@@ -15,9 +15,10 @@ export async function enqueueFeverRefreshAllTargets(input: {
   now: Date;
   feverTargets: FeverRefreshAllTarget[];
   markFeverAccountSyncAttempted?: typeof markFeverAccountSyncAttempted;
-}): Promise<number> {
+}): Promise<{ enqueued: number; skippedTargets: FeverRefreshAllTarget[] }> {
   const markAttempt = input.markFeverAccountSyncAttempted ?? markFeverAccountSyncAttempted;
   let enqueued = 0;
+  const skippedTargets: FeverRefreshAllTarget[] = [];
 
   for (const target of input.feverTargets) {
     if (target.feedIds.length === 0) {
@@ -35,6 +36,7 @@ export async function enqueueFeverRefreshAllTargets(input: {
       getQueueSendOptions(JOB_FEVER_SYNC, payload),
     );
     if (!jobId) {
+      skippedTargets.push(target);
       continue;
     }
 
@@ -46,5 +48,5 @@ export async function enqueueFeverRefreshAllTargets(input: {
     enqueued += 1;
   }
 
-  return enqueued;
+  return { enqueued, skippedTargets };
 }

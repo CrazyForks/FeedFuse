@@ -44,7 +44,7 @@ describe('enqueueFeverRefreshAllTargets', () => {
     const markFeverAccountSyncAttempted = vi.fn().mockResolvedValue(undefined);
 
     const { enqueueFeverRefreshAllTargets } = await import('@/worker/feverRefreshAll');
-    const enqueued = await enqueueFeverRefreshAllTargets({
+    const result = await enqueueFeverRefreshAllTargets({
       boss: boss as never,
       pool: 'pool' as never,
       runId: 'run-1',
@@ -58,7 +58,15 @@ describe('enqueueFeverRefreshAllTargets', () => {
       markFeverAccountSyncAttempted,
     });
 
-    expect(enqueued).toBe(0);
+    expect(result).toEqual({
+      enqueued: 0,
+      skippedTargets: [
+        {
+          accountId: 'account-1',
+          feedIds: ['feed-10', 'feed-11'],
+        },
+      ],
+    });
     expect(markFeverAccountSyncAttempted).not.toHaveBeenCalled();
   });
 });

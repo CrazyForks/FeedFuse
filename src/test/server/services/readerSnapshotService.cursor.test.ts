@@ -158,7 +158,7 @@ describe('readerSnapshotService (cursor)', () => {
     expect(totalCountSql).toContain('from fever_item_mappings fim');
   });
 
-  it('filters articles whose fever feed mapping is inactive', async () => {
+  it('filters articles by account-scoped fever mapping state and disabled accounts', async () => {
     listCategoriesMock.mockResolvedValue([]);
     listFeedsMock.mockResolvedValue([]);
 
@@ -177,9 +177,13 @@ describe('readerSnapshotService (cursor)', () => {
     const unreadSql = sqlStatements.find((statement) => statement.includes('count(*)::int as "unreadCount"'));
     const totalCountSql = sqlStatements.find((statement) => statement.includes('count(*)::int as "totalCount"'));
 
-    expect(articleSql).toContain('from fever_feed_mappings ffm');
-    expect(articleSql).toContain('ffm.is_active = false');
-    expect(unreadSql).toContain('from fever_feed_mappings ffm');
-    expect(totalCountSql).toContain('from fever_feed_mappings ffm');
+    expect(articleSql).toContain('from fever_item_mappings fim');
+    expect(articleSql).toContain('join fever_feed_mappings ffm');
+    expect(articleSql).toContain('ffm.fever_account_id = fim.fever_account_id');
+    expect(articleSql).toContain('ffm.fever_feed_id = fim.fever_feed_id');
+    expect(articleSql).toContain('join fever_accounts fa');
+    expect(articleSql).toContain('coalesce(fa.enabled, true) = false');
+    expect(unreadSql).toContain('join fever_accounts fa');
+    expect(totalCountSql).toContain('join fever_accounts fa');
   });
 });

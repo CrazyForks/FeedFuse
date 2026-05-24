@@ -117,7 +117,7 @@ describe('feverWritebackService', () => {
 
     const { markAllArticlesReadWithWriteback } = await import('@/server/domains/fever/services/feverWritebackService');
 
-    await expect(markAllArticlesReadWithWriteback({} as never, { feedId: 'feed-1' })).resolves.toBe(3);
+    await expect(markAllArticlesReadWithWriteback({} as never, { feedId: 'feed-1' })).resolves.toBe(1);
     expect(markItemMock).toHaveBeenNthCalledWith(1, {
       itemId: 'remote-1',
       as: 'read',

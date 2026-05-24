@@ -129,4 +129,26 @@ describe('feverClient', () => {
       message: 'Fever 服务暂时不可用，请稍后重试',
     });
   });
+
+  it('maps invalid json responses to fever protocol errors', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => {
+        throw new SyntaxError('Unexpected token < in JSON');
+      },
+    });
+
+    const { createFeverClient } = await import('@/server/integrations/fever/feverClient');
+    const client = createFeverClient({
+      baseUrl: 'https://reader.example.com',
+      username: 'demo',
+      apiKey: 'secret',
+      fetchImpl,
+    });
+
+    await expect(client.listFeeds()).rejects.toMatchObject({
+      code: 'fever_protocol_error',
+      status: 502,
+    });
+  });
 });

@@ -88,5 +88,5 @@ export async function markAllArticlesReadWithWriteback(
   }
 
   const updatedLocalCount = await markAllRead(pool, input);
-  return unreadMappings.length + updatedLocalCount;
+  return updatedLocalCount;
 }

@@ -14,6 +14,10 @@ export class FeverAuthError extends UnauthorizedError {
 }
 
 export function mapFeverError(error: unknown): Error {
+  if (error instanceof SyntaxError) {
+    return new FeverProtocolError();
+  }
+
   if (
     error instanceof TypeError
     || (

@@ -17,9 +17,17 @@ const ACTIVE_FEVER_ARTICLE_SQL = `
   )
   and not exists (
     select 1
-    from fever_feed_mappings ffm
-    where ffm.local_feed_id = articles.feed_id
-      and ffm.is_active = false
+    from fever_item_mappings fim
+    join fever_feed_mappings ffm
+      on ffm.fever_account_id = fim.fever_account_id
+      and ffm.fever_feed_id = fim.fever_feed_id
+    left join fever_accounts fa
+      on fa.id = ffm.fever_account_id
+    where fim.local_article_id = articles.id
+      and (
+        ffm.is_active = false
+        or coalesce(fa.enabled, true) = false
+      )
   )
 `;
 

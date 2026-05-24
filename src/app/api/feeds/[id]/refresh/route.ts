@@ -7,7 +7,10 @@ import { getQueueSendOptions } from '@/server/infra/queue/contracts';
 import { JOB_FEED_FETCH, JOB_FEVER_SYNC } from '@/server/infra/queue/jobs';
 import { enqueueWithResult } from '@/server/infra/queue/queue';
 import { getPool } from '@/server/infra/db/pool';
-import { initializeFeedRefreshRun } from '@/server/domains/feeds/services/feedRefreshRunService';
+import {
+  completeFeedRefreshRunItem,
+  initializeFeedRefreshRun,
+} from '@/server/domains/feeds/services/feedRefreshRunService';
 import { getFeedRefreshDispatchRow } from '@/server/domains/feeds/repositories/feedsRepo';
 import { getFeverAccountById, markFeverAccountSyncAttempted } from '@/server/domains/fever/repositories/feverAccountsRepo';
 import { getFeverAccountByLocalFeedId, listActiveLocalFeedIdsByFeverAccountId } from '@/server/domains/fever/repositories/feverMappingsRepo';
@@ -76,17 +79,28 @@ export async function POST(
         feedIds: targetFeedIds.length > 0 ? targetFeedIds : [paramsParsed.data.id],
       };
       const attemptedAt = new Date().toISOString();
-      const result = await enqueueWithResult(
+      const trackedResult = await enqueueWithResult(
         JOB_FEVER_SYNC,
         payload,
         getQueueSendOptions(JOB_FEVER_SYNC, payload),
       );
-      if (result.status !== 'enqueued') return ok({ enqueued: false, runId: run.id });
+      if (trackedResult.status !== 'enqueued') {
+        // 重复点击时也要把 run 收口，否则前端会一直看到 queued。
+        for (const feedId of payload.feedIds) {
+          await completeFeedRefreshRunItem(pool, {
+            runId: run.id,
+            feedId,
+            status: 'failed',
+            errorMessage: 'Fever 同步任务已在队列中',
+          });
+        }
+        return ok({ enqueued: false, runId: run.id });
+      }
       await markFeverAccountSyncAttempted(pool, {
         accountId: mapping.feverAccountId,
         attemptedAt,
       });
-      return ok({ enqueued: true, jobId: result.jobId, runId: run.id });
+      return ok({ enqueued: true, jobId: trackedResult.jobId, runId: run.id });
     }
 
     const run = await initializeFeedRefreshRun(getPool(), {

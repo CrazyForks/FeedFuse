@@ -24,6 +24,7 @@ const getFeedRefreshDispatchRowMock = vi.fn();
 const getFeverAccountByLocalFeedIdMock = vi.fn();
 const listActiveLocalFeedIdsByFeverAccountIdMock = vi.fn();
 const markFeverAccountSyncAttemptedMock = vi.fn();
+const getFeverAccountByIdMock = vi.fn();
 
 vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
@@ -52,6 +53,7 @@ vi.mock('@/server/domains/fever/repositories/feverMappingsRepo', () => ({
 }));
 vi.mock('@/server/domains/fever/repositories/feverAccountsRepo', () => ({
   markFeverAccountSyncAttempted: (...args: unknown[]) => markFeverAccountSyncAttemptedMock(...args),
+  getFeverAccountById: (...args: unknown[]) => getFeverAccountByIdMock(...args),
 }));
 
 vi.mock('@/server/domains/feeds/services/feedCategoryLifecycleService', () => ({
@@ -144,6 +146,7 @@ describe('/api/feeds', () => {
     getFeverAccountByLocalFeedIdMock.mockReset();
     listActiveLocalFeedIdsByFeverAccountIdMock.mockReset();
     markFeverAccountSyncAttemptedMock.mockReset();
+    getFeverAccountByIdMock.mockReset();
     isSafeExternalUrlMock.mockResolvedValue(true);
     initializeFeedRefreshRunMock.mockResolvedValue({ id: 'run-1' });
     getFeedRefreshDispatchRowMock.mockResolvedValue({
@@ -989,6 +992,19 @@ describe('/api/feeds', () => {
       feverAccountId: 'account-1',
       localFeedId: feedId,
     });
+    getFeverAccountByIdMock.mockResolvedValue({
+      id: 'account-1',
+      baseUrl: 'https://reader.example.com',
+      username: 'demo',
+      apiKey: 'secret',
+      enabled: true,
+      autoSyncEnabled: true,
+      autoSyncIntervalMinutes: 30,
+      lastSyncAt: null,
+      lastSyncAttemptAt: null,
+      lastError: null,
+      createdAt: '2026-05-24T00:00:00.000Z',
+    });
     listActiveLocalFeedIdsByFeverAccountIdMock.mockResolvedValue([feedId, '1002']);
     enqueueWithResultMock.mockResolvedValue({ status: 'enqueued', jobId: 'job-id-fever-1' });
 
@@ -1014,6 +1030,44 @@ describe('/api/feeds', () => {
       expect.objectContaining({ accountId: 'account-1' }),
     );
     expect(json.data.runId).toBe('run-1');
+  });
+
+  it('POST /refresh does not enqueue disabled fever account', async () => {
+    getFeedRefreshDispatchRowMock.mockResolvedValue({
+      id: feedId,
+      kind: 'rss',
+      provider: 'fever',
+      enabled: true,
+    });
+    getFeverAccountByLocalFeedIdMock.mockResolvedValue({
+      feverAccountId: 'account-1',
+      localFeedId: feedId,
+    });
+    getFeverAccountByIdMock.mockResolvedValue({
+      id: 'account-1',
+      baseUrl: 'https://reader.example.com',
+      username: 'demo',
+      apiKey: 'secret',
+      enabled: false,
+      autoSyncEnabled: false,
+      autoSyncIntervalMinutes: 0,
+      lastSyncAt: null,
+      lastSyncAttemptAt: null,
+      lastError: null,
+      createdAt: '2026-05-24T00:00:00.000Z',
+    });
+
+    const mod = await import('../../../../app/api/feeds/[id]/refresh/route');
+    const res = await mod.POST(new Request(`http://localhost/api/feeds/${feedId}/refresh`), {
+      params: Promise.resolve({ id: feedId }),
+    });
+    const json = await res.json();
+
+    expect(json.ok).toBe(true);
+    expect(json.data).toEqual({ enqueued: false });
+    expect(initializeFeedRefreshRunMock).not.toHaveBeenCalled();
+    expect(enqueueWithResultMock).not.toHaveBeenCalled();
+    expect(markFeverAccountSyncAttemptedMock).not.toHaveBeenCalled();
   });
 
   it('POST /refresh (all) enqueues feed.refresh_all', async () => {

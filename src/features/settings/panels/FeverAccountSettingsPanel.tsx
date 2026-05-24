@@ -263,6 +263,8 @@ export default function FeverAccountSettingsPanel() {
         { notifyOnError: false },
       );
       saveAccountToList(updated);
+      // 账号启停会直接影响左栏是否显示对应 Fever 投影源，成功后立即刷新快照。
+      await reloadCurrentSnapshot();
       runImmediateSuccess({
         actionKey: 'fever.sync',
         context: { outcome: 'settings_saved' },

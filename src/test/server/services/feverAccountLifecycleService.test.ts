@@ -82,4 +82,28 @@ describe('feverAccountLifecycleService', () => {
       ['10'],
     );
   });
+
+  it('collects all mapped local feeds before deleting the account, including inactive mappings', async () => {
+    const { pool, client } = createMockPool();
+
+    client.query
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({ rows: [{ localFeedId: '12' }] })
+      .mockResolvedValueOnce({ rows: [{ activeAccountCount: 0 }] })
+      .mockResolvedValueOnce({ rows: [{ id: '12', categoryId: null, siteUrl: null }] })
+      .mockResolvedValueOnce({ rowCount: 1 })
+      .mockResolvedValueOnce({ rowCount: 1 })
+      .mockResolvedValueOnce(undefined);
+
+    await deleteFeverAccountAndSources(pool, '1');
+
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('from fever_feed_mappings'),
+      ['1'],
+    );
+    expect(client.query).not.toHaveBeenCalledWith(
+      expect.stringContaining('and is_active = true'),
+      ['1'],
+    );
+  });
 });

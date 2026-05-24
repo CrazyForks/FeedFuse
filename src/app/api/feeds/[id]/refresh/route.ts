@@ -9,7 +9,7 @@ import { enqueueWithResult } from '@/server/infra/queue/queue';
 import { getPool } from '@/server/infra/db/pool';
 import { initializeFeedRefreshRun } from '@/server/domains/feeds/services/feedRefreshRunService';
 import { getFeedRefreshDispatchRow } from '@/server/domains/feeds/repositories/feedsRepo';
-import { markFeverAccountSyncAttempted } from '@/server/domains/fever/repositories/feverAccountsRepo';
+import { getFeverAccountById, markFeverAccountSyncAttempted } from '@/server/domains/fever/repositories/feverAccountsRepo';
 import { getFeverAccountByLocalFeedId, listActiveLocalFeedIdsByFeverAccountId } from '@/server/domains/fever/repositories/feverMappingsRepo';
 
 export const runtime = 'nodejs';
@@ -56,6 +56,11 @@ export async function POST(
       // Fever 源是账号级同步，单个源刷新也要切到对应账号的同步队列。
       const mapping = await getFeverAccountByLocalFeedId(pool, paramsParsed.data.id);
       if (!mapping) {
+        return ok({ enqueued: false });
+      }
+
+      const account = await getFeverAccountById(pool, mapping.feverAccountId);
+      if (!account || !account.enabled) {
         return ok({ enqueued: false });
       }
 

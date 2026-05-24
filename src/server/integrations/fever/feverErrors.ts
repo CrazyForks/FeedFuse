@@ -14,6 +14,16 @@ export class FeverAuthError extends UnauthorizedError {
 }
 
 export function mapFeverError(error: unknown): Error {
+  if (
+    error instanceof TypeError
+    || (
+      error instanceof Error
+      && /fetch failed|network|timed? out|econn|enotfound|socket/i.test(error.message)
+    )
+  ) {
+    return new ServiceUnavailableError('Fever 服务暂时不可用，请稍后重试');
+  }
+
   if (error instanceof Error) {
     return error;
   }

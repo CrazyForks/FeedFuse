@@ -77,8 +77,11 @@ export async function listFeeds(db: DbClient): Promise<FeedRow[]> {
       or exists (
         select 1
         from fever_feed_mappings ffm
+        join fever_accounts fa on fa.id = ffm.fever_account_id
         where ffm.local_feed_id = feeds.id
           and ffm.is_active = true
+          -- 账号停用后，关联的 Fever 投影源也必须从左栏隐藏。
+          and fa.enabled = true
       )
     )
     order by created_at asc, id asc

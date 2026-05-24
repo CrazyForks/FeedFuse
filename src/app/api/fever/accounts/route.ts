@@ -154,8 +154,8 @@ export async function DELETE(request: Request) {
       return fail(new ValidationError('Invalid request query', { id: '缺少 Fever 账号 id' }));
     }
 
-    await deleteFeverAccountAndSources(getPool(), accountId);
-    return ok({ deleted: true });
+    const deleted = await deleteFeverAccountAndSources(getPool(), accountId);
+    return ok({ deleted });
   } catch (err) {
     return fail(err);
   }

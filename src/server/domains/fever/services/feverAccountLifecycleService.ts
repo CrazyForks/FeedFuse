@@ -8,7 +8,7 @@ import {
 import { deleteFeverAccount } from '@/server/domains/fever/repositories/feverAccountsRepo';
 import {
   countOtherActiveFeverAccountsByLocalFeedId,
-  listActiveLocalFeedIdsByFeverAccountId,
+  listLocalFeedIdsByFeverAccountId,
 } from '@/server/domains/fever/repositories/feverMappingsRepo';
 
 async function cleanupCategoryIfEmpty(
@@ -35,7 +35,7 @@ export async function deleteFeverAccountAndSources(
     await client.query('begin');
 
     // 先取映射到的本地 feed，确保删除账号前还能找到需要清理的 fever 源。
-    const localFeedIds = await listActiveLocalFeedIdsByFeverAccountId(client, accountId);
+    const localFeedIds = await listLocalFeedIdsByFeverAccountId(client, accountId);
 
     for (const localFeedId of localFeedIds) {
       // 同 URL 的 fever 源可能被其他账号共享，仍被引用时不能直接删本地 feed。

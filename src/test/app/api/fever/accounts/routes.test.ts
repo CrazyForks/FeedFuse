@@ -216,6 +216,35 @@ describe('/api/fever/accounts', () => {
     expect(json.data).toEqual({ queued: false, reason: 'already_enqueued' });
   });
 
+  it('POST /sync rejects disabled fever account before enqueue', async () => {
+    getFeverAccountByIdMock.mockResolvedValue({
+      id: '1',
+      baseUrl: 'https://reader.example.com',
+      username: 'demo',
+      apiKey: 'secret',
+      enabled: false,
+      autoSyncEnabled: false,
+      autoSyncIntervalMinutes: 0,
+      lastSyncAt: null,
+      lastSyncAttemptAt: null,
+      lastError: null,
+      createdAt: '2026-05-24T00:00:00.000Z',
+    });
+
+    const mod = await import('../../../../../app/api/fever/accounts/[id]/sync/route.ts');
+    const response = await mod.POST(
+      new Request('http://localhost/api/fever/accounts/1/sync', {
+        method: 'POST',
+      }),
+      { params: Promise.resolve({ id: '1' }) },
+    );
+    const json = await response.json();
+
+    expect(json.ok).toBe(false);
+    expect(enqueueWithResultMock).not.toHaveBeenCalled();
+    expect(markFeverAccountSyncAttemptedMock).not.toHaveBeenCalled();
+  });
+
   it('PATCH updates fever account settings', async () => {
     getFeverAccountByIdMock.mockResolvedValue({
       id: '1',
@@ -349,6 +378,22 @@ describe('/api/fever/accounts', () => {
 
     expect(json.ok).toBe(true);
     expect(deleteFeverAccountAndSourcesMock).toHaveBeenCalledWith(pool, '1');
+    expect(json.data.deleted).toBe(true);
+  });
+
+  it('DELETE returns deleted=false when fever account is missing', async () => {
+    deleteFeverAccountAndSourcesMock.mockResolvedValue(false);
+
+    const mod = await import('../../../../../app/api/fever/accounts/route');
+    const response = await mod.DELETE(
+      new Request('http://localhost/api/fever/accounts?id=404', {
+        method: 'DELETE',
+      }),
+    );
+    const json = await response.json();
+
+    expect(json.ok).toBe(true);
+    expect(json.data.deleted).toBe(false);
   });
 
   it('DELETE validates account id presence', async () => {

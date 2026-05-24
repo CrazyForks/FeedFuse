@@ -75,4 +75,15 @@ describe('readerSnapshotService', () => {
     const mod = await import('@/server/domains/reader/services/readerSnapshotService');
     expect(String(mod.getReaderSnapshot)).toContain('remoteManaged');
   });
+
+  it('hides disabled fever feeds in feed list sql', async () => {
+    const pool = { query: vi.fn().mockResolvedValue({ rows: [] }) } as never;
+    const feedsRepo = await import('@/server/domains/feeds/repositories/feedsRepo');
+
+    await feedsRepo.listFeeds(pool);
+
+    const sql = pool.query.mock.calls[0]?.[0];
+    expect(sql).toContain('fever_accounts fa');
+    expect(sql).toContain('fa.enabled = true');
+  });
 });

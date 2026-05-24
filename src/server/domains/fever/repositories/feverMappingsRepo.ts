@@ -127,6 +127,22 @@ export async function getFeverAccountByLocalFeedId(
   return rows[0] ?? null;
 }
 
+export async function listLocalFeedIdsByFeverAccountId(
+  db: DbClient,
+  accountId: string,
+): Promise<string[]> {
+  const { rows } = await db.query<{ localFeedId: string }>(
+    `
+      select distinct local_feed_id as "localFeedId"
+      from fever_feed_mappings
+      where fever_account_id = $1
+      order by local_feed_id asc
+    `,
+    [accountId],
+  );
+  return rows.map((row) => row.localFeedId);
+}
+
 export async function listActiveLocalFeedIdsByFeverAccountId(
   db: DbClient,
   accountId: string,

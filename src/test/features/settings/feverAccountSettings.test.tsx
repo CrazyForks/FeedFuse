@@ -657,6 +657,11 @@ describe('FeverAccountSettingsPanel', () => {
         lastError: null,
       },
     ];
+    const loadSnapshotMock = vi.fn().mockResolvedValue(undefined);
+    useAppStore.setState({
+      selectedView: 'all',
+      loadSnapshot: loadSnapshotMock,
+    });
 
     vi.stubGlobal(
       'fetch',
@@ -709,6 +714,7 @@ describe('FeverAccountSettingsPanel', () => {
     await waitFor(() => {
       expect(screen.getByRole('switch', { name: 'demo 启用状态' })).not.toBeChecked();
     });
+    expect(loadSnapshotMock).toHaveBeenCalledWith({ view: 'all' });
   });
 
   it('shows compact account cards without inline create form fields', async () => {

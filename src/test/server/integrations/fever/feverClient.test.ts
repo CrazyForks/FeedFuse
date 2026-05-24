@@ -112,4 +112,21 @@ describe('feverClient', () => {
     expect(body.get('id')).toBeNull();
     expect(body.get('as')).toBeNull();
   });
+
+  it('maps fetch transport failures to service unavailable errors', async () => {
+    const fetchImpl = vi.fn().mockRejectedValue(new TypeError('fetch failed'));
+
+    const { createFeverClient } = await import('@/server/integrations/fever/feverClient');
+    const client = createFeverClient({
+      baseUrl: 'https://reader.example.com',
+      username: 'demo',
+      apiKey: 'secret',
+      fetchImpl,
+    });
+
+    await expect(client.listFeeds()).rejects.toMatchObject({
+      status: 503,
+      message: 'Fever 服务暂时不可用，请稍后重试',
+    });
+  });
 });

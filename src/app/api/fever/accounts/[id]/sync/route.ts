@@ -33,7 +33,7 @@ export async function POST(
     const result = await enqueueWithResult(
       JOB_FEVER_SYNC,
       payload,
-      getQueueSendOptions(JOB_FEVER_SYNC, { feedId: id }),
+      getQueueSendOptions(JOB_FEVER_SYNC, { accountId: id }),
     );
     if (result.status === 'enqueued') {
       await markFeverAccountSyncAttempted(getPool(), {

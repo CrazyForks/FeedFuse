@@ -45,7 +45,7 @@ export async function runFeverAutoSyncWorker(input: {
     const result = await enqueueWithResult(
       JOB_FEVER_SYNC,
       { accountId: account.id },
-      getQueueSendOptions(JOB_FEVER_SYNC, { feedId: account.id }),
+      getQueueSendOptions(JOB_FEVER_SYNC, { accountId: account.id }),
     );
 
     if (result.status !== 'enqueued') {

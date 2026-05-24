@@ -217,6 +217,19 @@ describe('/api/fever/accounts', () => {
   });
 
   it('PATCH updates fever account settings', async () => {
+    getFeverAccountByIdMock.mockResolvedValue({
+      id: '1',
+      baseUrl: 'https://reader.example.com',
+      username: 'demo',
+      apiKey: 'secret',
+      enabled: true,
+      autoSyncEnabled: true,
+      autoSyncIntervalMinutes: 30,
+      lastSyncAt: null,
+      lastSyncAttemptAt: null,
+      lastError: null,
+      createdAt: '2026-05-24T00:00:00.000Z',
+    });
     createFeverClientMock.mockReturnValue({
       listFeeds: vi.fn().mockResolvedValue([]),
     });
@@ -264,6 +277,63 @@ describe('/api/fever/accounts', () => {
     expect(json.data.enabled).toBe(false);
     expect(json.data.autoSyncEnabled).toBe(false);
     expect(json.data.autoSyncIntervalMinutes).toBe(0);
+  });
+
+  it('PATCH revalidates connection when baseUrl changes without a new api key', async () => {
+    const listFeedsMock = vi.fn().mockResolvedValue([]);
+    getFeverAccountByIdMock.mockResolvedValue({
+      id: '1',
+      baseUrl: 'https://reader.example.com',
+      username: 'demo',
+      apiKey: 'secret',
+      enabled: true,
+      autoSyncEnabled: true,
+      autoSyncIntervalMinutes: 30,
+      lastSyncAt: null,
+      lastSyncAttemptAt: null,
+      lastError: null,
+      createdAt: '2026-05-24T00:00:00.000Z',
+    });
+    createFeverClientMock.mockReturnValue({
+      listFeeds: listFeedsMock,
+    });
+    updateFeverAccountMock.mockResolvedValue({
+      id: '1',
+      baseUrl: 'https://updated.example.com',
+      username: 'demo',
+      apiKey: 'secret',
+      enabled: true,
+      autoSyncEnabled: true,
+      autoSyncIntervalMinutes: 30,
+      lastSyncAt: null,
+      lastSyncAttemptAt: null,
+      lastError: null,
+    });
+
+    const mod = await import('../../../../../app/api/fever/accounts/route');
+    const response = await mod.PATCH(
+      new Request('http://localhost/api/fever/accounts', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          id: '1',
+          baseUrl: 'https://updated.example.com',
+          username: 'demo',
+          apiKey: '',
+          enabled: true,
+          autoSyncIntervalMinutes: 30,
+        }),
+      }),
+    );
+    const json = await response.json();
+
+    expect(json.ok).toBe(true);
+    expect(createFeverClientMock).toHaveBeenCalledWith({
+      baseUrl: 'https://updated.example.com',
+      username: 'demo',
+      apiKey: 'secret',
+    });
+    expect(listFeedsMock).toHaveBeenCalledTimes(1);
   });
 
   it('DELETE removes a fever account and its local fever sources', async () => {

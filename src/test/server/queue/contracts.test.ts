@@ -39,14 +39,14 @@ describe('queue contracts', () => {
   });
 
   it('keeps fever sync dedupe window short for repeated manual sync', () => {
-    expect(getQueueSendOptions('fever.sync', { feedId: 'account-1' })).toEqual({
+    expect(getQueueSendOptions('fever.sync', { accountId: 'account-1' })).toEqual({
       singletonKey: 'account-1',
       singletonSeconds: 5,
     });
   });
 
   it('uses run-scoped dedupe for tracked fever sync jobs', () => {
-    expect(getQueueSendOptions('fever.sync', { feedId: 'account-1', runId: 'run-1' })).toEqual({
+    expect(getQueueSendOptions('fever.sync', { accountId: 'account-1', runId: 'run-1' })).toEqual({
       singletonKey: 'run-1:account-1',
       singletonSeconds: 3600,
     });

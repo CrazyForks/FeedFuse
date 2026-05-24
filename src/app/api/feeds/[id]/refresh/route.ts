@@ -9,6 +9,7 @@ import { enqueueWithResult } from '@/server/infra/queue/queue';
 import { getPool } from '@/server/infra/db/pool';
 import { initializeFeedRefreshRun } from '@/server/domains/feeds/services/feedRefreshRunService';
 import { getFeedRefreshDispatchRow } from '@/server/domains/feeds/repositories/feedsRepo';
+import { markFeverAccountSyncAttempted } from '@/server/domains/fever/repositories/feverAccountsRepo';
 import { getFeverAccountByLocalFeedId, listActiveLocalFeedIdsByFeverAccountId } from '@/server/domains/fever/repositories/feverMappingsRepo';
 
 export const runtime = 'nodejs';
@@ -69,12 +70,17 @@ export async function POST(
         runId: run.id,
         feedIds: targetFeedIds.length > 0 ? targetFeedIds : [paramsParsed.data.id],
       };
+      const attemptedAt = new Date().toISOString();
       const result = await enqueueWithResult(
         JOB_FEVER_SYNC,
         payload,
         getQueueSendOptions(JOB_FEVER_SYNC, payload),
       );
       if (result.status !== 'enqueued') return ok({ enqueued: false, runId: run.id });
+      await markFeverAccountSyncAttempted(pool, {
+        accountId: mapping.feverAccountId,
+        attemptedAt,
+      });
       return ok({ enqueued: true, jobId: result.jobId, runId: run.id });
     }
 

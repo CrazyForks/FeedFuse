@@ -23,6 +23,7 @@ const initializeFeedRefreshRunMock = vi.fn();
 const getFeedRefreshDispatchRowMock = vi.fn();
 const getFeverAccountByLocalFeedIdMock = vi.fn();
 const listActiveLocalFeedIdsByFeverAccountIdMock = vi.fn();
+const markFeverAccountSyncAttemptedMock = vi.fn();
 
 vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
@@ -48,6 +49,9 @@ vi.mock('@/server/domains/fever/repositories/feverMappingsRepo', () => ({
   getFeverAccountByLocalFeedId: (...args: unknown[]) => getFeverAccountByLocalFeedIdMock(...args),
   listActiveLocalFeedIdsByFeverAccountId: (...args: unknown[]) =>
     listActiveLocalFeedIdsByFeverAccountIdMock(...args),
+}));
+vi.mock('@/server/domains/fever/repositories/feverAccountsRepo', () => ({
+  markFeverAccountSyncAttempted: (...args: unknown[]) => markFeverAccountSyncAttemptedMock(...args),
 }));
 
 vi.mock('@/server/domains/feeds/services/feedCategoryLifecycleService', () => ({
@@ -139,6 +143,7 @@ describe('/api/feeds', () => {
     getFeedRefreshDispatchRowMock.mockReset();
     getFeverAccountByLocalFeedIdMock.mockReset();
     listActiveLocalFeedIdsByFeverAccountIdMock.mockReset();
+    markFeverAccountSyncAttemptedMock.mockReset();
     isSafeExternalUrlMock.mockResolvedValue(true);
     initializeFeedRefreshRunMock.mockResolvedValue({ id: 'run-1' });
     getFeedRefreshDispatchRowMock.mockResolvedValue({
@@ -1003,6 +1008,10 @@ describe('/api/feeds', () => {
       'fever.sync',
       { accountId: 'account-1', runId: 'run-1', feedIds: [feedId, '1002'] },
       getQueueSendOptions('fever.sync', { accountId: 'account-1', runId: 'run-1', feedIds: [feedId, '1002'] }),
+    );
+    expect(markFeverAccountSyncAttemptedMock).toHaveBeenCalledWith(
+      pool,
+      expect.objectContaining({ accountId: 'account-1' }),
     );
     expect(json.data.runId).toBe('run-1');
   });

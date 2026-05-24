@@ -5,6 +5,7 @@ import { ok, fail } from '@/server/infra/http/apiResponse';
 import { ValidationError } from '@/server/infra/http/errors';
 import {
   createFeverAccount,
+  getFeverAccountById,
   listFeverAccounts,
   type FeverAccountRow,
   updateFeverAccount,
@@ -105,11 +106,22 @@ export async function PATCH(request: Request) {
       return fail(new ValidationError('Invalid request body', zodIssuesToFields(parsed.error)));
     }
 
-    if (parsed.data.apiKey.trim()) {
+    const existing = await getFeverAccountById(getPool(), parsed.data.id);
+    if (!existing) {
+      return fail(new ValidationError('Invalid request body', { id: 'Fever 账号不存在' }));
+    }
+
+    const nextApiKey = parsed.data.apiKey.trim() || existing.apiKey;
+    const shouldVerifyConnection =
+      parsed.data.baseUrl !== existing.baseUrl
+      || parsed.data.username !== existing.username
+      || parsed.data.apiKey.trim().length > 0;
+    if (shouldVerifyConnection) {
+      // 编辑时如果未重填 apiKey，也要复用现有凭据校验新连接配置。
       await verifyFeverAccountConnection({
         baseUrl: parsed.data.baseUrl,
         username: parsed.data.username,
-        apiKey: parsed.data.apiKey,
+        apiKey: nextApiKey,
       });
     }
     const account = await updateFeverAccount(getPool(), {

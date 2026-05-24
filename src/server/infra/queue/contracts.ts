@@ -17,6 +17,7 @@ export interface WorkerOptions {
 
 type SendContext = {
   articleId?: string;
+  accountId?: string;
   feedId?: string;
   runId?: string;
   force?: boolean;
@@ -117,12 +118,12 @@ export const QUEUE_CONTRACTS: Record<string, QueueContract> = {
       warningQueueSize: 50,
     },
     worker: { localConcurrency: 1, batchSize: 1 },
-    // 仅防止用户连点重复入队，完成后的下一次手动同步应当能很快再次触发。
+    // Fever 同步以账号为调度粒度，去重键也必须绑定账号而不是本地 feed。
     send: (ctx) =>
-      ctx.runId && ctx.feedId
-        ? { singletonKey: `${ctx.runId}:${ctx.feedId}`, singletonSeconds: 3600 }
-        : ctx.feedId
-          ? { singletonKey: ctx.feedId, singletonSeconds: 5 }
+      ctx.runId && ctx.accountId
+        ? { singletonKey: `${ctx.runId}:${ctx.accountId}`, singletonSeconds: 3600 }
+        : ctx.accountId
+          ? { singletonKey: ctx.accountId, singletonSeconds: 5 }
           : {},
   },
   'fever.sync_due': {

@@ -25,4 +25,13 @@ describe('db migrations', () => {
     expect(sql).toContain('add column if not exists last_sync_attempt_at timestamptz null');
     expect(sql).toContain('fever_accounts_auto_sync_interval_minutes_check');
   });
+
+  it('allows disabling fever auto sync with zero-minute interval', () => {
+    const migrationPath = 'src/server/infra/db/migrations/0031_fever_auto_sync_interval_zero.sql';
+    expect(existsSync(migrationPath)).toBe(true);
+
+    const sql = readFileSync(migrationPath, 'utf8');
+    expect(sql).toContain('drop constraint if exists fever_accounts_auto_sync_interval_minutes_check');
+    expect(sql).toContain('check (auto_sync_interval_minutes between 0 and 1440)');
+  });
 });

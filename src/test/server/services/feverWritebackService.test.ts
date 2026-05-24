@@ -6,10 +6,13 @@ const createFeverClientMock = vi.hoisted(() => vi.fn());
 const setArticleReadMock = vi.hoisted(() => vi.fn());
 const setArticleStarredMock = vi.hoisted(() => vi.fn());
 const markAllReadMock = vi.hoisted(() => vi.fn());
+const listUnreadActiveFeverItemMappingsMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/server/domains/fever/repositories/feverMappingsRepo', () => ({
   getFeverItemMappingByLocalArticleId: (...args: unknown[]) =>
     getFeverItemMappingByLocalArticleIdMock(...args),
+  listUnreadActiveFeverItemMappings: (...args: unknown[]) =>
+    listUnreadActiveFeverItemMappingsMock(...args),
 }));
 
 vi.mock('@/server/domains/fever/repositories/feverAccountsRepo', () => ({
@@ -34,6 +37,7 @@ describe('feverWritebackService', () => {
     setArticleReadMock.mockReset();
     setArticleStarredMock.mockReset();
     markAllReadMock.mockReset();
+    listUnreadActiveFeverItemMappingsMock.mockReset();
   });
 
   it('writes fever read state remotely before committing local update', async () => {
@@ -88,11 +92,42 @@ describe('feverWritebackService', () => {
     expect(setArticleStarredMock).not.toHaveBeenCalled();
   });
 
-  it('falls back to local markAllRead for batch updates', async () => {
-    markAllReadMock.mockResolvedValue(3);
+  it('writes active fever unread items back before local markAllRead fallback', async () => {
+    const markItemMock = vi.fn().mockResolvedValue(undefined);
+    listUnreadActiveFeverItemMappingsMock.mockResolvedValue([
+      {
+        feverAccountId: '10',
+        feverItemId: 'remote-1',
+        localArticleId: 'article-1',
+      },
+      {
+        feverAccountId: '10',
+        feverItemId: 'remote-2',
+        localArticleId: 'article-2',
+      },
+    ]);
+    getFeverAccountByIdMock.mockResolvedValue({
+      id: '10',
+      baseUrl: 'https://reader.example.com',
+      username: 'demo',
+      apiKey: 'secret',
+    });
+    createFeverClientMock.mockReturnValue({ markItem: markItemMock });
+    markAllReadMock.mockResolvedValue(1);
+
     const { markAllArticlesReadWithWriteback } = await import('@/server/domains/fever/services/feverWritebackService');
 
     await expect(markAllArticlesReadWithWriteback({} as never, { feedId: 'feed-1' })).resolves.toBe(3);
+    expect(markItemMock).toHaveBeenNthCalledWith(1, {
+      itemId: 'remote-1',
+      as: 'read',
+    });
+    expect(markItemMock).toHaveBeenNthCalledWith(2, {
+      itemId: 'remote-2',
+      as: 'read',
+    });
+    expect(setArticleReadMock).toHaveBeenNthCalledWith(1, expect.anything(), 'article-1', true);
+    expect(setArticleReadMock).toHaveBeenNthCalledWith(2, expect.anything(), 'article-2', true);
     expect(markAllReadMock).toHaveBeenCalledWith(expect.anything(), { feedId: 'feed-1' });
   });
 });

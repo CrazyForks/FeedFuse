@@ -61,4 +61,17 @@ describe('feverMappingsRepo', () => {
     expect(sql).toContain('select distinct local_feed_id as "localFeedId"');
     expect(sql).toContain('fever_account_id = $1');
   });
+
+  it('gets fever item mapping by local article id only from active mapping', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    const pool = { query } as unknown as Pool;
+    const mod = await import('@/server/domains/fever/repositories/feverMappingsRepo');
+
+    await mod.getFeverItemMappingByLocalArticleId(pool, 'article-1');
+
+    const sql = String(query.mock.calls[0]?.[0] ?? '');
+    expect(sql).toContain('from fever_item_mappings');
+    expect(sql).toContain('local_article_id = $1');
+    expect(sql).toContain('and is_active = true');
+  });
 });

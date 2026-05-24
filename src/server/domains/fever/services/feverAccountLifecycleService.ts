@@ -6,7 +6,10 @@ import {
   getFeedCategoryAssignment,
 } from '@/server/domains/feeds/repositories/feedsRepo';
 import { deleteFeverAccount } from '@/server/domains/fever/repositories/feverAccountsRepo';
-import { listActiveLocalFeedIdsByFeverAccountId } from '@/server/domains/fever/repositories/feverMappingsRepo';
+import {
+  countOtherActiveFeverAccountsByLocalFeedId,
+  listActiveLocalFeedIdsByFeverAccountId,
+} from '@/server/domains/fever/repositories/feverMappingsRepo';
 
 async function cleanupCategoryIfEmpty(
   client: PoolClient,
@@ -35,6 +38,15 @@ export async function deleteFeverAccountAndSources(
     const localFeedIds = await listActiveLocalFeedIdsByFeverAccountId(client, accountId);
 
     for (const localFeedId of localFeedIds) {
+      // 同 URL 的 fever 源可能被其他账号共享，仍被引用时不能直接删本地 feed。
+      const sharedAccountCount = await countOtherActiveFeverAccountsByLocalFeedId(client, {
+        accountId,
+        localFeedId,
+      });
+      if (sharedAccountCount > 0) {
+        continue;
+      }
+
       const existing = await getFeedCategoryAssignment(client, localFeedId);
       if (!existing) {
         continue;

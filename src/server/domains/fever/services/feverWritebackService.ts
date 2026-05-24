@@ -7,6 +7,7 @@ import {
 import { getFeverAccountById } from '@/server/domains/fever/repositories/feverAccountsRepo';
 import {
   getFeverItemMappingByLocalArticleId,
+  listUnreadActiveFeverItemMappings,
 } from '@/server/domains/fever/repositories/feverMappingsRepo';
 import { createFeverClient, type FeverClient } from '@/server/integrations/fever/feverClient';
 
@@ -65,6 +66,27 @@ export async function markAllArticlesReadWithWriteback(
   pool: Pool,
   input: { feedId?: string },
 ): Promise<number> {
-  // 批量接口先复用现有本地批量实现，后续再按 feed/source 维度细化远端聚合写回。
-  return markAllRead(pool, input);
+  const unreadMappings = await listUnreadActiveFeverItemMappings(pool, input);
+  const clientByAccountId = new Map<string, FeverClient>();
+
+  for (const mapping of unreadMappings) {
+    let client = clientByAccountId.get(mapping.feverAccountId);
+    if (!client) {
+      client = await createClientForAccount(pool, mapping.feverAccountId);
+      clientByAccountId.set(mapping.feverAccountId, client);
+    }
+
+    await client.markItem({
+      itemId: mapping.feverItemId,
+      as: 'read',
+    });
+  }
+
+  // 远端确认成功后再落本地，避免批量入口出现远端失败但本地已读的漂移。
+  for (const mapping of unreadMappings) {
+    await setArticleRead(pool, mapping.localArticleId, true);
+  }
+
+  const updatedLocalCount = await markAllRead(pool, input);
+  return unreadMappings.length + updatedLocalCount;
 }

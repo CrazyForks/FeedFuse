@@ -204,6 +204,45 @@ export async function getFeedByUrl(
   return rows[0] ?? null;
 }
 
+export async function getFeedById(
+  db: DbClient,
+  id: string,
+): Promise<FeedRow | null> {
+  const { rows } = await db.query<FeedRow>(
+    `
+      select
+        id,
+        kind,
+        provider,
+        title,
+        url,
+        site_url as "siteUrl",
+        icon_url as "iconUrl",
+        enabled,
+        full_text_on_open_enabled as "fullTextOnOpenEnabled",
+        full_text_on_fetch_enabled as "fullTextOnFetchEnabled",
+        ai_summary_on_open_enabled as "aiSummaryOnOpenEnabled",
+        ai_summary_on_fetch_enabled as "aiSummaryOnFetchEnabled",
+        body_translate_on_fetch_enabled as "bodyTranslateOnFetchEnabled",
+        body_translate_on_open_enabled as "bodyTranslateOnOpenEnabled",
+        title_translate_enabled as "titleTranslateEnabled",
+        body_translate_enabled as "bodyTranslateEnabled",
+        article_list_display_mode as "articleListDisplayMode",
+        category_id as "categoryId",
+        fetch_interval_minutes as "fetchIntervalMinutes",
+        last_fetch_status as "lastFetchStatus",
+        last_fetch_error as "lastFetchError",
+        last_fetch_raw_error as "lastFetchRawError",
+        false as "isPodcast"
+      from feeds
+      where id = $1
+      limit 1
+    `,
+    [id],
+  );
+  return rows[0] ?? null;
+}
+
 export async function getFeedRefreshDispatchRow(
   db: DbClient,
   id: string,

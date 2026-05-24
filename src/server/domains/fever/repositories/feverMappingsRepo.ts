@@ -29,6 +29,12 @@ export interface FeverItemMappingRow {
   isActive: boolean;
 }
 
+export interface FeverUnreadItemMappingRow {
+  feverAccountId: string;
+  feverItemId: string;
+  localArticleId: string;
+}
+
 export async function upsertFeverFeedMapping(
   db: DbClient,
   input: {
@@ -138,6 +144,23 @@ export async function listActiveLocalFeedIdsByFeverAccountId(
   return rows.map((row) => row.localFeedId);
 }
 
+export async function countOtherActiveFeverAccountsByLocalFeedId(
+  db: DbClient,
+  input: { accountId: string; localFeedId: string },
+): Promise<number> {
+  const { rows } = await db.query<{ activeAccountCount: number }>(
+    `
+      select count(distinct fever_account_id)::int as "activeAccountCount"
+      from fever_feed_mappings
+      where local_feed_id = $1
+        and fever_account_id <> $2
+        and is_active = true
+    `,
+    [input.localFeedId, input.accountId],
+  );
+  return rows[0]?.activeAccountCount ?? 0;
+}
+
 export async function markMissingFeverFeedMappingsInactive(
   db: DbClient,
   input: { accountId: string; seenRemoteFeedIds: string[] },
@@ -224,11 +247,43 @@ export async function getFeverItemMappingByLocalArticleId(
         is_active as "isActive"
       from fever_item_mappings
       where local_article_id = $1
+        and is_active = true
       limit 1
     `,
     [localArticleId],
   );
   return rows[0] ?? null;
+}
+
+export async function listUnreadActiveFeverItemMappings(
+  db: DbClient,
+  input: { feedId?: string },
+): Promise<FeverUnreadItemMappingRow[]> {
+  const values: string[] = [];
+  const whereParts = [
+    'articles.id = fever_item_mappings.local_article_id',
+    'fever_item_mappings.is_active = true',
+    'articles.is_read = false',
+  ];
+
+  if (input.feedId) {
+    values.push(input.feedId);
+    whereParts.push(`articles.feed_id = $${values.length}`);
+  }
+
+  const { rows } = await db.query<FeverUnreadItemMappingRow>(
+    `
+      select
+        fever_item_mappings.fever_account_id as "feverAccountId",
+        fever_item_mappings.fever_item_id as "feverItemId",
+        fever_item_mappings.local_article_id as "localArticleId"
+      from fever_item_mappings
+      join articles on ${whereParts.join(' and ')}
+      order by fever_item_mappings.fever_account_id asc, fever_item_mappings.local_article_id asc
+    `,
+    values,
+  );
+  return rows;
 }
 
 export async function markMissingFeverItemMappingsInactive(

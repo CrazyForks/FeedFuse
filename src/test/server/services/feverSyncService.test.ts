@@ -5,7 +5,7 @@ const createFeedMock = vi.hoisted(() => vi.fn());
 const createCategoryMock = vi.hoisted(() => vi.fn());
 const findCategoryByNormalizedNameMock = vi.hoisted(() => vi.fn());
 const getArticleByFeedAndDedupeKeyMock = vi.hoisted(() => vi.fn());
-const getFeedByUrlMock = vi.hoisted(() => vi.fn());
+const getFeedByIdMock = vi.hoisted(() => vi.fn());
 const getNextCategoryPositionMock = vi.hoisted(() => vi.fn());
 const insertArticleIgnoreDuplicateMock = vi.hoisted(() => vi.fn());
 const setArticleReadMock = vi.hoisted(() => vi.fn());
@@ -48,7 +48,7 @@ function buildLocalFeed() {
 
 vi.mock('@/server/domains/feeds/repositories/feedsRepo', () => ({
   createFeed: (...args: unknown[]) => createFeedMock(...args),
-  getFeedByUrl: (...args: unknown[]) => getFeedByUrlMock(...args),
+  getFeedById: (...args: unknown[]) => getFeedByIdMock(...args),
   updateFeed: (...args: unknown[]) => updateFeedMock(...args),
 }));
 
@@ -87,7 +87,7 @@ describe('feverSyncService', () => {
     createCategoryMock.mockReset();
     findCategoryByNormalizedNameMock.mockReset();
     getArticleByFeedAndDedupeKeyMock.mockReset();
-    getFeedByUrlMock.mockReset();
+    getFeedByIdMock.mockReset();
     getNextCategoryPositionMock.mockReset();
     insertArticleIgnoreDuplicateMock.mockReset();
     setArticleReadMock.mockReset();
@@ -102,7 +102,6 @@ describe('feverSyncService', () => {
   });
 
   it('projects remote feeds into local feeds and mappings', async () => {
-    getFeedByUrlMock.mockResolvedValue(null);
     findCategoryByNormalizedNameMock.mockResolvedValue({ id: 'cat-tech', name: 'Tech', position: 0 });
     getFeverFeedMappingByRemoteFeedIdMock
       .mockResolvedValue({ localFeedId: '10' })
@@ -169,7 +168,7 @@ describe('feverSyncService', () => {
 
   it('backfills favicon route when the projected local feed already exists', async () => {
     findCategoryByNormalizedNameMock.mockResolvedValue({ id: 'cat-tech', name: 'Tech', position: 0 });
-    getFeedByUrlMock.mockResolvedValue({
+    getFeedByIdMock.mockResolvedValue({
       id: '10',
       kind: 'rss',
       provider: 'fever',
@@ -260,7 +259,6 @@ describe('feverSyncService', () => {
   });
 
   it('creates local category when remote fever group does not exist yet', async () => {
-    getFeedByUrlMock.mockResolvedValue(null);
     findCategoryByNormalizedNameMock.mockResolvedValue(null);
     getNextCategoryPositionMock.mockResolvedValue(2);
     createCategoryMock.mockResolvedValue({ id: 'cat-news', name: 'News', position: 2 });

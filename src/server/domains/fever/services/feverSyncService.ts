@@ -14,7 +14,7 @@ import {
 } from '@/server/domains/feeds/repositories/categoriesRepo';
 import {
   createFeed,
-  getFeedByUrl,
+  getFeedById,
   updateFeed,
   type FeedRow,
 } from '@/server/domains/feeds/repositories/feedsRepo';
@@ -90,10 +90,13 @@ async function resolveFeverFeedCategoryId(
 async function ensureProjectedFeed(
   pool: Pool,
   remoteFeed: FeverFeed,
+  existingLocalFeedId: string | null,
 ): Promise<FeedRow> {
   const resolvedCategoryId = await resolveFeverFeedCategoryId(pool, remoteFeed);
   const resolvedSiteUrl = resolveFeverFeedSiteUrl(remoteFeed);
-  const existing = await getFeedByUrl(pool, remoteFeed.url);
+  const existing = existingLocalFeedId
+    ? await getFeedById(pool, existingLocalFeedId)
+    : null;
   if (existing) {
     const nextIconUrl = resolvedSiteUrl ? buildFeedFaviconPath(existing.id) : null;
     const needsUpdate =
@@ -236,7 +239,11 @@ export async function syncFeverAccount(
         accountId: input.accountId,
         feverFeedId: remoteFeed.id,
       });
-      const localFeed = await ensureProjectedFeed(pool, remoteFeed);
+      const localFeed = await ensureProjectedFeed(
+        pool,
+        remoteFeed,
+        existingMapping?.localFeedId ?? null,
+      );
       if (!existingMapping) {
         createdFeeds += 1;
       }

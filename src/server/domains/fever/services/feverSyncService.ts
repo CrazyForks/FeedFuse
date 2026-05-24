@@ -224,6 +224,8 @@ export async function syncFeverAccount(
     accountId: string;
     client: FeverClient;
     sinceItemId?: string | null;
+    maxItemId?: string | null;
+    reconcileMissingItems?: boolean;
     resolveArticleProjection?: (payload: {
       remoteFeed: FeverFeed;
       localFeed: FeedRow;
@@ -234,7 +236,10 @@ export async function syncFeverAccount(
 ): Promise<{ createdFeeds: number; createdArticles: number; items: FeverItem[] }> {
   try {
     const feeds = await input.client.listFeeds();
-    const items = await input.client.listItems(input.sinceItemId ?? undefined);
+    const items = await input.client.listItems(
+      input.sinceItemId ?? undefined,
+      input.maxItemId ?? undefined,
+    );
     let createdFeeds = 0;
     let createdArticles = 0;
     const localFeedByRemoteFeedId = new Map<string, FeedRow>();
@@ -297,8 +302,14 @@ export async function syncFeverAccount(
       accountId: input.accountId,
       seenRemoteFeedIds: processedRemoteFeedIds,
     });
-    // Fever items 可能按窗口或分页返回，单次响应不能安全代表账号下的完整 item 集合。
-    // 在没有稳定全量校正语义前，避免把未返回的历史文章误判为上游已删除。
+    if (input.reconcileMissingItems) {
+      // 只有明确走全量校正时，items 响应才能参与失效判定。
+      await reconcileFeverItems(pool, {
+        accountId: input.accountId,
+        seenRemoteItemIds: items.map((item) => item.id),
+      });
+    }
+
     await updateFeverAccountSyncState(pool, {
       accountId: input.accountId,
       syncedAt: new Date().toISOString(),

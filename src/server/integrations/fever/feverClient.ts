@@ -22,7 +22,7 @@ function buildRequestUrl(baseUrl: string, params: URLSearchParams): string {
 
 export interface FeverClient {
   listFeeds(): Promise<FeverFeed[]>;
-  listItems(sinceId?: string): Promise<FeverItem[]>;
+  listItems(sinceId?: string, maxId?: string): Promise<FeverItem[]>;
   markItem(input: { itemId: string; as: 'read' | 'unread' | 'saved' | 'unsaved' }): Promise<void>;
 }
 
@@ -84,10 +84,13 @@ export function createFeverClient(input: {
         groupName: groupNameByFeedId.get(feed.id) ?? feed.groupName,
       }));
     },
-    async listItems(sinceId) {
+    async listItems(sinceId, maxId) {
       const params = new URLSearchParams({ items: '1' });
       if (sinceId) {
         params.set('since_id', sinceId);
+      }
+      if (maxId) {
+        params.set('max_id', maxId);
       }
 
       const envelope = await request(params, { selectorInQuery: true });

@@ -24,18 +24,25 @@ export async function enqueueFeverRefreshAllTargets(input: {
       continue;
     }
 
-    // 全量刷新里的 Fever 账号也要记录最近一次尝试时间，避免被自动调度重复命中。
-    await markAttempt(input.pool, {
-      accountId: target.accountId,
-      attemptedAt: input.now.toISOString(),
-    });
-
     const payload = {
       accountId: target.accountId,
       ...(input.runId ? { runId: input.runId } : {}),
       feedIds: target.feedIds,
     };
-    await input.boss.send(JOB_FEVER_SYNC, payload, getQueueSendOptions(JOB_FEVER_SYNC, payload));
+    const jobId = await input.boss.send(
+      JOB_FEVER_SYNC,
+      payload,
+      getQueueSendOptions(JOB_FEVER_SYNC, payload),
+    );
+    if (!jobId) {
+      continue;
+    }
+
+    // 全量刷新里的 Fever 账号也要记录最近一次尝试时间，但只能在真正入队后写入。
+    await markAttempt(input.pool, {
+      accountId: target.accountId,
+      attemptedAt: input.now.toISOString(),
+    });
     enqueued += 1;
   }
 

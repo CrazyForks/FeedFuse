@@ -100,7 +100,8 @@ describe('feverSync worker', () => {
       expect.objectContaining({
         accountId: '1',
         client,
-        sinceItemId: 'remote-9',
+        sinceItemId: null,
+        maxItemId: 'remote-9',
       }),
     );
     expect(syncFeverAccountMock.mock.calls[0]?.[1]).not.toHaveProperty('targetLocalFeedIds');
@@ -186,6 +187,65 @@ describe('feverSync worker', () => {
       expect.objectContaining({
         accountId: '1',
         lastIncrementalItemId: 'remote-1',
+        lastFullSyncAt: expect.any(String),
+      }),
+    );
+  });
+
+  it('falls back to full sync when the previous full sync is stale', async () => {
+    const pool = {} as never;
+    const client = { listFeeds: vi.fn(), listItems: vi.fn(), markItem: vi.fn() };
+    createClientForAccountMock.mockResolvedValue(client);
+    getFeverSyncStateMock.mockResolvedValue({
+      feverAccountId: '1',
+      lastIncrementalItemId: 'remote-9',
+      lastIncrementalSyncedAt: '2026-05-22T00:00:00.000Z',
+      lastFullSyncAt: '2026-05-10T00:00:00.000Z',
+      lastError: null,
+      updatedAt: '2026-05-22T00:00:00.000Z',
+    });
+    syncFeverAccountMock.mockResolvedValue({
+      createdFeeds: 0,
+      createdArticles: 0,
+      items: [],
+    });
+
+    const { runFeverSyncWorker } = await import('@/worker/feverSync');
+    await runFeverSyncWorker({
+      pool,
+      boss: { send: vi.fn() } as never,
+      data: { accountId: '1' },
+      deps: {
+        getAppSettings: vi.fn().mockResolvedValue({
+          rssTimeoutMs: 10000,
+          rssUserAgent: 'FeedFuse/1.0',
+        }),
+        getUiSettings: vi.fn().mockResolvedValue({
+          rss: {
+            articleFilter: {
+              keyword: { enabled: false, keywords: [] },
+              ai: { enabled: false, prompt: '' },
+            },
+          },
+        }),
+        fetchFeedXml: vi.fn(),
+        parseFeed: vi.fn(),
+        sanitizeContent: vi.fn(),
+      },
+    });
+
+    expect(syncFeverAccountMock).toHaveBeenCalledWith(
+      pool,
+      expect.objectContaining({
+        accountId: '1',
+        sinceItemId: null,
+      }),
+    );
+    expect(upsertFeverSyncStateMock).toHaveBeenCalledWith(
+      pool,
+      expect.objectContaining({
+        accountId: '1',
+        lastFullSyncAt: expect.any(String),
       }),
     );
   });

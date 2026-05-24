@@ -85,6 +85,31 @@ describe('feverClient', () => {
     expect(items[0]?.createdAt).toBe('2026-05-22T10:05:00.000Z');
   });
 
+  it('passes max_id when listing items for full reconciliation', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        api_version: 3,
+        auth: 1,
+        items: [{ id: '11', feed_id: '1', title: 'Item', created_on_time: 1779444300 }],
+      }),
+    });
+
+    const { createFeverClient } = await import('@/server/integrations/fever/feverClient');
+    const client = createFeverClient({
+      baseUrl: 'https://reader.example.com/',
+      username: 'demo',
+      apiKey: 'secret',
+      fetchImpl,
+    });
+
+    await client.listItems(undefined, '88');
+
+    expect(fetchImpl.mock.calls[0]?.[0]).toBe('https://reader.example.com?api&items=1&max_id=88');
+    const body = fetchImpl.mock.calls[0]?.[1]?.body as URLSearchParams;
+    expect(body.get('max_id')).toBeNull();
+  });
+
   it('builds mark item payload', async () => {
     const fetchImpl = vi.fn().mockResolvedValue({
       ok: true,

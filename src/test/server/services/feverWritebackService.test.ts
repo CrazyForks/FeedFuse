@@ -130,4 +130,21 @@ describe('feverWritebackService', () => {
     expect(setArticleReadMock).toHaveBeenNthCalledWith(2, expect.anything(), 'article-2', true);
     expect(markAllReadMock).toHaveBeenCalledWith(expect.anything(), { feedId: 'feed-1' });
   });
+
+  it('treats articles without active fever mapping as local-only updates', async () => {
+    getFeverItemMappingByLocalArticleIdMock.mockResolvedValue(null);
+
+    const { updateArticleStateWithWriteback } = await import('@/server/domains/fever/services/feverWritebackService');
+    const pool = {} as never;
+
+    await updateArticleStateWithWriteback(pool, {
+      articleId: '1',
+      isRead: true,
+      isStarred: false,
+    });
+
+    expect(createFeverClientMock).not.toHaveBeenCalled();
+    expect(setArticleReadMock).toHaveBeenCalledWith(pool, '1', true);
+    expect(setArticleStarredMock).toHaveBeenCalledWith(pool, '1', false);
+  });
 });

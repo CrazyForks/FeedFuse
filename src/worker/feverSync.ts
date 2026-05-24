@@ -19,6 +19,8 @@ import type { FeverFeed, FeverItem } from '@/server/integrations/fever/feverSche
 import type { ParsedFeed, ParsedFeedItem, ParsedFeedMediaAttachment } from '@/server/integrations/rss/parseFeed';
 import type { ArticleFilterJobData } from '@/worker/articleFilterWorker';
 
+const FULL_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
 type FeverSyncDeps = {
   getAppSettings: typeof getAppSettings;
   getUiSettings: typeof getUiSettings;
@@ -145,6 +147,23 @@ function resolveLatestRemoteItemId(items: FeverItem[]): string | null {
   }, null);
 }
 
+function shouldRunFullSync(lastFullSyncAt: string | null | undefined, now: Date): boolean {
+  if (!lastFullSyncAt) {
+    return true;
+  }
+
+  const lastFullSyncMs = new Date(lastFullSyncAt).getTime();
+  if (Number.isNaN(lastFullSyncMs)) {
+    return true;
+  }
+
+  return now.getTime() - lastFullSyncMs >= FULL_SYNC_INTERVAL_MS;
+}
+
+function resolveHighestKnownItemId(syncState: Awaited<ReturnType<typeof getFeverSyncStateByAccountId>>): string | null {
+  return syncState?.lastIncrementalItemId ?? null;
+}
+
 export async function runFeverSyncWorker(input: {
   pool: Pool;
   boss: Pick<PgBoss, 'send'>;
@@ -153,16 +172,23 @@ export async function runFeverSyncWorker(input: {
 }) {
   const deps = { ...defaultDeps, ...(input.deps ?? {}) };
   const client = await createClientForAccount(input.pool, input.data.accountId);
+  const now = new Date();
   const appSettings = await deps.getAppSettings(input.pool);
   const uiSettings = normalizePersistedSettings(await deps.getUiSettings(input.pool));
   const parsedFeedCache = new Map<string, ParsedFeed | null>();
   const syncState = await getFeverSyncStateByAccountId(input.pool, input.data.accountId);
-  const sinceItemId = syncState?.lastIncrementalItemId ?? null;
+  // Fever 增量同步不会自然收敛历史漂移，因此定期回退到账号级全量校正。
+  const runFullSync = shouldRunFullSync(syncState?.lastFullSyncAt, now);
+  const sinceItemId = runFullSync ? null : syncState?.lastIncrementalItemId ?? null;
+  // 全量校正时用当前已知最高 item 作为窗口上界，避免无限制放大单次抓取范围。
+  const maxItemId = runFullSync ? resolveHighestKnownItemId(syncState) : null;
   try {
     const result = await syncFeverAccount(input.pool, {
       accountId: input.data.accountId,
       client,
       sinceItemId,
+      maxItemId,
+      reconcileMissingItems: runFullSync,
       // Fever 仍由独立 worker 编排，但文章内容统一回到 RSS XML 解析与清洗链路。
       // 单点刷新 Fever feed 也必须升级成账号级同步，不能再做 feed 级 scoped sync。
       resolveArticleProjection: async ({ remoteFeed, localFeed, remoteItem }) => {
@@ -208,7 +234,8 @@ export async function runFeverSyncWorker(input: {
     await upsertFeverSyncState(input.pool, {
       accountId: input.data.accountId,
       lastIncrementalItemId: latestRemoteItemId ?? sinceItemId,
-      lastIncrementalSyncedAt: new Date().toISOString(),
+      lastIncrementalSyncedAt: now.toISOString(),
+      lastFullSyncAt: runFullSync ? now.toISOString() : undefined,
       lastError: null,
     });
   } catch (error) {

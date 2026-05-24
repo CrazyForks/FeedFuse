@@ -49,8 +49,10 @@
 - `/api/fever/accounts` 的创建与更新契约还包含 `enabled`；账号级自动同步状态由 `autoSyncIntervalMinutes` 推导，间隔大于 `0` 时返回 `autoSyncEnabled = true`，间隔等于 `0` 时返回 `autoSyncEnabled = false`，避免前后端各自维护两套开关语义。
 - 删除 Fever account 时，必须同时删除该账号投影出来的本地 `provider = 'fever'` feeds，并清理因此变空的分类；只删除 mapping 或 account 本身而保留本地 feed 会导致左栏快照残留失效来源。
 - `fever.sync_due` 是每分钟运行一次的后台调度任务，只负责挑选到期账号并入队 `fever.sync`；真正的同步执行和远端读写仍统一走 `fever.sync`。
+- `fever.sync` 的队列去重键必须始终绑定 `accountId`；`runId` 只用于 `feed_refresh_runs` 跟踪，不能让不同 run 绕过账号级互斥。
 - 手动 `POST /api/fever/accounts/[id]/sync` 和后台 `fever.sync_due` 在成功入队后都要写入 `lastSyncAttemptAt`，避免长时间同步期间被重复调度。
 - 用户触发 `POST /api/feeds/refresh` 时，内部派发到 `fever.sync` 的账号也必须在成功入队后写入 `lastSyncAttemptAt`；不能让手动全量刷新绕过调度去重基线。
+- `enqueueFeverRefreshAllTargets` 这类批量入口也必须在确认 `fever.sync` 真正入队后再写 `lastSyncAttemptAt`；重复任务或入队失败不能推迟下一次自动调度。
 - 手动 `POST /api/fever/accounts/[id]/sync` 还必须先校验账号存在且处于启用状态；不存在或已停用账号不能返回“已入队”成功态。
 - `POST /api/feeds/[id]/refresh` 在分流到 `fever.sync` 前，也必须校验关联 Fever account 仍然启用；停用账号不能通过 feed 级入口绕过账号状态约束。
 - 用户触发 `POST /api/feeds/[id]/refresh` 或 `POST /api/feeds/refresh` 时，如果目标包含 `provider = 'fever'` 的 feed，必须分流到对应账号的 `fever.sync`，并把该账号关联的本地 feed item 一并纳入 `feed_refresh_runs` 跟踪；Fever feed 不支持 feed 级 scoped sync，单点入口也只能触发账号级同步。
@@ -64,4 +66,6 @@
 - `listFeeds` 还必须隐藏只关联到 `enabled = false` Fever account 的 `provider = 'fever'` 投影 feed；停用账号后左栏不能继续暴露其 RSS 来源。
 - Fever feed 已存在本地投影时，同步仍必须回写远端 `title`、`url`、分类和 `siteUrl/iconUrl` 变化；Fever 是权威源，不能只更新 mapping 快照而不更新本地 feed DTO。
 - 在没有可靠全量校正语义前，`fever.sync` 不能根据单次 `items` 响应把未返回的 Fever item 直接标记为 inactive；单次响应可能只是分页或窗口结果。
+- Fever 同步必须显式区分增量模式与全量校正模式；只有全量校正才能根据返回的 `items` 集合失活缺失 item，并写回 `last_full_sync_at`。
+- Fever article 的写回查询必须同时过滤 `fever_item_mappings.is_active = true`、`fever_feed_mappings.is_active = true` 和 `fever_accounts.enabled = true`；已停用或已失效的来源不能继续参与远端写回。
 - `POST /api/fever/accounts` 与 `PATCH /api/fever/accounts` 在写入连接配置前必须先验证 Fever 服务可连通且凭据有效，不能把错误配置保存成成功状态。

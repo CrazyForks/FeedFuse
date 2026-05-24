@@ -403,11 +403,42 @@ describe('feverSyncService', () => {
   });
 
   it('marks missing remote items inactive during full sync', async () => {
-    const { reconcileFeverItems } = await import('@/server/domains/fever/services/feverSyncService');
+    findCategoryByNormalizedNameMock.mockResolvedValue({ id: 'cat-tech', name: 'Tech', position: 0 });
+    getFeverFeedMappingByRemoteFeedIdMock.mockResolvedValue({ localFeedId: '10' });
+    getFeedByIdMock.mockResolvedValue(buildLocalFeed());
+    insertArticleIgnoreDuplicateMock.mockResolvedValue({ id: 'article-1' });
+    getArticleByFeedAndDedupeKeyMock.mockResolvedValue(null);
 
-    await reconcileFeverItems({} as never, {
+    const { syncFeverAccount } = await import('@/server/domains/fever/services/feverSyncService');
+
+    await syncFeverAccount({} as never, {
       accountId: '1',
-      seenRemoteItemIds: ['remote-2'],
+      reconcileMissingItems: true,
+      client: {
+        listFeeds: vi.fn().mockResolvedValue([
+          {
+            id: 'feed-1',
+            title: 'Feed',
+            url: 'https://example.com/feed.xml',
+            siteUrl: 'https://example.com',
+            faviconId: null,
+            groupName: 'Tech',
+          },
+        ]),
+        listItems: vi.fn().mockResolvedValue([
+          {
+            id: 'remote-2',
+            feedId: 'feed-1',
+            title: 'Hello',
+            url: 'https://example.com/post',
+            author: null,
+            html: null,
+            createdAt: null,
+            isRead: false,
+            isSaved: false,
+          },
+        ]),
+      },
     });
 
     expect(markMissingFeverItemMappingsInactiveMock).toHaveBeenCalledWith(

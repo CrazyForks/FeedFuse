@@ -238,17 +238,24 @@ export async function getFeverItemMappingByLocalArticleId(
   const { rows } = await db.query<FeverItemMappingRow>(
     `
       select
-        fever_account_id as "feverAccountId",
-        fever_item_id as "feverItemId",
-        fever_feed_id as "feverFeedId",
-        local_feed_id as "localFeedId",
-        local_article_id as "localArticleId",
-        remote_is_read as "remoteIsRead",
-        remote_is_saved as "remoteIsSaved",
-        is_active as "isActive"
-      from fever_item_mappings
-      where local_article_id = $1
-        and is_active = true
+        fim.fever_account_id as "feverAccountId",
+        fim.fever_item_id as "feverItemId",
+        fim.fever_feed_id as "feverFeedId",
+        fim.local_feed_id as "localFeedId",
+        fim.local_article_id as "localArticleId",
+        fim.remote_is_read as "remoteIsRead",
+        fim.remote_is_saved as "remoteIsSaved",
+        fim.is_active as "isActive"
+      from fever_item_mappings fim
+      join fever_feed_mappings ffm
+        on ffm.fever_account_id = fim.fever_account_id
+        and ffm.fever_feed_id = fim.fever_feed_id
+      join fever_accounts fa
+        on fa.id = fim.fever_account_id
+      where fim.local_article_id = $1
+        and fim.is_active = true
+        and ffm.is_active = true
+        and fa.enabled = true
       limit 1
     `,
     [localArticleId],
@@ -264,6 +271,8 @@ export async function listUnreadActiveFeverItemMappings(
   const whereParts = [
     'articles.id = fever_item_mappings.local_article_id',
     'fever_item_mappings.is_active = true',
+    'ffm.is_active = true',
+    'fa.enabled = true',
     'articles.is_read = false',
   ];
 
@@ -279,6 +288,11 @@ export async function listUnreadActiveFeverItemMappings(
         fever_item_mappings.fever_item_id as "feverItemId",
         fever_item_mappings.local_article_id as "localArticleId"
       from fever_item_mappings
+      join fever_feed_mappings ffm
+        on ffm.fever_account_id = fever_item_mappings.fever_account_id
+        and ffm.fever_feed_id = fever_item_mappings.fever_feed_id
+      join fever_accounts fa
+        on fa.id = fever_item_mappings.fever_account_id
       join articles on ${whereParts.join(' and ')}
       order by fever_item_mappings.fever_account_id asc, fever_item_mappings.local_article_id asc
     `,

@@ -5,7 +5,7 @@ describe('enqueueFeverRefreshAllTargets', () => {
     vi.resetModules();
   });
 
-  it('records sync attempts for fever account targets before enqueueing tracked sync jobs', async () => {
+  it('records sync attempts only after enqueueing tracked sync jobs', async () => {
     const boss = {
       send: vi.fn().mockResolvedValue('job-1'),
     };
@@ -35,5 +35,30 @@ describe('enqueueFeverRefreshAllTargets', () => {
       { accountId: 'account-1', runId: 'run-1', feedIds: ['feed-10', 'feed-11'] },
       expect.any(Object),
     );
+  });
+
+  it('does not record sync attempt when tracked fever job is not enqueued', async () => {
+    const boss = {
+      send: vi.fn().mockResolvedValue(null),
+    };
+    const markFeverAccountSyncAttempted = vi.fn().mockResolvedValue(undefined);
+
+    const { enqueueFeverRefreshAllTargets } = await import('@/worker/feverRefreshAll');
+    const enqueued = await enqueueFeverRefreshAllTargets({
+      boss: boss as never,
+      pool: 'pool' as never,
+      runId: 'run-1',
+      now: new Date('2026-05-24T14:30:00.000Z'),
+      feverTargets: [
+        {
+          accountId: 'account-1',
+          feedIds: ['feed-10', 'feed-11'],
+        },
+      ],
+      markFeverAccountSyncAttempted,
+    });
+
+    expect(enqueued).toBe(0);
+    expect(markFeverAccountSyncAttempted).not.toHaveBeenCalled();
   });
 });

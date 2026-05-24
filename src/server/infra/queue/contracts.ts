@@ -118,13 +118,11 @@ export const QUEUE_CONTRACTS: Record<string, QueueContract> = {
       warningQueueSize: 50,
     },
     worker: { localConcurrency: 1, batchSize: 1 },
-    // Fever 同步以账号为调度粒度，去重键也必须绑定账号而不是本地 feed。
+    // Fever 同步以账号为调度粒度，runId 只做追踪，不能破坏账号级互斥。
     send: (ctx) =>
-      ctx.runId && ctx.accountId
-        ? { singletonKey: `${ctx.runId}:${ctx.accountId}`, singletonSeconds: 3600 }
-        : ctx.accountId
-          ? { singletonKey: ctx.accountId, singletonSeconds: 5 }
-          : {},
+      ctx.accountId
+        ? { singletonKey: ctx.accountId, singletonSeconds: 5 }
+        : {},
   },
   'fever.sync_due': {
     queue: { warningQueueSize: 5 },

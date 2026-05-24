@@ -39,6 +39,8 @@ import { defaultPersistedSettings } from '../../../features/settings/settingsSch
 import { useSettingsStore } from '../../../store/settingsStore';
 import { useAppStore } from '../../../store/appStore';
 
+const SETTINGS_CENTER_OPEN_TIMEOUT_MS = 8000;
+
 function resetSettingsStore() {
   useSettingsStore.setState((state) => ({
     ...state,
@@ -111,7 +113,12 @@ describe('ReaderLayout', () => {
     expect(screen.getAllByLabelText('打开设置').length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getAllByLabelText('打开设置').at(-1) as HTMLElement);
-    expect(await screen.findByTestId('settings-center-modal')).toBeInTheDocument();
+    // 首次打开需要等待动态导入的设置抽屉完成挂载。
+    expect(
+      await screen.findByTestId('settings-center-modal', undefined, {
+        timeout: SETTINGS_CENTER_OPEN_TIMEOUT_MS,
+      }),
+    ).toBeInTheDocument();
   });
 
   it('no longer renders a separate desktop floating title after reader scroll', () => {
@@ -167,7 +174,11 @@ describe('ReaderLayout', () => {
     expect(openSettingsButtons).toHaveLength(1);
 
     fireEvent.click(openSettingsButtons[0]);
-    expect(await screen.findByTestId('settings-center-modal')).toBeInTheDocument();
+    expect(
+      await screen.findByTestId('settings-center-modal', undefined, {
+        timeout: SETTINGS_CENTER_OPEN_TIMEOUT_MS,
+      }),
+    ).toBeInTheDocument();
   });
 
   it('groups feeds by category with uncategorized fallback', () => {

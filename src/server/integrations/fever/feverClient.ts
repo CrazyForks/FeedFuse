@@ -17,7 +17,7 @@ function normalizeBaseUrl(baseUrl: string): string {
 
 function buildRequestUrl(baseUrl: string, params: URLSearchParams): string {
   const query = params.toString();
-  return query ? `${baseUrl}/?api&${query}` : `${baseUrl}/?api`;
+  return query ? `${baseUrl}?api&${query}` : `${baseUrl}?api`;
 }
 
 export interface FeverClient {
@@ -43,7 +43,7 @@ export function createFeverClient(input: {
     try {
       const selectorInQuery = options?.selectorInQuery ?? false;
       // Fever 读接口要求查询选择器走 query string，否则部分实现只返回 auth 状态而不返回数据体。
-      const requestUrl = selectorInQuery ? buildRequestUrl(baseUrl, params) : `${baseUrl}/?api`;
+      const requestUrl = selectorInQuery ? buildRequestUrl(baseUrl, params) : `${baseUrl}?api`;
       const body = new URLSearchParams({
         api_key: feverApiKey,
         ...(selectorInQuery ? {} : Object.fromEntries(params)),

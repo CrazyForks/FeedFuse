@@ -34,7 +34,7 @@ describe('feverClient', () => {
 
     expect(fetchImpl).toHaveBeenNthCalledWith(
       1,
-      'https://reader.example.com/?api&feeds=1',
+      'https://reader.example.com?api&feeds=1',
       expect.objectContaining({
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -43,7 +43,7 @@ describe('feverClient', () => {
     );
     expect(fetchImpl).toHaveBeenNthCalledWith(
       2,
-      'https://reader.example.com/?api&groups=1',
+      'https://reader.example.com?api&groups=1',
       expect.objectContaining({
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -77,7 +77,7 @@ describe('feverClient', () => {
 
     const items = await client.listItems('88');
 
-    expect(fetchImpl.mock.calls[0]?.[0]).toBe('https://reader.example.com/?api&items=1&since_id=88');
+    expect(fetchImpl.mock.calls[0]?.[0]).toBe('https://reader.example.com?api&items=1&since_id=88');
     const body = fetchImpl.mock.calls[0]?.[1]?.body as URLSearchParams;
     expect(body.get('items')).toBeNull();
     expect(body.get('since_id')).toBeNull();
@@ -105,12 +105,37 @@ describe('feverClient', () => {
     await client.markItem({ itemId: '42', as: 'saved' });
 
     expect(fetchImpl.mock.calls[0]?.[0]).toBe(
-      'https://reader.example.com/?api&mark=item&id=42&as=saved',
+      'https://reader.example.com?api&mark=item&id=42&as=saved',
     );
     const body = fetchImpl.mock.calls[0]?.[1]?.body as URLSearchParams;
     expect(body.get('mark')).toBeNull();
     expect(body.get('id')).toBeNull();
     expect(body.get('as')).toBeNull();
+  });
+
+  it('keeps explicit fever endpoint paths such as tt-rss index.php', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        api_version: 3,
+        auth: 1,
+        feeds: [],
+      }),
+    });
+
+    const { createFeverClient } = await import('@/server/integrations/fever/feverClient');
+    const client = createFeverClient({
+      baseUrl: 'http://host.docker.internal:18083/tt-rss/plugins.local/fever/index.php',
+      username: 'demo',
+      apiKey: 'secret',
+      fetchImpl,
+    });
+
+    await client.listItems();
+
+    expect(fetchImpl.mock.calls[0]?.[0]).toBe(
+      'http://host.docker.internal:18083/tt-rss/plugins.local/fever/index.php?api&items=1',
+    );
   });
 
   it('maps fetch transport failures to service unavailable errors', async () => {

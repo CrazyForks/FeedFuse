@@ -189,7 +189,9 @@ describe('FeverAccountSettingsPanel', () => {
     expect(screen.getByLabelText('fever 地址')).toBeInTheDocument();
     expect(screen.getByLabelText('用户名')).toBeInTheDocument();
     expect(screen.getByLabelText('密码')).toHaveAttribute('type', 'password');
-    expect(screen.getByLabelText('密码')).toHaveAttribute('placeholder', '留空表示不修改');
+    expect(screen.getByLabelText('fever 地址')).toHaveAttribute('placeholder', 'https://reader.example.com');
+    expect(screen.getByLabelText('用户名')).toHaveAttribute('placeholder', 'your-account');
+    expect(screen.getByLabelText('密码')).toHaveAttribute('placeholder', '请输入 API Key');
     const passwordField = screen.getByLabelText('密码');
     const intervalField = screen.getByLabelText('同步间隔（分钟）');
     const passwordPosition = passwordField.compareDocumentPosition(intervalField);
@@ -428,7 +430,7 @@ describe('FeverAccountSettingsPanel', () => {
   });
 
   it('deletes fever account after confirmation and refreshes sidebar data', async () => {
-    const accounts: FeverAccountFixture[] = [
+    let accounts: FeverAccountFixture[] = [
       {
         id: '1',
         baseUrl: 'https://reader.example.com',
@@ -774,6 +776,9 @@ describe('FeverAccountSettingsPanel', () => {
     await screen.findByText('demo');
     fireEvent.click(screen.getByRole('button', { name: '编辑 demo' }));
     expect(screen.getByRole('dialog', { name: '编辑 Fever 服务' })).toBeInTheDocument();
+    expect(screen.getByLabelText('fever 地址')).toHaveAttribute('placeholder', 'https://reader.example.com');
+    expect(screen.getByLabelText('用户名')).toHaveAttribute('placeholder', 'your-account');
+    expect(screen.getByLabelText('密码')).toHaveAttribute('placeholder', '留空表示不修改');
     fireEvent.change(screen.getByLabelText('fever 地址'), {
       target: { value: 'https://updated.example.com' },
     });

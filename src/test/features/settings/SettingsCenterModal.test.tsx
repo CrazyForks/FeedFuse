@@ -6,6 +6,8 @@ import { ToastHost } from '../../../features/toast/components/ToastHost';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { useAppStore } from '../../../store/appStore';
 
+const SETTINGS_CENTER_OPEN_TIMEOUT_MS = 8000;
+
 function resetSettingsStore() {
   useSettingsStore.setState((state) => ({
     ...state,
@@ -302,7 +304,7 @@ describe('SettingsCenterModal', () => {
       expect(screen.getByTestId('settings-center-modal')).toBeInTheDocument();
       expect(screen.getByTestId('settings-center-overlay')).toBeInTheDocument();
       expect(screen.getByLabelText('关闭设置')).toBeInTheDocument();
-    });
+    }, { timeout: SETTINGS_CENTER_OPEN_TIMEOUT_MS });
 
     expect(screen.queryByRole('button', { name: '保存' })).not.toBeInTheDocument();
   });

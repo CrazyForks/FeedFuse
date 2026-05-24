@@ -92,6 +92,8 @@ export default function FeverAccountSettingsPanel() {
       ? '修改服务连接、启用状态和同步间隔。'
       : '填写连接信息后即可把远端订阅同步到本地。';
   const dialogSubmitLabel = dialogMode === 'edit' ? '保存服务设置' : '保存服务';
+  const passwordPlaceholder =
+    dialogMode === 'edit' ? '留空表示不修改' : '请输入 API Key';
 
   const reloadAccounts = useCallback(async () => {
     const nextAccounts = await listFeverAccounts({ notifyOnError: false });
@@ -495,6 +497,7 @@ export default function FeverAccountSettingsPanel() {
                 id="fever-service-base-url"
                 type="url"
                 value={formDraft.baseUrl}
+                placeholder="https://reader.example.com"
                 onChange={(event) => {
                   updateFormDraft({ baseUrl: event.target.value });
                 }}
@@ -505,6 +508,7 @@ export default function FeverAccountSettingsPanel() {
               <Input
                 id="fever-service-username"
                 value={formDraft.username}
+                placeholder="your-account"
                 onChange={(event) => {
                   updateFormDraft({ username: event.target.value });
                 }}
@@ -516,7 +520,8 @@ export default function FeverAccountSettingsPanel() {
                 id="fever-service-password"
                 type="password"
                 value={formDraft.apiKey}
-                placeholder="留空表示不修改"
+                // 编辑态保留原密码，因此只在编辑时提示可留空。
+                placeholder={passwordPlaceholder}
                 onChange={(event) => {
                   updateFormDraft({ apiKey: event.target.value });
                 }}

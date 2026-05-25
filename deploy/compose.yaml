@@ -30,6 +30,8 @@ services:
       # 首次未在设置页修改密码前，登录会使用该初始密码校验
       AUTH_INITIAL_PASSWORD: ${AUTH_INITIAL_PASSWORD}
       IMAGE_PROXY_SECRET: ${IMAGE_PROXY_SECRET}
+      RSS_NETWORK_MODE: ${RSS_NETWORK_MODE:-public}
+      RSS_ALLOWED_CIDRS: ${RSS_ALLOWED_CIDRS:-}
       PORT: '9559'
       HOSTNAME: '0.0.0.0'
     extra_hosts:
@@ -57,6 +59,8 @@ services:
       ]
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      RSS_NETWORK_MODE: ${RSS_NETWORK_MODE:-public}
+      RSS_ALLOWED_CIDRS: ${RSS_ALLOWED_CIDRS:-}
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     depends_on:

@@ -24,6 +24,13 @@
 - 需要启动期迁移时，入口保持通过 `scripts/db/migrate.mjs`
 - 改变环境变量契约时，同步检查 `.env.example`、`docs/development.md`、部署文档
 
+## RSS 网络访问契约
+
+- `src/server/integrations/rss/ssrfGuard.ts` 是 RSS 外链安全判定的统一入口；`route.ts`、worker 和抓取流程不要各自散落一套网络地址规则。
+- RSS 链接在发起抓取前要校验原始 URL，抓取完成后如果拿到了重定向后的 `finalUrl`，还必须再次按相同策略校验，避免通过公网入口跳转到内网或 fake-ip 地址绕过限制。
+- `RSS_NETWORK_MODE=lan` 只额外允许 RFC1918 局域网地址；`198.18.0.0/15` fake-ip 兼容只属于 `RSS_NETWORK_MODE=fake-ip`。
+- `.local` 主机名在 `RSS_NETWORK_MODE=lan` 或 `custom` 下不能直接拒绝，必须先解析，再按解析出的 IP 是否命中 RFC1918 或 `RSS_ALLOWED_CIDRS` 判定。
+
 ## 订阅源自动化契约
 
 - 订阅源自动化字段属于 `Feed` / feed DTO 合约，包括 `fullTextOnOpenEnabled`、`fullTextOnFetchEnabled`、`aiSummaryOnOpenEnabled`、`aiSummaryOnFetchEnabled`、`bodyTranslateOnFetchEnabled`、`bodyTranslateOnOpenEnabled`、`titleTranslateEnabled`、`bodyTranslateEnabled`。

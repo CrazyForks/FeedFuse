@@ -44,6 +44,21 @@ curl -fsSL -o .env https://raw.githubusercontent.com/BryanHoo/FeedFuse/main/depl
 - `WEB_PORT`
 - `IMAGE_PROXY_SECRET`
 - `AUTH_INITIAL_PASSWORD`
+- `RSS_NETWORK_MODE`
+- `RSS_ALLOWED_CIDRS`
+
+RSS 网络访问默认使用 `RSS_NETWORK_MODE=public`，仅允许公网地址。常见模式：
+
+- `public`：默认，仅允许公网地址
+- `fake-ip`：额外允许 `198.18.0.0/15`
+- `lan`：额外允许常见 RFC1918 局域网地址
+- `custom`：只额外允许 `RSS_ALLOWED_CIDRS` 里的网段
+
+只有在你明确需要兼容 fake-ip 或内网 RSS 时才调整这些值。例如：
+
+- `RSS_NETWORK_MODE=fake-ip`
+- `RSS_NETWORK_MODE=custom`
+- `RSS_ALLOWED_CIDRS=192.168.0.0/16,10.0.0.0/8`
 
 ## 3. 拉取镜像并启动服务
 

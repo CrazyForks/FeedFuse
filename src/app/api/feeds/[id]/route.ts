@@ -189,7 +189,9 @@ export async function PATCH(
       typeof bodyParsed.data.url !== 'undefined' &&
       !(await isSafeExternalUrl(bodyParsed.data.url, feedUrlSafetyOptions))
     ) {
-      const error = new ValidationError('Invalid request body', { url: 'Unsafe URL' });
+      const error = new ValidationError('Invalid request body', {
+        url: '当前网络环境不允许访问该链接',
+      });
       await writeFeedPatchFailure(actionKey, error, { feedId: paramsParsed.data.id });
       return fail(error);
     }

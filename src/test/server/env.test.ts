@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseEnv } from '@/server/infra/env';
+import { getRssNetworkConfig, parseEnv } from '@/server/infra/env';
 
 describe('env', () => {
   it('throws when DATABASE_URL is missing', () => {
@@ -46,5 +46,51 @@ describe('env', () => {
     });
 
     expect(env.IMAGE_PROXY_SECRET).toBe('test-image-proxy-secret');
+  });
+
+  it('defaults RSS_NETWORK_MODE to public with empty allowed cidrs', () => {
+    const env = parseEnv({
+      DATABASE_URL: 'postgres://example',
+    });
+
+    expect(env.RSS_NETWORK_MODE).toBe('public');
+    expect(env.RSS_ALLOWED_CIDRS).toEqual([]);
+  });
+
+  it('parses RSS_NETWORK_MODE and RSS_ALLOWED_CIDRS', () => {
+    const env = parseEnv({
+      DATABASE_URL: 'postgres://example',
+      RSS_NETWORK_MODE: 'custom',
+      RSS_ALLOWED_CIDRS: '192.168.0.0/16,10.0.0.0/8',
+    });
+
+    expect(env.RSS_NETWORK_MODE).toBe('custom');
+    expect(env.RSS_ALLOWED_CIDRS).toEqual(['192.168.0.0/16', '10.0.0.0/8']);
+  });
+
+  it('parses RSS network config independently from DATABASE_URL', () => {
+    expect(getRssNetworkConfig({})).toEqual({
+      mode: 'public',
+      allowedCidrs: [],
+    });
+    expect(
+      getRssNetworkConfig({
+        RSS_NETWORK_MODE: 'custom',
+        RSS_ALLOWED_CIDRS: '100.64.0.0/10',
+      }),
+    ).toEqual({
+      mode: 'custom',
+      allowedCidrs: ['100.64.0.0/10'],
+    });
+  });
+
+  it('rejects invalid RSS_ALLOWED_CIDRS values', () => {
+    expect(() =>
+      parseEnv({
+        DATABASE_URL: 'postgres://example',
+        RSS_NETWORK_MODE: 'custom',
+        RSS_ALLOWED_CIDRS: 'bad-cidr',
+      }),
+    ).toThrow(/Invalid CIDR/);
   });
 });

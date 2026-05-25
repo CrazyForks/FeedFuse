@@ -133,4 +133,59 @@ describe('/api/rss/validate', () => {
       },
     });
   });
+
+  it('returns unsafe_url when rss guard blocks the link', async () => {
+    isSafeExternalUrlMock.mockResolvedValue(false);
+
+    const mod = await import('../../../../../app/api/rss/validate/route');
+    const response = await mod.GET(
+      new Request(
+        'http://localhost/api/rss/validate?url=https%3A%2F%2Fexample.com%2Frss.xml',
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      ok: true,
+      data: {
+        valid: false,
+        reason: 'unsafe_url',
+        message: '当前网络环境不允许访问该链接',
+      },
+    });
+  });
+
+  it('returns unsafe_url when redirected finalUrl is blocked by rss guard', async () => {
+    isSafeExternalUrlMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    fetchRssXmlMock.mockResolvedValue({
+      status: 200,
+      xml: '<?xml version="1.0"?><rss><channel><title>Feed</title></channel></rss>',
+      etag: null,
+      lastModified: null,
+      finalUrl: 'http://192.168.1.10/rss.xml',
+    });
+
+    const mod = await import('../../../../../app/api/rss/validate/route');
+    const response = await mod.GET(
+      new Request(
+        'http://localhost/api/rss/validate?url=https%3A%2F%2Fexample.com%2Frss.xml',
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      ok: true,
+      data: {
+        valid: false,
+        reason: 'unsafe_url',
+        message: '当前网络环境不允许访问该链接',
+      },
+    });
+    expect(isSafeExternalUrlMock).toHaveBeenNthCalledWith(1, 'https://example.com/rss.xml', {
+      allowUnresolvedHostname: true,
+    });
+    expect(isSafeExternalUrlMock).toHaveBeenNthCalledWith(2, 'http://192.168.1.10/rss.xml', {
+      allowUnresolvedHostname: true,
+    });
+  });
 });

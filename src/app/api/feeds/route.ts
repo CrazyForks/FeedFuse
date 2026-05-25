@@ -133,7 +133,9 @@ export async function POST(request: Request) {
       return fail(error);
     }
     if (!(await isSafeExternalUrl(parsed.data.url, feedUrlSafetyOptions))) {
-      const error = new ValidationError('Invalid request body', { url: 'Unsafe URL' });
+      const error = new ValidationError('Invalid request body', {
+        url: '当前网络环境不允许访问该链接',
+      });
       await writeFeedCreateFailure(error);
       return fail(error);
     }

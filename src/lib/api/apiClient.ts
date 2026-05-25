@@ -294,6 +294,7 @@ export async function exportOpml(
 
 export type RssValidationErrorCode =
   | 'invalid_url'
+  | 'unsafe_url'
   | 'unauthorized'
   | 'timeout'
   | 'not_feed'

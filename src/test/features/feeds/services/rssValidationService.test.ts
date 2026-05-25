@@ -164,6 +164,28 @@ describe('validateRssUrl', () => {
     clearApiErrorNotifier();
   });
 
+  it('preserves unsafe_url validation result message', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          data: {
+            valid: false,
+            reason: 'unsafe_url',
+            message: '当前网络环境不允许访问该链接',
+          },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    );
+
+    await expect(validateRssUrl('https://example.com/blocked.xml')).resolves.toEqual({
+      ok: false,
+      errorCode: 'unsafe_url',
+      message: '当前网络环境不允许访问该链接',
+    });
+  });
+
   it('rejects invalid protocol', async () => {
     const result = await validateRssUrl('ftp://example.com/feed.xml');
     expect(result).toMatchObject({ ok: false, errorCode: 'invalid_url' });

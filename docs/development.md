@@ -22,11 +22,22 @@ cp .env.example .env
 
 - `DATABASE_URL=postgresql://feedfuse:feedfuse@127.0.0.1:5432/feedfuse`
 - `IMAGE_PROXY_SECRET=change-me-before-prod`
+- `RSS_NETWORK_MODE=public`
+- `RSS_ALLOWED_CIDRS=`
 
 开发环境至少需要保证：
 
 - `DATABASE_URL` 指向可用的 PostgreSQL
 - `IMAGE_PROXY_SECRET` 不为空
+
+RSS 网络访问默认使用 `RSS_NETWORK_MODE=public`，只允许公网地址。可选模式：
+
+- `public`：默认，仅允许公网地址
+- `fake-ip`：额外允许 `198.18.0.0/15`
+- `lan`：额外允许常见 RFC1918 局域网地址
+- `custom`：只额外允许 `RSS_ALLOWED_CIDRS` 里声明的 CIDR
+
+如果你在 Clash、sing-box 等 fake-ip 网络环境下录入 RSS 源，优先改成 `RSS_NETWORK_MODE=fake-ip`。如果你只想放开特定局域网网段，使用 `RSS_NETWORK_MODE=custom` 并设置 `RSS_ALLOWED_CIDRS=192.168.0.0/16,10.0.0.0/8`。
 
 ## 2. 准备 PostgreSQL
 

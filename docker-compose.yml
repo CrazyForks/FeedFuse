@@ -26,6 +26,8 @@ services:
       DATABASE_URL: postgresql://feedfuse:feedfuse@db:5432/feedfuse
       AUTH_INITIAL_PASSWORD: ${AUTH_INITIAL_PASSWORD}
       IMAGE_PROXY_SECRET: ${IMAGE_PROXY_SECRET}
+      RSS_NETWORK_MODE: ${RSS_NETWORK_MODE:-public}
+      RSS_ALLOWED_CIDRS: ${RSS_ALLOWED_CIDRS:-}
       PORT: '9559'
       HOSTNAME: '0.0.0.0'
     extra_hosts:
@@ -50,6 +52,8 @@ services:
       ['sh', '-lc', 'node scripts/db/migrate.mjs && exec node node_modules/tsx/dist/cli.mjs --tsconfig config/typescript/tsconfig.json src/worker/index.ts']
     environment:
       DATABASE_URL: postgresql://feedfuse:feedfuse@db:5432/feedfuse
+      RSS_NETWORK_MODE: ${RSS_NETWORK_MODE:-public}
+      RSS_ALLOWED_CIDRS: ${RSS_ALLOWED_CIDRS:-}
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     depends_on:

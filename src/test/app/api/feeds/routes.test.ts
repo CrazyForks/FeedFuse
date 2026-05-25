@@ -458,7 +458,7 @@ describe('/api/feeds', () => {
 
     expect(json.ok).toBe(false);
     expect(json.error.code).toBe('validation_error');
-    expect(json.error.fields.url).toBeTruthy();
+    expect(json.error.fields.url).toBe('当前网络环境不允许访问该链接');
   });
 
   it('POST returns conflict on duplicate url', async () => {
@@ -857,7 +857,7 @@ describe('/api/feeds', () => {
 
     expect(json.ok).toBe(false);
     expect(json.error.code).toBe('validation_error');
-    expect(json.error.fields.url).toBeTruthy();
+    expect(json.error.fields.url).toBe('当前网络环境不允许访问该链接');
     expect(updateFeedWithCategoryResolutionMock).not.toHaveBeenCalled();
   });
 

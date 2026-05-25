@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 
 type RssValidationErrorCode =
   | 'invalid_url'
+  | 'unsafe_url'
   | 'unauthorized'
   | 'timeout'
   | 'not_feed'
@@ -113,7 +114,11 @@ export async function GET(request: Request) {
   const normalizedUrl = url.toString();
 
   if (!(await isSafeExternalUrl(normalizedUrl, feedUrlSafetyOptions))) {
-    return toJson({ valid: false, reason: 'invalid_url', message: '链接格式不正确' });
+    return toJson({
+      valid: false,
+      reason: 'unsafe_url',
+      message: '当前网络环境不允许访问该链接',
+    });
   }
 
   try {
@@ -121,6 +126,15 @@ export async function GET(request: Request) {
       timeoutMs: 10_000,
       userAgent: 'FeedFuse RSS Validator',
     });
+
+    // 跟随重定向后需要再次校验最终地址，避免绕过 RSS 网络访问限制。
+    if (!(await isSafeExternalUrl(res.finalUrl, feedUrlSafetyOptions))) {
+      return toJson({
+        valid: false,
+        reason: 'unsafe_url',
+        message: '当前网络环境不允许访问该链接',
+      });
+    }
 
     if (res.status === 401 || res.status === 403) {
       return toJson({

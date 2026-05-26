@@ -12,7 +12,7 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
@@ -37,6 +37,57 @@ jobs:
           else
             echo "publish_latest=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Resolve release version
+        id: version
+        run: |
+          # tag 触发时直接取推送版本；手动触发时要求显式传入 manual_tag。
+          if [ "${{ github.event_name }}" = "push" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          elif [ -n "${{ inputs.manual_tag }}" ]; then
+            VERSION="${{ inputs.manual_tag#v }}"
+          else
+            echo "Manual release requires manual_tag input" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Extract release notes from changelog
+        id: changelog
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          import re
+
+          version = os.environ["RELEASE_VERSION"]
+          changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")
+          # 只提取当前版本对应的区块，避免把后续历史版本一起塞进 Release 说明。
+          pattern = re.compile(
+              rf"^## \[{re.escape(version)}\][^\n]*\n(?P<body>.*?)(?=^## \[|\Z)",
+              re.MULTILINE | re.DOTALL,
+          )
+          match = pattern.search(changelog)
+          if not match:
+              raise SystemExit(f"Release notes for {version} not found in CHANGELOG.md")
+
+          notes = match.group("body").strip()
+          release_notes = Path("release-notes.md")
+          release_notes.write_text(notes + "\n", encoding="utf-8")
+          PY
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          cp deploy/compose.yaml release-assets/compose.yaml
+          cp deploy/.env.example release-assets/.env.example
+          cp CHANGELOG.md release-assets/CHANGELOG.md
+          # 把部署所需文件打成一个附件，方便在 Releases 页面直接下载。
+          tar -czf release-assets/feedfuse-deploy-${{ steps.version.outputs.version }}.tar.gz \
+            -C release-assets compose.yaml .env.example CHANGELOG.md
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -96,3 +147,14 @@ jobs:
           labels: ${{ steps.worker-meta.outputs.labels }}
           cache-from: type=gha,scope=feedfuse-worker
           cache-to: type=gha,scope=feedfuse-worker,mode=max
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          body_path: release-notes.md
+          files: |
+            release-assets/compose.yaml
+            release-assets/.env.example
+            release-assets/feedfuse-deploy-${{ steps.version.outputs.version }}.tar.gz

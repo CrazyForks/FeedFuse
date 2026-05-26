@@ -45,7 +45,8 @@ jobs:
           if [ "${{ github.event_name }}" = "push" ]; then
             VERSION="${GITHUB_REF_NAME#v}"
           elif [ -n "${{ inputs.manual_tag }}" ]; then
-            VERSION="${{ inputs.manual_tag#v }}"
+            RAW_TAG="${{ inputs.manual_tag }}"
+            VERSION="${RAW_TAG#v}"
           else
             echo "Manual release requires manual_tag input" >&2
             exit 1

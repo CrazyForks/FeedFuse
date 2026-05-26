@@ -6,6 +6,36 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-26
+
+这一版正式引入 Fever 后端接入能力，让 FeedFuse 可以连接 FreshRSS、Tiny Tiny RSS 等兼容 Fever API 的服务，并把远端订阅同步到本地。
+
+### 新增
+
+- 新增 Fever 账号管理、连接校验和自动同步能力，支持接入兼容 Fever API 的远端后端服务。
+- 新增 Fever 文章同步、分类回填、远端写回和账号级刷新链路，把远端订阅与状态投影到本地工作台。
+- 新增 Fever 服务设置面板与契约约束，限制 Fever 托管源的非预期编辑操作。
+
+### 修复
+
+- 修复 Fever 同步去重、全量校正、共享源清理、账号停用刷新和状态可见性问题，提升同步稳定性。
+- 修复 Fever 接口路径、XML 入库、时间戳解析和账户唯一性校验问题，减少兼容性异常。
+- 修复 RSS 网络访问校验绕过，收紧非预期地址访问边界。
+
+## [0.1.6] - 2026-05-19
+
+这一版聚焦阅读器媒体能力和交互便捷性补强，补齐正文视频、播客附件播放和键盘快捷键支持。
+
+### 新增
+
+- 新增正文视频播放支持，减少外链跳转带来的阅读打断。
+- 新增播客 RSS 附件音频播放能力，便于在同一工作台内消费节目内容。
+- 新增阅读器键盘快捷键，提升高频操作效率。
+
+### 修复
+
+- 修复中栏已读未读显示偏好持久化问题，避免刷新后状态回退。
+
 ## [0.1.5] - 2026-05-13
 
 这一版聚焦配置目录归一化与容器构建链路修复，确保根目录瘦身后本地与部署环境都能稳定构建与启动。
@@ -105,7 +135,9 @@
 - 修复图片代理、全文抓取、AI 任务状态、OPML 图标回填、阅读器选中态与多处可访问性和构建问题。
 - 增强 RSS 拉取异常提示、错误映射与配置校验，降低边界场景下的失败率。
 
-[Unreleased]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/BryanHoo/FeedFuse/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.6...v0.2.0
+[0.1.6]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.2...v0.1.4
 [0.1.2]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.1...v0.1.2

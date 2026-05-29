@@ -76,6 +76,7 @@ export default function FeedList({
   initialSelectedView,
 }: FeedListProps) {
   const appCategories = useAppStore((state) => state.categories);
+  const articles = useAppStore((state) => state.articles);
   const feeds = useAppStore((state) => state.feeds);
   const loadSnapshot = useAppStore((state) => state.loadSnapshot);
   const showFilteredByFeedId = useAppStore((state) => state.showFilteredByFeedId);
@@ -111,10 +112,15 @@ export default function FeedList({
       ),
     [feeds],
   );
-  // Smart views derive counts from the same unread source data as the concrete feed rows.
+  // 收藏视图直接按当前已加载文章里的星标状态统计，保证侧栏数量和阅读列表语义一致。
+  const starredArticleCount = useMemo(
+    () => articles.reduce((count, article) => count + (article.isStarred ? 1 : 0), 0),
+    [articles],
+  );
+  // Smart views 的数量与左栏其他来源保持一致：全部/智能报告显示未读数，收藏显示收藏数。
   const smartViews = [
     { id: 'all', name: '全部文章', Icon: Newspaper, unreadCount: allArticlesUnreadCount },
-    { id: 'starred', name: '收藏文章', Icon: Star, unreadCount: 0 },
+    { id: 'starred', name: '收藏文章', Icon: Star, unreadCount: starredArticleCount },
     { id: AI_DIGEST_VIEW_ID, name: '智能报告', Icon: Sparkles, unreadCount: aiDigestUnreadCount },
   ] as const;
 

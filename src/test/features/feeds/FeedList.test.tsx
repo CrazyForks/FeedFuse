@@ -811,7 +811,7 @@ describe('FeedList manage', () => {
     ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
-  it('shows unread badges for 全部文章 and 智能报告 smart views', () => {
+  it('shows badges for 全部文章、收藏文章 and 智能报告 smart views', () => {
     useAppStore.setState((state) => ({
       ...state,
       feeds: [
@@ -839,6 +839,41 @@ describe('FeedList manage', () => {
           category: null,
         },
       ],
+      articles: [
+        {
+          id: 'article-1',
+          feedId: 'feed-1',
+          title: 'First',
+          content: '',
+          summary: '',
+          publishedAt: '',
+          link: '',
+          isRead: false,
+          isStarred: true,
+        },
+        {
+          id: 'article-2',
+          feedId: 'feed-1',
+          title: 'Second',
+          content: '',
+          summary: '',
+          publishedAt: '',
+          link: '',
+          isRead: true,
+          isStarred: true,
+        },
+        {
+          id: 'article-3',
+          feedId: 'digest-1',
+          title: 'Third',
+          content: '',
+          summary: '',
+          publishedAt: '',
+          link: '',
+          isRead: false,
+          isStarred: false,
+        },
+      ],
       selectedView: 'all',
       selectedArticleId: null,
     }));
@@ -846,15 +881,20 @@ describe('FeedList manage', () => {
     renderWithNotifications();
 
     const allArticlesButton = screen.getByRole('button', { name: '全部文章' });
+    const starredArticlesButton = screen.getByRole('button', { name: '收藏文章' });
     const aiDigestArticlesButton = screen.getByRole('button', { name: '智能报告' });
     const allArticlesBadge = within(allArticlesButton).getByText('5');
+    const starredArticlesBadge = within(starredArticlesButton).getByText('2');
     const aiDigestBadge = within(aiDigestArticlesButton).getByText('3');
 
     expect(allArticlesBadge).toBeInTheDocument();
+    expect(starredArticlesBadge).toBeInTheDocument();
     expect(aiDigestBadge).toBeInTheDocument();
     expect(allArticlesBadge.className).toContain(LEFT_RAIL_UNREAD_BADGE_CLASS_NAME);
+    expect(starredArticlesBadge.className).toContain(LEFT_RAIL_UNREAD_BADGE_CLASS_NAME);
     expect(aiDigestBadge.className).toContain(LEFT_RAIL_UNREAD_BADGE_CLASS_NAME);
     expect(allArticlesBadge.className).not.toContain('shadow-');
+    expect(starredArticlesBadge.className).not.toContain('shadow-');
     expect(aiDigestBadge.className).not.toContain('shadow-');
   });
 

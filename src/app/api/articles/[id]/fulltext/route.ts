@@ -73,9 +73,9 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -92,14 +92,18 @@ export async function POST(
 
     const articleId = paramsParsed.data.id;
     const pool = getPool();
-    const article = await getArticleById(pool, articleId);
+    const article = await getArticleById(pool, articleId, session.userId);
     if (!article) return fail(new NotFoundError('Article not found'));
 
     // 播客文章只保留播放能力，不触发全文抓取。
-    const mediaAttachments = await listArticleMediaAttachments(pool, articleId);
+    const mediaAttachments = await listArticleMediaAttachments(pool, articleId, session.userId);
     if (mediaAttachments.length > 0) return ok({ enqueued: false, reason: 'podcast_article' });
 
-    const fullTextOnOpenEnabled = await getFeedFullTextOnOpenEnabled(pool, article.feedId);
+    const fullTextOnOpenEnabled = await getFeedFullTextOnOpenEnabled(
+      pool,
+      article.feedId,
+      session.userId,
+    );
     if (!force && fullTextOnOpenEnabled !== true) {
       return ok({ enqueued: false });
     }
@@ -110,14 +114,18 @@ export async function POST(
 
     const enqueueResult = await enqueueWithResult(
       JOB_ARTICLE_FULLTEXT_FETCH,
-      { articleId },
-      getQueueSendOptions(JOB_ARTICLE_FULLTEXT_FETCH, { articleId }),
+      { userId: session.userId, articleId },
+      getQueueSendOptions(JOB_ARTICLE_FULLTEXT_FETCH, {
+        userId: session.userId,
+        articleId,
+      }),
     );
     if (enqueueResult.status !== 'enqueued') {
       return ok({ enqueued: false });
     }
 
     await upsertTaskQueued(pool, {
+      userId: session.userId,
       articleId,
       type: 'fulltext',
       jobId: enqueueResult.jobId,

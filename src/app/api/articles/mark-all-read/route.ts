@@ -27,9 +27,9 @@ function zodIssuesToFields(error: z.ZodError): Record<string, string> {
 }
 
 export async function POST(request: Request) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -38,6 +38,7 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       const error = new ValidationError('Invalid request body', zodIssuesToFields(parsed.error));
       await writeUserOperationFailedLog(getPool(), {
+        userId: session.userId,
         actionKey: 'article.markAllRead',
         source: 'app/api/articles/mark-all-read',
         err: error,
@@ -46,8 +47,12 @@ export async function POST(request: Request) {
     }
 
     const pool = getPool();
-    const updatedCount = await markAllArticlesReadWithWriteback(pool, { feedId: parsed.data.feedId });
+    const updatedCount = await markAllArticlesReadWithWriteback(pool, {
+      feedId: parsed.data.feedId,
+      userId: session.userId,
+    });
     await writeUserOperationSucceededLog(pool, {
+      userId: session.userId,
       actionKey: 'article.markAllRead',
       source: 'app/api/articles/mark-all-read',
       context: { feedId: parsed.data.feedId, updatedCount },
@@ -55,6 +60,7 @@ export async function POST(request: Request) {
     return ok({ updatedCount });
   } catch (err) {
     await writeUserOperationFailedLog(getPool(), {
+      userId: session.userId,
       actionKey: 'article.markAllRead',
       source: 'app/api/articles/mark-all-read',
       err,

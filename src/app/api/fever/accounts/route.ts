@@ -33,6 +33,12 @@ const patchBodySchema = z.object({
   autoSyncIntervalMinutes: z.number().int().min(0).max(1440),
 });
 
+// 兼容 0034_multi_user 迁移前后的 Fever 账号唯一索引。
+const feverAccountUniqueConstraints = new Set([
+  'fever_accounts_user_base_url_username_unique',
+  'fever_accounts_base_url_username_unique',
+]);
+
 function zodIssuesToFields(error: z.ZodError): Record<string, string> {
   const fields: Record<string, string> = {};
   for (const issue of error.issues) {
@@ -44,14 +50,20 @@ function zodIssuesToFields(error: z.ZodError): Record<string, string> {
 
 function isUniqueViolation(
   err: unknown,
-  constraint: string,
+  constraints: ReadonlySet<string>,
 ): err is { code: string; constraint?: string } {
   return (
     typeof err === 'object' &&
     err !== null &&
     'code' in err &&
     (err as { code?: unknown }).code === '23505' &&
-    (!('constraint' in err) || (err as { constraint?: unknown }).constraint === constraint)
+    (
+      !('constraint' in err) ||
+      (
+        typeof (err as { constraint?: unknown }).constraint === 'string' &&
+        constraints.has((err as { constraint: string }).constraint)
+      )
+    )
   );
 }
 
@@ -71,9 +83,9 @@ async function verifyFeverAccountConnection(input: {
 }
 
 export async function GET() {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -85,9 +97,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -102,7 +114,7 @@ export async function POST(request: Request) {
     const account = await createFeverAccount(getPool(), parsed.data);
     return ok(sanitizeFeverAccount(account));
   } catch (err) {
-    if (isUniqueViolation(err, 'fever_accounts_base_url_username_unique')) {
+    if (isUniqueViolation(err, feverAccountUniqueConstraints)) {
       return fail(new ConflictError('Fever 账号已存在', {
         baseUrl: 'duplicate',
         username: 'duplicate',
@@ -113,9 +125,9 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -157,7 +169,7 @@ export async function PATCH(request: Request) {
 
     return ok(sanitizeFeverAccount(account));
   } catch (err) {
-    if (isUniqueViolation(err, 'fever_accounts_base_url_username_unique')) {
+    if (isUniqueViolation(err, feverAccountUniqueConstraints)) {
       return fail(new ConflictError('Fever 账号已存在', {
         baseUrl: 'duplicate',
         username: 'duplicate',
@@ -168,9 +180,9 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {

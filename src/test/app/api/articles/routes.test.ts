@@ -488,7 +488,7 @@ describe('/api/articles', () => {
     const json = await res.json();
 
     expect(json.ok).toBe(true);
-    expect(getArticleByIdMock).toHaveBeenCalledWith(pool, '3001');
+    expect(getArticleByIdMock).toHaveBeenCalledWith(pool, '3001', '1');
   });
 
   it('GET returns article with aiSummarySession snapshot', async () => {
@@ -1019,7 +1019,7 @@ describe('/api/articles', () => {
     );
     const json = await res.json();
     expect(json.ok).toBe(true);
-    expect(markAllArticlesReadWithWritebackMock).toHaveBeenCalledWith(pool, { feedId });
+    expect(markAllArticlesReadWithWritebackMock).toHaveBeenCalledWith(pool, { feedId, userId: '1' });
     expect(json.data.updatedCount).toBe(12);
     expect(writeUserOperationSucceededLogMock).toHaveBeenCalledWith(
       pool,
@@ -1290,13 +1290,14 @@ describe('/api/articles', () => {
     expect(json.data.jobId).toBe('job-id-1');
     expect(enqueueWithResultMock).toHaveBeenCalledWith(
       'article.fetch_fulltext',
-      { articleId },
-      expect.objectContaining({ singletonKey: articleId, singletonSeconds: 600 }),
+      { userId: '1', articleId },
+      expect.objectContaining({ singletonKey: `1:${articleId}`, singletonSeconds: 600 }),
     );
     expect(upsertTaskQueuedMock).toHaveBeenCalledWith(pool, {
       articleId,
       type: 'fulltext',
       jobId: 'job-id-1',
+      userId: '1',
     });
   });
 
@@ -1685,6 +1686,7 @@ describe('/api/articles', () => {
       'ai.summarize_article',
       expect.objectContaining({
         articleId,
+        userId: '1',
         sessionId: 'summary-session-new',
         sharedConfigFingerprint: expect.any(String),
       }),
@@ -1695,6 +1697,7 @@ describe('/api/articles', () => {
     expect(markAiSummarySessionSupersededMock).toHaveBeenCalledWith(pool, {
       sessionId: 'summary-session-old',
       supersededBySessionId: 'summary-session-new',
+      userId: '1',
     });
   });
 
@@ -1738,11 +1741,12 @@ describe('/api/articles', () => {
       'ai.summarize_article',
       expect.objectContaining({
         articleId,
+        userId: '1',
         sessionId: 'summary-session-id-1',
         sharedConfigFingerprint: expect.any(String),
       }),
       expect.objectContaining({
-        singletonKey: articleId,
+        singletonKey: `1:${articleId}`,
         singletonSeconds: 600,
         retryLimit: 0,
       }),
@@ -1756,6 +1760,7 @@ describe('/api/articles', () => {
       articleId,
       type: 'ai_summary',
       jobId: 'job-id-1',
+      userId: '1',
     });
     expect(writeUserOperationStartedLogMock).toHaveBeenCalledWith(
       pool,
@@ -1962,10 +1967,12 @@ describe('/api/articles', () => {
       articleId,
       type: 'ai_summary',
       jobId: 'job-id-2',
+      userId: '1',
     });
     expect(markAiSummarySessionSupersededMock).toHaveBeenCalledWith(pool, {
       sessionId: 'summary-session-running',
       supersededBySessionId: 'summary-session-id-1',
+      userId: '1',
     });
   });
 
@@ -2046,6 +2053,7 @@ describe('/api/articles', () => {
       expect(markAiSummarySessionSupersededMock).toHaveBeenCalledWith(pool, {
         sessionId: 'summary-session-running',
         supersededBySessionId: 'summary-session-id-1',
+        userId: '1',
       });
     } finally {
       dateNowSpy.mockRestore();
@@ -2355,8 +2363,8 @@ describe('/api/articles', () => {
     expect(json.ok).toBe(true);
     expect(json.data.enqueued).toBe(true);
     expect(json.data.jobId).toBe('job-id-2');
-    expect(deleteTranslationSegmentsBySessionIdMock).toHaveBeenCalledWith(pool, 'session-id-running');
-    expect(deleteTranslationEventsBySessionIdMock).toHaveBeenCalledWith(pool, 'session-id-running');
+    expect(deleteTranslationSegmentsBySessionIdMock).toHaveBeenCalledWith(pool, 'session-id-running', '1');
+    expect(deleteTranslationEventsBySessionIdMock).toHaveBeenCalledWith(pool, 'session-id-running', '1');
   });
 
   it('POST /:id/ai-translate returns missing_api_key when key is empty', async () => {
@@ -2932,6 +2940,7 @@ describe('/api/articles', () => {
       'ai.translate_article_zh',
       expect.objectContaining({
         articleId,
+        userId: '1',
         translationConfigFingerprint: expect.any(String),
       }),
       { retryLimit: 0 },
@@ -3034,10 +3043,11 @@ describe('/api/articles', () => {
       'ai.translate_article_zh',
       expect.objectContaining({
         articleId,
+        userId: '1',
         translationConfigFingerprint: expect.any(String),
       }),
       expect.objectContaining({
-        singletonKey: articleId,
+        singletonKey: `1:${articleId}`,
         singletonSeconds: 600,
         retryLimit: 0,
       }),
@@ -3046,6 +3056,7 @@ describe('/api/articles', () => {
       articleId,
       type: 'ai_translate',
       jobId: 'job-id-1',
+      userId: '1',
     });
     expect(writeUserOperationStartedLogMock).toHaveBeenCalledWith(
       pool,

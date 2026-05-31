@@ -29,7 +29,8 @@ describe('aiDigestRepo', () => {
     const sql = String(query.mock.calls[0]?.[0] ?? '');
     expect(sql).toContain('from articles');
     expect(sql).toContain('fetched_at');
-    expect(sql).toContain('any($1::bigint[])');
+    expect(sql).toContain('a.user_id = $1');
+    expect(sql).toContain('any($2::bigint[])');
     expect(sql).toContain('> $');
     expect(sql).toContain('<= $');
     expect(sql).toContain("filter_status = any('{passed,error}'::text[])");

@@ -41,6 +41,7 @@ describe('articleTasksRepo', () => {
     expect(sql).toContain('raw_error_message');
     expect(sql).toContain('updated_at = now()');
     expect(query.mock.calls[0]?.[1]).toEqual([
+      '1',
       'a1',
       'ai_summary',
       'failed',

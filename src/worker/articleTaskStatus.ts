@@ -14,6 +14,7 @@ import {
 import { mapTaskError } from '@/server/domains/settings/tasks/errorMapping';
 
 interface ArticleTaskUserOperation {
+  userId?: string | null;
   actionKey: UserOperationActionKey;
   source: string;
   context?: Record<string, unknown>;
@@ -21,6 +22,7 @@ interface ArticleTaskUserOperation {
 
 export async function runArticleTaskWithStatus<T>(input: {
   pool: Pool;
+  userId?: string | null;
   articleId: string;
   type: ArticleTaskType;
   jobId: string | null;
@@ -28,28 +30,37 @@ export async function runArticleTaskWithStatus<T>(input: {
   fn: () => Promise<T>;
 }): Promise<T> {
   await upsertTaskRunning(input.pool, {
+    userId: input.userId,
     articleId: input.articleId,
     type: input.type,
     jobId: input.jobId,
   });
   if (input.userOperation) {
-    await writeUserOperationStartedLog(input.pool, input.userOperation);
+    await writeUserOperationStartedLog(input.pool, {
+      ...input.userOperation,
+      userId: input.userId ?? input.userOperation.userId,
+    });
   }
 
   try {
     const result = await input.fn();
     await upsertTaskSucceeded(input.pool, {
+      userId: input.userId,
       articleId: input.articleId,
       type: input.type,
       jobId: input.jobId,
     });
     if (input.userOperation) {
-      await writeUserOperationSucceededLog(input.pool, input.userOperation);
+      await writeUserOperationSucceededLog(input.pool, {
+        ...input.userOperation,
+        userId: input.userId ?? input.userOperation.userId,
+      });
     }
     return result;
   } catch (err) {
     const mapped = mapTaskError({ type: input.type, err });
     await upsertTaskFailed(input.pool, {
+      userId: input.userId,
       articleId: input.articleId,
       type: input.type,
       jobId: input.jobId,
@@ -60,6 +71,7 @@ export async function runArticleTaskWithStatus<T>(input: {
     if (input.userOperation) {
       await writeUserOperationFailedLog(input.pool, {
         ...input.userOperation,
+        userId: input.userId ?? input.userOperation.userId,
         err,
         details: mapped.rawErrorMessage ?? mapped.errorMessage,
       });

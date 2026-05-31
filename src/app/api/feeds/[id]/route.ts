@@ -59,6 +59,12 @@ const patchBodySchema = z
     path: ['body'],
   });
 
+// 兼容 0034_multi_user 迁移前后的订阅 URL 唯一索引。
+const feedUrlUniqueConstraints = new Set([
+  'feeds_user_url_unique',
+  'feeds_url_unique',
+]);
+
 function zodIssuesToFields(error: z.ZodError): Record<string, string> {
   const fields: Record<string, string> = {};
   for (const issue of error.issues) {
@@ -83,14 +89,20 @@ function isForeignKeyViolation(
 
 function isUniqueViolation(
   err: unknown,
-  constraint: string,
+  constraints: ReadonlySet<string>,
 ): err is { code: string; constraint?: string } {
   return (
     typeof err === 'object' &&
     err !== null &&
     'code' in err &&
     (err as { code?: unknown }).code === '23505' &&
-    (!('constraint' in err) || (err as { constraint?: unknown }).constraint === constraint)
+    (
+      !('constraint' in err) ||
+      (
+        typeof (err as { constraint?: unknown }).constraint === 'string' &&
+        constraints.has((err as { constraint: string }).constraint)
+      )
+    )
   );
 }
 
@@ -138,9 +150,11 @@ function resolveFeedPatchActionKey(input: Record<string, unknown>) {
 async function writeFeedPatchFailure(
   actionKey: ReturnType<typeof resolveFeedPatchActionKey>,
   err: unknown,
+  userId?: string,
   context?: Record<string, unknown>,
 ) {
   await writeUserOperationFailedLog(getPool(), {
+    userId,
     actionKey,
     source: patchOperationSource,
     err,
@@ -148,8 +162,13 @@ async function writeFeedPatchFailure(
   });
 }
 
-async function writeFeedDeleteFailure(err: unknown, context?: Record<string, unknown>) {
+async function writeFeedDeleteFailure(
+  err: unknown,
+  userId?: string,
+  context?: Record<string, unknown>,
+) {
   await writeUserOperationFailedLog(getPool(), {
+    userId,
     actionKey: 'feed.delete',
     source: deleteOperationSource,
     err,
@@ -161,9 +180,9 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   let actionKey: ReturnType<typeof resolveFeedPatchActionKey> = 'feed.update';
@@ -173,7 +192,7 @@ export async function PATCH(
     const paramsParsed = paramsSchema.safeParse(params);
     if (!paramsParsed.success) {
       const error = new ValidationError('Invalid route params', zodIssuesToFields(paramsParsed.error));
-      await writeFeedPatchFailure(actionKey, error);
+      await writeFeedPatchFailure(actionKey, error, session.userId);
       return fail(error);
     }
 
@@ -181,7 +200,7 @@ export async function PATCH(
     const bodyParsed = patchBodySchema.safeParse(json);
     if (!bodyParsed.success) {
       const error = new ValidationError('Invalid request body', zodIssuesToFields(bodyParsed.error));
-      await writeFeedPatchFailure(actionKey, error, { feedId: paramsParsed.data.id });
+      await writeFeedPatchFailure(actionKey, error, session.userId, { feedId: paramsParsed.data.id });
       return fail(error);
     }
     actionKey = resolveFeedPatchActionKey(bodyParsed.data);
@@ -192,7 +211,7 @@ export async function PATCH(
       const error = new ValidationError('Invalid request body', {
         url: '当前网络环境不允许访问该链接',
       });
-      await writeFeedPatchFailure(actionKey, error, { feedId: paramsParsed.data.id });
+      await writeFeedPatchFailure(actionKey, error, session.userId, { feedId: paramsParsed.data.id });
       return fail(error);
     }
 
@@ -201,36 +220,42 @@ export async function PATCH(
     });
 
     const pool = getPool();
-    const existingFeed = await getFeedById(pool, paramsParsed.data.id);
+    const existingFeed = await getFeedById(pool, paramsParsed.data.id, session.userId);
     const managedFeedMutationError = validateFeverManagedFeedMutation(existingFeed, input);
     if (managedFeedMutationError) {
-      await writeFeedPatchFailure(actionKey, managedFeedMutationError, { feedId: paramsParsed.data.id });
+      await writeFeedPatchFailure(actionKey, managedFeedMutationError, session.userId, {
+        feedId: paramsParsed.data.id,
+      });
       return fail(managedFeedMutationError);
     }
-    const updated = await updateFeedWithCategoryResolution(pool, paramsParsed.data.id, input);
+    const updated = await updateFeedWithCategoryResolution(pool, paramsParsed.data.id, {
+      ...input,
+      userId: session.userId,
+    });
     if (!updated) {
       const error = new NotFoundError('Feed not found');
-      await writeFeedPatchFailure(actionKey, error, { feedId: paramsParsed.data.id });
+      await writeFeedPatchFailure(actionKey, error, session.userId, { feedId: paramsParsed.data.id });
       return fail(error);
     }
     await writeUserOperationSucceededLog(pool, {
+      userId: session.userId,
       actionKey,
       source: patchOperationSource,
       context: { feedId: updated.id },
     });
     return ok(updated);
   } catch (err) {
-    if (isUniqueViolation(err, 'feeds_url_unique')) {
+    if (isUniqueViolation(err, feedUrlUniqueConstraints)) {
       const error = new ConflictError('Feed already exists', { url: 'duplicate' });
-      await writeFeedPatchFailure(actionKey, error);
+      await writeFeedPatchFailure(actionKey, error, session.userId);
       return fail(error);
     }
     if (isForeignKeyViolation(err, 'feeds_category_id_fkey')) {
       const error = new ValidationError('Invalid request body', { categoryId: 'not_found' });
-      await writeFeedPatchFailure(actionKey, error);
+      await writeFeedPatchFailure(actionKey, error, session.userId);
       return fail(error);
     }
-    await writeFeedPatchFailure(actionKey, err);
+    await writeFeedPatchFailure(actionKey, err, session.userId);
     return fail(err);
   }
 }
@@ -239,9 +264,9 @@ export async function DELETE(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -249,24 +274,25 @@ export async function DELETE(
     const paramsParsed = paramsSchema.safeParse(params);
     if (!paramsParsed.success) {
       const error = new ValidationError('Invalid route params', zodIssuesToFields(paramsParsed.error));
-      await writeFeedDeleteFailure(error);
+      await writeFeedDeleteFailure(error, session.userId);
       return fail(error);
     }
 
     const pool = getPool();
-    const existingFeed = await getFeedById(pool, paramsParsed.data.id);
+    const existingFeed = await getFeedById(pool, paramsParsed.data.id, session.userId);
     if (existingFeed?.provider === 'fever') {
       const error = new ValidationError('Invalid request body', { id: 'Fever 托管源不支持从此入口删除' });
-      await writeFeedDeleteFailure(error, { feedId: paramsParsed.data.id });
+      await writeFeedDeleteFailure(error, session.userId, { feedId: paramsParsed.data.id });
       return fail(error);
     }
-    const deleted = await deleteFeedAndCleanupCategory(pool, paramsParsed.data.id);
+    const deleted = await deleteFeedAndCleanupCategory(pool, paramsParsed.data.id, session.userId);
     if (!deleted) {
       const error = new NotFoundError('Feed not found');
-      await writeFeedDeleteFailure(error, { feedId: paramsParsed.data.id });
+      await writeFeedDeleteFailure(error, session.userId, { feedId: paramsParsed.data.id });
       return fail(error);
     }
     await writeUserOperationSucceededLog(pool, {
+      userId: session.userId,
       actionKey: 'feed.delete',
       source: deleteOperationSource,
       context: { feedId: paramsParsed.data.id },
@@ -274,7 +300,7 @@ export async function DELETE(
 
     return ok({ deleted: true });
   } catch (err) {
-    await writeFeedDeleteFailure(err);
+    await writeFeedDeleteFailure(err, session.userId);
     return fail(err);
   }
 }

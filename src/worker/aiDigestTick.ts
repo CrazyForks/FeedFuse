@@ -22,12 +22,13 @@ export async function runAiDigestTick(deps: {
     ) => unknown;
   };
   now?: Date;
+  userId?: string;
 }) {
   const now = deps.now ?? new Date();
 
   const [aiApiKey, uiSettings] = await Promise.all([
-    getAiApiKey(deps.pool as never),
-    getUiSettings(deps.pool as never),
+    getAiApiKey(deps.pool as never, deps.userId),
+    getUiSettings(deps.pool as never, deps.userId),
   ]);
   if (!aiApiKey.trim()) {
     return;
@@ -38,10 +39,13 @@ export async function runAiDigestTick(deps: {
     translationApiKey: '',
   });
 
-  const dueFeedIds = await listDueAiDigestConfigFeedIds(deps.pool as never, { now });
+  const dueFeedIds = await listDueAiDigestConfigFeedIds(deps.pool as never, {
+    now,
+    userId: deps.userId,
+  });
 
   for (const feedId of dueFeedIds) {
-    const config = await getAiDigestConfigByFeedId(deps.pool as never, feedId);
+    const config = await getAiDigestConfigByFeedId(deps.pool as never, feedId, deps.userId);
     if (!config) continue;
 
     const windowStartAt = config.lastWindowEndAt;
@@ -49,6 +53,7 @@ export async function runAiDigestTick(deps: {
 
     const existing = await getAiDigestRunByFeedIdAndWindowStartAt(deps.pool as never, {
       feedId,
+      userId: config.userId,
       windowStartAt,
     });
     if (existing && (existing.status === 'queued' || existing.status === 'running' || existing.status === 'failed')) {
@@ -60,6 +65,7 @@ export async function runAiDigestTick(deps: {
 
     const created = await createAiDigestRun(deps.pool as never, {
       feedId,
+      userId: config.userId,
       windowStartAt,
       windowEndAt,
       status: 'queued',
@@ -69,15 +75,21 @@ export async function runAiDigestTick(deps: {
 
     const jobIdRaw = await deps.boss.send(
       JOB_AI_DIGEST_GENERATE,
-      { runId: created.id, sharedConfigFingerprint },
-      getQueueSendOptions(JOB_AI_DIGEST_GENERATE, { runId: created.id }),
+      { userId: config.userId, runId: created.id, sharedConfigFingerprint },
+      getQueueSendOptions(JOB_AI_DIGEST_GENERATE, {
+        userId: config.userId,
+        runId: created.id,
+      }),
     );
 
     const jobId =
       typeof jobIdRaw === 'string' || typeof jobIdRaw === 'number' ? String(jobIdRaw) : null;
 
     if (jobId && jobId.trim()) {
-      await updateAiDigestRun(deps.pool as never, created.id, { jobId: jobId.trim() });
+      await updateAiDigestRun(deps.pool as never, created.id, {
+        userId: config.userId,
+        jobId: jobId.trim(),
+      });
     }
   }
 }

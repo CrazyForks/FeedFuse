@@ -6,12 +6,28 @@ import { getServerEnv } from '@/server/infra/env';
 import { getPool } from '@/server/infra/db/pool';
 import { getAuthSettings } from '@/server/domains/settings/repositories/settingsRepo';
 import { safeEqualText } from '@/server/domains/auth/services/shared';
-import { verifyPassword, verifyPlainPassword } from '@/server/domains/auth/services/password';
+import { hashPassword, verifyPassword, verifyPlainPassword } from '@/server/domains/auth/services/password';
+import {
+  findUserByUsername,
+  getUserById,
+  persistInitialAdminPassword,
+  type UserRole,
+} from '@/server/domains/auth/repositories/usersRepo';
 
 export const AUTH_SESSION_COOKIE_NAME = 'feedfuse_session';
 export const AUTH_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
-interface SessionPayload {
+export interface ApiSession {
+  userId: string;
+  role: UserRole;
+  sessionVersion: number;
+}
+
+export type ApiSessionResult =
+  | (ApiSession & { response?: never })
+  | { response: Response };
+
+interface SessionPayload extends ApiSession {
   exp: number;
   iat: number;
 }
@@ -27,7 +43,10 @@ function decodePayload(value: string): SessionPayload | null {
       typeof parsed !== 'object' ||
       parsed === null ||
       typeof parsed.exp !== 'number' ||
-      typeof parsed.iat !== 'number'
+      typeof parsed.iat !== 'number' ||
+      typeof parsed.userId !== 'string' ||
+      (parsed.role !== 'admin' && parsed.role !== 'member') ||
+      typeof parsed.sessionVersion !== 'number'
     ) {
       return null;
     }
@@ -48,12 +67,18 @@ function shouldBypassSessionGuard(): boolean {
 
 export function createSessionToken(input: {
   secret: string;
+  userId: string;
+  role: UserRole;
+  sessionVersion: number;
   nowMs?: number;
   maxAgeSeconds?: number;
 }): string {
   const nowMs = input.nowMs ?? Date.now();
   const maxAgeSeconds = input.maxAgeSeconds ?? AUTH_SESSION_MAX_AGE_SECONDS;
   const payload = encodePayload({
+    userId: input.userId,
+    role: input.role,
+    sessionVersion: input.sessionVersion,
     iat: Math.floor(nowMs / 1000),
     exp: Math.floor(nowMs / 1000) + maxAgeSeconds,
   });
@@ -65,24 +90,24 @@ export function verifySessionToken(input: {
   token: string;
   secret: string;
   nowMs?: number;
-}): boolean {
+}): SessionPayload | null {
   const [payloadPart, signaturePart] = input.token.split('.');
   if (!payloadPart || !signaturePart) {
-    return false;
+    return null;
   }
 
   const expectedSignature = signPayload(payloadPart, input.secret);
   if (!safeEqualText(expectedSignature, signaturePart)) {
-    return false;
+    return null;
   }
 
   const payload = decodePayload(payloadPart);
   if (!payload) {
-    return false;
+    return null;
   }
 
   const nowSeconds = Math.floor((input.nowMs ?? Date.now()) / 1000);
-  return payload.exp > nowSeconds;
+  return payload.exp > nowSeconds ? payload : null;
 }
 
 export function serializeSessionCookie(
@@ -96,25 +121,59 @@ export function serializeExpiredSessionCookie(): string {
   return `${AUTH_SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
 }
 
-export async function createSessionCookieHeader(secret?: string): Promise<string> {
+export async function createSessionCookieHeader(input?: {
+  userId: string;
+  role: UserRole;
+  sessionVersion: number;
+  secret?: string;
+} | string): Promise<string> {
+  const legacySecret = typeof input === 'string' ? input : undefined;
+  const sessionInput = typeof input === 'object' ? input : undefined;
   const resolvedSecret =
-    secret ??
+    sessionInput?.secret ??
+    legacySecret ??
     (await getAuthSettings(getPool())).authSessionSecret;
+  const admin = sessionInput ? null : await findUserByUsername(getPool(), 'admin');
+  const session = sessionInput ?? {
+    // 兼容旧调用点；后续 route 会改为显式传入当前用户。
+    userId: admin?.id ?? '1',
+    role: admin?.role ?? 'admin',
+    sessionVersion: admin?.sessionVersion ?? 1,
+  };
 
-  return serializeSessionCookie(createSessionToken({ secret: resolvedSecret }));
+  return serializeSessionCookie(createSessionToken({
+    secret: resolvedSecret,
+    userId: session.userId,
+    role: session.role,
+    sessionVersion: session.sessionVersion,
+  }));
 }
 
-export async function verifyPasswordAgainstAuthConfig(password: string): Promise<{
+export async function verifyUserPassword(input: {
+  username: string;
+  password: string;
+}): Promise<{
   ok: boolean;
+  user?: ApiSession;
   reason?: 'invalid_password' | 'missing_initial_password';
 }> {
   const pool = getPool();
-  const authSettings = await getAuthSettings(pool);
+  const user = await findUserByUsername(pool, input.username);
+  if (!user || user.status !== 'active') {
+    return { ok: false, reason: 'invalid_password' };
+  }
 
-  if (authSettings.authPasswordHash.trim()) {
-    return verifyPassword(password, authSettings.authPasswordHash)
-      ? { ok: true }
+  if (user.passwordHash.trim()) {
+    return verifyPassword(input.password, user.passwordHash)
+      ? {
+          ok: true,
+          user: { userId: user.id, role: user.role, sessionVersion: user.sessionVersion },
+        }
       : { ok: false, reason: 'invalid_password' };
+  }
+
+  if (user.username !== 'admin') {
+    return { ok: false, reason: 'invalid_password' };
   }
 
   const envPassword = getServerEnv().AUTH_INITIAL_PASSWORD?.trim();
@@ -122,9 +181,32 @@ export async function verifyPasswordAgainstAuthConfig(password: string): Promise
     return { ok: false, reason: 'missing_initial_password' };
   }
 
-  return verifyPlainPassword(password, envPassword)
-    ? { ok: true }
-    : { ok: false, reason: 'invalid_password' };
+  if (!verifyPlainPassword(input.password, envPassword)) {
+    return { ok: false, reason: 'invalid_password' };
+  }
+
+  const updated = await persistInitialAdminPassword(pool, {
+    userId: user.id,
+    passwordHash: hashPassword(input.password),
+  });
+  const nextUser = updated ?? user;
+
+  return {
+    ok: true,
+    user: {
+      userId: nextUser.id,
+      role: nextUser.role,
+      sessionVersion: nextUser.sessionVersion,
+    },
+  };
+}
+
+export async function verifyPasswordAgainstAuthConfig(password: string): Promise<{
+  ok: boolean;
+  reason?: 'invalid_password' | 'missing_initial_password';
+}> {
+  const result = await verifyUserPassword({ username: 'admin', password });
+  return result.ok ? { ok: true } : { ok: false, reason: result.reason };
 }
 
 export async function isAuthenticated(): Promise<boolean> {
@@ -132,33 +214,61 @@ export async function isAuthenticated(): Promise<boolean> {
     return true;
   }
 
-  const token = (await cookies()).get(AUTH_SESSION_COOKIE_NAME)?.value;
-  if (!token) {
-    return false;
-  }
-
-  const authSettings = await getAuthSettings(getPool());
-  if (!authSettings.authSessionSecret.trim()) {
-    return false;
-  }
-
-  return verifySessionToken({
-    token,
-    secret: authSettings.authSessionSecret,
-  });
+  return (await getApiSession()) !== null;
 }
 
-export async function requireApiSession() {
-  const authenticated = await isAuthenticated();
-  if (authenticated) {
+async function getApiSession(): Promise<ApiSession | null> {
+  const token = (await cookies()).get(AUTH_SESSION_COOKIE_NAME)?.value;
+  if (!token) {
     return null;
   }
 
   const authSettings = await getAuthSettings(getPool());
-  const envPassword = getServerEnv().AUTH_INITIAL_PASSWORD?.trim();
-  if (!authSettings.authPasswordHash.trim() && !envPassword) {
-    return fail(new ServiceUnavailableError('未配置初始登录密码，暂时无法提供服务'));
+  if (!authSettings.authSessionSecret.trim()) {
+    return null;
   }
 
-  return fail(new UnauthorizedError('请先登录后再继续'));
+  const payload = verifySessionToken({
+    token,
+    secret: authSettings.authSessionSecret,
+  });
+
+  if (!payload) {
+    return null;
+  }
+
+  const user = await getUserById(getPool(), payload.userId);
+  if (
+    !user ||
+    user.status !== 'active' ||
+    user.role !== payload.role ||
+    user.sessionVersion !== payload.sessionVersion
+  ) {
+    return null;
+  }
+
+  return {
+    userId: user.id,
+    role: user.role,
+    sessionVersion: user.sessionVersion,
+  };
+}
+
+export async function requireApiSession(): Promise<ApiSessionResult> {
+  if (shouldBypassSessionGuard()) {
+    return { userId: '1', role: 'admin', sessionVersion: 1 };
+  }
+
+  const session = await getApiSession();
+  if (session) {
+    return session;
+  }
+
+  const envPassword = getServerEnv().AUTH_INITIAL_PASSWORD?.trim();
+  const admin = await findUserByUsername(getPool(), 'admin');
+  if (admin && !admin.passwordHash.trim() && !envPassword) {
+    return { response: fail(new ServiceUnavailableError('未配置初始登录密码，暂时无法提供服务')) };
+  }
+
+  return { response: fail(new UnauthorizedError('请先登录后再继续')) };
 }

@@ -65,7 +65,7 @@ describe('readerSnapshotService (cursor)', () => {
       .find((statement) => statement.includes('left join lateral'));
 
     expect(articleQuerySql).toContain(
-      `(coalesce(published_at, 'epoch'::timestamptz), articles.id) < ($2, $3)`,
+      `(coalesce(published_at, 'epoch'::timestamptz), articles.id) < ($3, $4)`,
     );
   });
 

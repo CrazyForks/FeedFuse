@@ -1,4 +1,5 @@
 import type { Pool, PoolClient } from 'pg';
+import { normalizeUserId } from '@/server/domains/users/userScope';
 
 export type DbClient = Pool | PoolClient;
 
@@ -10,6 +11,7 @@ export type ArticleDuplicateReason =
 
 const articleRowColumnsSql = `
   id,
+  user_id::text as "userId",
   feed_id as "feedId",
   dedupe_key as "dedupeKey",
   title,
@@ -58,6 +60,7 @@ const articleRowColumnsSql = `
 
 export interface ArticleRow {
   id: string;
+  userId: string;
   feedId: string;
   dedupeKey: string;
   title: string;
@@ -223,8 +226,10 @@ export async function insertArticleIgnoreDuplicate(
     filteredBy?: string[];
     filterEvaluatedAt?: string | null;
     filterErrorMessage?: string | null;
+    userId?: string;
   },
 ): Promise<ArticleRow | null> {
+  const scopedUserId = normalizeUserId(input.userId);
   const filterStatus = input.filterStatus ?? 'passed';
   const isFiltered = input.isFiltered ?? false;
   const filteredBy = input.filteredBy ?? [];
@@ -238,6 +243,7 @@ export async function insertArticleIgnoreDuplicate(
   const { rows } = await pool.query<ArticleRow>(
     `
       insert into articles(
+        user_id,
         feed_id,
         dedupe_key,
         title,
@@ -255,11 +261,12 @@ export async function insertArticleIgnoreDuplicate(
         filter_evaluated_at,
         filter_error_message
       )
-      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       on conflict (feed_id, dedupe_key) do nothing
       returning ${articleRowColumnsSql}
     `,
     [
+      scopedUserId,
       input.feedId,
       input.dedupeKey,
       input.title,
@@ -283,17 +290,18 @@ export async function insertArticleIgnoreDuplicate(
 
 export async function getArticleByFeedAndDedupeKey(
   pool: DbClient,
-  input: { feedId: string; dedupeKey: string },
+  input: { feedId: string; dedupeKey: string; userId?: string },
 ): Promise<ArticleRow | null> {
   const { rows } = await pool.query<ArticleRow>(
     `
       select ${articleRowColumnsSql}
       from articles
-      where feed_id = $1
-        and dedupe_key = $2
+      where user_id = $1
+        and feed_id = $2
+        and dedupe_key = $3
       limit 1
     `,
-    [input.feedId, input.dedupeKey],
+    [normalizeUserId(input.userId), input.feedId, input.dedupeKey],
   );
   return rows[0] ?? null;
 }
@@ -301,14 +309,16 @@ export async function getArticleByFeedAndDedupeKey(
 export async function getArticleById(
   pool: DbClient,
   id: string,
+  userId?: string,
 ): Promise<ArticleRow | null> {
   const { rows } = await pool.query<ArticleRow>(
     `
       select ${articleRowColumnsSql}
       from articles
       where id = $1
+        and user_id = $2
     `,
-    [id],
+    [id, normalizeUserId(userId)],
   );
   return rows[0] ?? null;
 }
@@ -317,13 +327,15 @@ export async function insertArticleMediaAttachments(
   pool: DbClient,
   articleId: string,
   attachments: ArticleMediaAttachmentInput[],
+  userId?: string,
 ): Promise<void> {
   if (attachments.length === 0) return;
 
   const values: Array<string | number | null> = [];
   const tuples = attachments.map((attachment, index) => {
-    const offset = index * 6;
+    const offset = index * 7;
     values.push(
+      normalizeUserId(userId),
       articleId,
       attachment.url,
       attachment.mimeType,
@@ -331,12 +343,13 @@ export async function insertArticleMediaAttachments(
       attachment.durationSeconds,
       index,
     );
-    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
+    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7})`;
   });
 
   await pool.query(
     `
       insert into article_media_attachments(
+        user_id,
         article_id,
         url,
         mime_type,
@@ -354,6 +367,7 @@ export async function insertArticleMediaAttachments(
 export async function listArticleMediaAttachments(
   pool: DbClient,
   articleId: string,
+  userId?: string,
 ): Promise<ArticleMediaAttachmentRow[]> {
   const { rows } = await pool.query<ArticleMediaAttachmentRow>(
     `
@@ -366,9 +380,10 @@ export async function listArticleMediaAttachments(
         duration_seconds as "durationSeconds"
       from article_media_attachments
       where article_id = $1
+        and user_id = $2
       order by position asc, id asc
     `,
-    [articleId],
+    [articleId, normalizeUserId(userId)],
   );
   return rows;
 }
@@ -378,6 +393,7 @@ export async function searchArticles(
   input: {
     keyword: string;
     limit?: number;
+    userId?: string;
   },
 ): Promise<ArticleSearchResult[]> {
   const normalizedKeyword = normalizeSearchKeyword(input.keyword);
@@ -410,7 +426,7 @@ export async function searchArticles(
       )
     )
   `;
-  const params: Array<string | number> = [];
+  const params: Array<string | number> = [normalizeUserId(input.userId)];
   const searchConditions = terms.map((term) => {
     params.push(`%${escapeLikePattern(term)}%`);
     return `${searchableSql} ilike $${params.length} escape '\\'`;
@@ -446,6 +462,8 @@ export async function searchArticles(
       from articles
       inner join feeds on feeds.id = articles.feed_id
       where articles.filter_status = any('{passed,error}'::text[])
+        and articles.user_id = $1
+        and feeds.user_id = $1
         and ${searchConditions.join('\n        and ')}
       order by
         case
@@ -482,6 +500,7 @@ export async function setArticleRead(
   pool: DbClient,
   id: string,
   isRead: boolean,
+  userId?: string,
 ): Promise<void> {
   await pool.query(
     `
@@ -490,8 +509,9 @@ export async function setArticleRead(
         is_read = $2,
         read_at = case when $2 then coalesce(read_at, now()) else null end
       where id = $1
+        and user_id = $3
     `,
-    [id, isRead],
+    [id, isRead, normalizeUserId(userId)],
   );
 }
 
@@ -499,6 +519,7 @@ export async function setArticleStarred(
   pool: DbClient,
   id: string,
   isStarred: boolean,
+  userId?: string,
 ): Promise<void> {
   await pool.query(
     `
@@ -507,18 +528,19 @@ export async function setArticleStarred(
         is_starred = $2,
         starred_at = case when $2 then coalesce(starred_at, now()) else null end
       where id = $1
+        and user_id = $3
     `,
-    [id, isStarred],
+    [id, isStarred, normalizeUserId(userId)],
   );
 }
 
 export async function markAllRead(
   pool: DbClient,
-  input: { feedId?: string; excludeArticleIds?: string[] },
+  input: { feedId?: string; excludeArticleIds?: string[]; userId?: string },
 ): Promise<number> {
-  const params: string[] = [];
-  const values: string[] = [];
-  let index = 1;
+  const params: string[] = ['user_id = $1'];
+  const values: string[] = [normalizeUserId(input.userId)];
+  let index = 2;
 
   if (input.feedId) {
     params.push(`feed_id = $${index++}`);
@@ -545,7 +567,7 @@ export async function markAllRead(
   return rowCount ?? 0;
 }
 
-export async function setArticleFilterPending(pool: Pool, id: string): Promise<void> {
+export async function setArticleFilterPending(pool: Pool, id: string, userId?: string): Promise<void> {
   await pool.query(
     `
       update articles
@@ -563,8 +585,9 @@ export async function setArticleFilterPending(pool: Pool, id: string): Promise<v
         filter_evaluated_at = null,
         filter_error_message = null
       where id = $1
+        and user_id = $2
     `,
-    [id],
+    [id, normalizeUserId(userId)],
   );
 }
 
@@ -582,6 +605,7 @@ export async function setArticleFilterResult(
     duplicateOfArticleId?: string | null;
     duplicateReason?: ArticleDuplicateReason | null;
     duplicateScore?: number | null;
+    userId?: string;
   },
 ): Promise<void> {
   await pool.query(
@@ -601,6 +625,7 @@ export async function setArticleFilterResult(
         duplicate_score = $11,
         duplicate_checked_at = now()
       where id = $1
+        and user_id = $12
     `,
     [
       id,
@@ -614,29 +639,32 @@ export async function setArticleFilterResult(
       input.duplicateOfArticleId ?? null,
       input.duplicateReason ?? null,
       input.duplicateScore ?? null,
+      normalizeUserId(input.userId),
     ],
   );
 }
 
 export async function listArticleDuplicateCandidates(
   pool: DbClient,
-  input: { articleId: string; publishedAt: string | null; fetchedAt: string },
+  input: { articleId: string; publishedAt: string | null; fetchedAt: string; userId?: string },
 ): Promise<ArticleRow[]> {
   const { rows } = await pool.query<ArticleRow>(
     `
       -- Only compare against records that already existed so a newer article never replaces an earlier representative.
       select ${articleRowColumnsSql}
       from articles
-      where id <> $1
-        and (fetched_at < $3 or (fetched_at = $3 and id < $1::bigint))
-        and coalesce(published_at, fetched_at) >= coalesce($2::timestamptz, $3::timestamptz) - interval '72 hours'
-        and coalesce(published_at, fetched_at) <= coalesce($2::timestamptz, $3::timestamptz) + interval '72 hours'
+      where user_id = $1
+        and id <> $2
+        and (fetched_at < $3 or (fetched_at = $3 and id < $2::bigint))
+        and coalesce(published_at, fetched_at) >= coalesce($4::timestamptz, $3::timestamptz) - interval '72 hours'
+        and coalesce(published_at, fetched_at) <= coalesce($4::timestamptz, $3::timestamptz) + interval '72 hours'
       order by fetched_at asc, id asc
     `,
     [
+      normalizeUserId(input.userId),
       input.articleId,
-      input.publishedAt,
       input.fetchedAt,
+      input.publishedAt,
     ],
   );
   return rows;
@@ -646,26 +674,31 @@ export async function pruneFeedArticlesToLimit(
   db: DbClient,
   feedId: string,
   maxStoredArticlesPerFeed: number,
+  userId?: string,
 ): Promise<{ deletedCount: number }> {
+  const scopedUserId = normalizeUserId(userId);
   const res = await db.query(
     `
       with overflow as (
         select greatest(count(*)::int - $2::int, 0) as overflow_count
         from articles
-        where feed_id = $1
+        where user_id = $3
+          and feed_id = $1
       ),
       deletable as (
         select id
         from articles
-        where feed_id = $1
+        where user_id = $3
+          and feed_id = $1
           and is_starred = false
         order by coalesce(published_at, fetched_at) asc, id asc
         limit (select overflow_count from overflow)
       )
       delete from articles
-      where id in (select id from deletable)
+      where user_id = $3
+        and id in (select id from deletable)
     `,
-    [feedId, maxStoredArticlesPerFeed],
+    [feedId, maxStoredArticlesPerFeed, scopedUserId],
   );
 
   return { deletedCount: res.rowCount ?? 0 };
@@ -674,7 +707,9 @@ export async function pruneFeedArticlesToLimit(
 export async function pruneAllFeedsArticlesToLimit(
   db: DbClient,
   maxStoredArticlesPerFeed: number,
+  userId?: string,
 ): Promise<{ deletedCount: number }> {
+  const scopedUserId = normalizeUserId(userId);
   const res = await db.query(
     `
       with overflow as (
@@ -682,6 +717,7 @@ export async function pruneAllFeedsArticlesToLimit(
           feed_id,
           greatest(count(*)::int - $1::int, 0) as overflow_count
         from articles
+        where user_id = $2
         group by feed_id
         having count(*) > $1::int
       ),
@@ -695,7 +731,8 @@ export async function pruneAllFeedsArticlesToLimit(
           ) as delete_rank
         from articles a
         join overflow o on o.feed_id = a.feed_id
-        where a.is_starred = false
+        where a.user_id = $2
+          and a.is_starred = false
       ),
       deletable as (
         select r.id
@@ -704,9 +741,10 @@ export async function pruneAllFeedsArticlesToLimit(
         where r.delete_rank <= o.overflow_count
       )
       delete from articles
-      where id in (select id from deletable)
+      where user_id = $2
+        and id in (select id from deletable)
     `,
-    [maxStoredArticlesPerFeed],
+    [maxStoredArticlesPerFeed, scopedUserId],
   );
 
   return { deletedCount: res.rowCount ?? 0 };
@@ -715,7 +753,7 @@ export async function pruneAllFeedsArticlesToLimit(
 export async function setArticleFulltext(
   pool: Pool,
   id: string,
-  input: { contentFullHtml: string; sourceUrl: string | null },
+  input: { contentFullHtml: string; sourceUrl: string | null; userId?: string },
 ): Promise<void> {
   await pool.query(
     `
@@ -726,15 +764,16 @@ export async function setArticleFulltext(
         content_full_error = null,
         content_full_source_url = $3
       where id = $1
+        and user_id = $4
     `,
-    [id, input.contentFullHtml, input.sourceUrl],
+    [id, input.contentFullHtml, input.sourceUrl, normalizeUserId(input.userId)],
   );
 }
 
 export async function setArticleAiSummary(
   pool: Pool,
   id: string,
-  input: { aiSummary: string; aiSummaryModel: string },
+  input: { aiSummary: string; aiSummaryModel: string; userId?: string },
 ): Promise<void> {
   await pool.query(
     `
@@ -744,15 +783,16 @@ export async function setArticleAiSummary(
         ai_summary_model = $3,
         ai_summarized_at = now()
       where id = $1
+        and user_id = $4
     `,
-    [id, input.aiSummary, input.aiSummaryModel],
+    [id, input.aiSummary, input.aiSummaryModel, normalizeUserId(input.userId)],
   );
 }
 
 export async function setArticleAiTranslationZh(
   pool: Pool,
   id: string,
-  input: { aiTranslationZhHtml: string; aiTranslationModel: string },
+  input: { aiTranslationZhHtml: string; aiTranslationModel: string; userId?: string },
 ): Promise<void> {
   await pool.query(
     `
@@ -762,15 +802,16 @@ export async function setArticleAiTranslationZh(
         ai_translation_model = $3,
         ai_translated_at = now()
       where id = $1
+        and user_id = $4
     `,
-    [id, input.aiTranslationZhHtml, input.aiTranslationModel],
+    [id, input.aiTranslationZhHtml, input.aiTranslationModel, normalizeUserId(input.userId)],
   );
 }
 
 export async function setArticleAiTranslationBilingual(
   pool: Pool,
   id: string,
-  input: { aiTranslationBilingualHtml: string; aiTranslationModel: string },
+  input: { aiTranslationBilingualHtml: string; aiTranslationModel: string; userId?: string },
 ): Promise<void> {
   await pool.query(
     `
@@ -780,15 +821,16 @@ export async function setArticleAiTranslationBilingual(
         ai_translation_model = $3,
         ai_translated_at = now()
       where id = $1
+        and user_id = $4
     `,
-    [id, input.aiTranslationBilingualHtml, input.aiTranslationModel],
+    [id, input.aiTranslationBilingualHtml, input.aiTranslationModel, normalizeUserId(input.userId)],
   );
 }
 
 export async function setArticleTitleTranslation(
   pool: Pool,
   id: string,
-  input: { titleZh: string; titleTranslationModel: string },
+  input: { titleZh: string; titleTranslationModel: string; userId?: string },
 ): Promise<void> {
   await pool.query(
     `
@@ -799,15 +841,16 @@ export async function setArticleTitleTranslation(
         title_translated_at = now(),
         title_translation_error = null
       where id = $1
+        and user_id = $4
     `,
-    [id, input.titleZh, input.titleTranslationModel],
+    [id, input.titleZh, input.titleTranslationModel, normalizeUserId(input.userId)],
   );
 }
 
 export async function recordArticleTitleTranslationFailure(
   pool: Pool,
   id: string,
-  input: { error: string },
+  input: { error: string; userId?: string },
 ): Promise<number> {
   const { rows } = await pool.query<{ titleTranslationAttempts: number }>(
     `
@@ -816,9 +859,10 @@ export async function recordArticleTitleTranslationFailure(
         title_translation_attempts = coalesce(title_translation_attempts, 0) + 1,
         title_translation_error = $2
       where id = $1
+        and user_id = $3
       returning title_translation_attempts as "titleTranslationAttempts"
     `,
-    [id, input.error],
+    [id, input.error, normalizeUserId(input.userId)],
   );
   return rows[0]?.titleTranslationAttempts ?? 0;
 }
@@ -826,7 +870,7 @@ export async function recordArticleTitleTranslationFailure(
 export async function setArticleFulltextError(
   pool: Pool,
   id: string,
-  input: { error: string; sourceUrl: string | null },
+  input: { error: string; sourceUrl: string | null; userId?: string },
 ): Promise<void> {
   await pool.query(
     `
@@ -835,7 +879,8 @@ export async function setArticleFulltextError(
         content_full_error = $2,
         content_full_source_url = $3
       where id = $1
+        and user_id = $4
     `,
-    [id, input.error, input.sourceUrl],
+    [id, input.error, input.sourceUrl, normalizeUserId(input.userId)],
   );
 }

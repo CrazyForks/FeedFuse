@@ -24,7 +24,8 @@ describe('articlesRepo (retention)', () => {
     expect(sql).toContain('is_starred = false');
     expect(sql).toContain('coalesce(published_at, fetched_at)');
     expect(sql).toContain('feed_id = $1');
-    expect(query.mock.calls[0]?.[1]).toEqual(['feed-1', 500]);
+    expect(sql).toContain('user_id = $3');
+    expect(query.mock.calls[0]?.[1]).toEqual(['feed-1', 500, '1']);
   });
 
   it('pruneAllFeedsArticlesToLimit partitions deletions by feed and preserves starred rows', async () => {
@@ -48,6 +49,7 @@ describe('articlesRepo (retention)', () => {
     expect(sql).toContain('partition by a.feed_id');
     expect(sql).toContain('delete_rank <= o.overflow_count');
     expect(sql).toContain('is_starred = false');
-    expect(query.mock.calls[0]?.[1]).toEqual([1000]);
+    expect(sql).toContain('user_id = $2');
+    expect(query.mock.calls[0]?.[1]).toEqual([1000, '1']);
   });
 });

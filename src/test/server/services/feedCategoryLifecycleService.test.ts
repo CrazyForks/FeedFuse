@@ -66,7 +66,7 @@ describe('feedCategoryLifecycleService', () => {
 
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining('insert into categories'),
-      ['Tech', 3],
+      ['1', 'Tech', 3],
     );
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining('insert into feeds'),
@@ -167,7 +167,7 @@ describe('feedCategoryLifecycleService', () => {
 
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining('delete from categories'),
-      ['cat-old'],
+      ['cat-old', '1'],
     );
   });
 
@@ -194,7 +194,7 @@ describe('feedCategoryLifecycleService', () => {
     expect(deleted).toBe(true);
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining('delete from categories'),
-      ['cat-tech'],
+      ['cat-tech', '1'],
     );
   });
 
@@ -259,7 +259,7 @@ describe('feedCategoryLifecycleService', () => {
 
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining('update feeds'),
-      ['/api/feeds/feed-1/favicon', 'feed-1'],
+      ['/api/feeds/feed-1/favicon', 'feed-1', '1'],
     );
     expect(created.iconUrl).toBe('/api/feeds/feed-1/favicon');
   });
@@ -310,7 +310,7 @@ describe('feedCategoryLifecycleService', () => {
 
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining('delete from feed_favicons'),
-      ['feed-1'],
+      ['feed-1', '1'],
     );
   });
 });

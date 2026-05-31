@@ -24,6 +24,7 @@ describe('runAiDigestGenerate', () => {
       windowStartAt: '2026-03-14T00:00:00.000Z',
       windowEndAt: '2026-03-14T01:00:00.000Z',
       status: 'queued',
+      userId: '1',
       candidateTotal: 0,
       selectedCount: 0,
       articleId: null,
@@ -81,6 +82,7 @@ describe('runAiDigestGenerate', () => {
       pool,
       'feed-ai',
       '2026-03-14T01:00:00.000Z',
+      '1',
     );
   });
 
@@ -96,6 +98,7 @@ describe('runAiDigestGenerate', () => {
       windowStartAt: '2026-03-15T00:00:00.000Z',
       windowEndAt: '2026-03-15T01:00:00.000Z',
       status: 'queued',
+      userId: '1',
       candidateTotal: 0,
       selectedCount: 0,
       articleId: null,
@@ -171,6 +174,7 @@ describe('runAiDigestGenerate', () => {
           windowStartAt: '2026-03-17T00:00:00.000Z',
           windowEndAt: '2026-03-17T01:00:00.000Z',
           status: 'queued',
+          userId: '1',
         }),
         getAiDigestConfigByFeedId: vi.fn().mockResolvedValue({
           feedId: 'feed-ai',
@@ -237,16 +241,16 @@ describe('runAiDigestGenerate', () => {
         filterErrorMessage: null,
       }),
     );
-    expect(pruneFeedArticlesToLimitMock).toHaveBeenCalledWith(pool, 'feed-ai', 1000);
+    expect(pruneFeedArticlesToLimitMock).toHaveBeenCalledWith(pool, 'feed-ai', 1000, '1');
     expect(writeUserOperationStartedLogMock).toHaveBeenCalledOnce();
     expect(writeUserOperationStartedLogMock).toHaveBeenCalledWith(
       pool,
-      expect.objectContaining({ actionKey: 'aiDigest.generate' }),
+      expect.objectContaining({ actionKey: 'aiDigest.generate', userId: '1' }),
     );
     expect(writeUserOperationSucceededLogMock).toHaveBeenCalledOnce();
     expect(writeUserOperationSucceededLogMock).toHaveBeenCalledWith(
       pool,
-      expect.objectContaining({ actionKey: 'aiDigest.generate' }),
+      expect.objectContaining({ actionKey: 'aiDigest.generate', userId: '1' }),
     );
   });
 
@@ -272,6 +276,7 @@ describe('runAiDigestGenerate', () => {
           windowStartAt: '2026-03-17T00:00:00.000Z',
           windowEndAt: '2026-03-17T01:00:00.000Z',
           status: 'queued',
+          userId: '1',
         }),
         getAiDigestConfigByFeedId: vi.fn().mockResolvedValue({
           feedId: 'feed-ai',
@@ -374,6 +379,7 @@ describe('runAiDigestGenerate', () => {
           windowStartAt: '2026-03-17T00:00:00.000Z',
           windowEndAt: '2026-03-17T01:00:00.000Z',
           status: 'queued',
+          userId: '1',
         }),
         getAiDigestConfigByFeedId: vi.fn().mockResolvedValue({
           feedId: 'feed-ai',
@@ -424,6 +430,7 @@ describe('runAiDigestGenerate', () => {
       pool,
       'feed-ai',
       '2026-03-17T01:00:00.000Z',
+      '1',
     );
     expect(insertArticleIgnoreDuplicateMock).not.toHaveBeenCalled();
   });
@@ -449,6 +456,7 @@ describe('runAiDigestGenerate', () => {
           windowStartAt: '2026-03-17T00:00:00.000Z',
           windowEndAt: '2026-03-17T01:00:00.000Z',
           status: 'queued',
+          userId: '1',
         }),
         getAiDigestConfigByFeedId: vi.fn().mockResolvedValue({
           feedId: 'feed-ai',
@@ -521,6 +529,7 @@ describe('runAiDigestGenerate', () => {
             windowStartAt: '2026-03-18T00:00:00.000Z',
             windowEndAt: '2026-03-18T01:00:00.000Z',
             status: 'queued',
+            userId: '1',
           }),
           getAiDigestConfigByFeedId: vi.fn().mockResolvedValue({
             feedId: 'feed-ai',
@@ -555,13 +564,14 @@ describe('runAiDigestGenerate', () => {
     expect(writeUserOperationStartedLogMock).toHaveBeenCalledOnce();
     expect(writeUserOperationStartedLogMock).toHaveBeenCalledWith(
       pool,
-      expect.objectContaining({ actionKey: 'aiDigest.generate' }),
+      expect.objectContaining({ actionKey: 'aiDigest.generate', userId: '1' }),
     );
     expect(writeUserOperationFailedLogMock).toHaveBeenCalledOnce();
     expect(writeUserOperationFailedLogMock).toHaveBeenCalledWith(
       pool,
       expect.objectContaining({
         actionKey: 'aiDigest.generate',
+        userId: '1',
       }),
     );
     expect(updateAiDigestRunMock).toHaveBeenCalledWith(
@@ -594,6 +604,7 @@ describe('runAiDigestGenerate', () => {
             windowStartAt: '2026-03-17T00:00:00.000Z',
             windowEndAt: '2026-03-17T01:00:00.000Z',
             status: 'queued',
+            userId: '1',
             jobId: 'job-1',
           }),
           getAiDigestConfigByFeedId: vi.fn().mockResolvedValue({

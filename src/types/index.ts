@@ -192,6 +192,7 @@ export interface LoggingSettings {
 
 export interface SystemLogItem {
   id: string;
+  userId: string | null;
   level: SystemLogLevel;
   category: SystemLogCategory;
   message: string;

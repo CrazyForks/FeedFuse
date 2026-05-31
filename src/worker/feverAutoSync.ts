@@ -35,17 +35,21 @@ export function selectFeverAccountsForAutoSync(
 export async function runFeverAutoSyncWorker(input: {
   pool: Pool;
   now?: Date;
+  userId?: string;
 }): Promise<{ enqueued: number }> {
   const now = input.now ?? new Date();
-  const accounts = await listEnabledFeverAccountsForAutoSync(input.pool);
+  const accounts = await listEnabledFeverAccountsForAutoSync(input.pool, input.userId);
   const dueAccounts = selectFeverAccountsForAutoSync(accounts, now);
   let enqueued = 0;
 
   for (const account of dueAccounts) {
     const result = await enqueueWithResult(
       JOB_FEVER_SYNC,
-      { accountId: account.id },
-      getQueueSendOptions(JOB_FEVER_SYNC, { accountId: account.id }),
+      { userId: account.userId, accountId: account.id },
+      getQueueSendOptions(JOB_FEVER_SYNC, {
+        userId: account.userId,
+        accountId: account.id,
+      }),
     );
 
     if (result.status !== 'enqueued') {
@@ -55,6 +59,7 @@ export async function runFeverAutoSyncWorker(input: {
     // 记录最近一次调度尝试，避免分钟级扫描反复命中同一账号。
     await markFeverAccountSyncAttempted(input.pool, {
       accountId: account.id,
+      userId: account.userId,
       attemptedAt: now.toISOString(),
     });
     enqueued += 1;

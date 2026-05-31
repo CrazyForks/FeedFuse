@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { buildArticleFilter, decodeCursor, encodeCursor } from '@/server/domains/reader/services/readerSnapshotService';
 import { AI_DIGEST_VIEW_ID } from '@/lib/reader/view';
 
-const RSS_ONLY = "feed_id in (select id from feeds where kind = 'rss')";
-const AI_DIGEST_ONLY = "feed_id in (select id from feeds where kind = 'ai_digest')";
+const RSS_ONLY = "feed_id in (select id from feeds where user_id = $1 and kind = 'rss')";
+const AI_DIGEST_ONLY = "feed_id in (select id from feeds where user_id = $1 and kind = 'ai_digest')";
 
 describe('readerSnapshotService', () => {
   it('filters unread view and excludes ai_digest', () => {
@@ -22,19 +22,19 @@ describe('readerSnapshotService', () => {
     const filter = buildArticleFilter({ view: 'all' });
     expect(filter.whereSql).toContain(RSS_ONLY);
     expect(filter.whereSql).toContain('filter_status = any');
-    expect(filter.params[0]).toEqual(['passed', 'error']);
+    expect(filter.params[1]).toEqual(['passed', 'error']);
   });
 
   it('adds unreadOnly filter on top of aggregate view', () => {
     const filter = buildArticleFilter({ view: 'all', unreadOnly: true });
     expect(filter.whereSql).toContain('is_read = false');
-    expect(filter.params[0]).toEqual(['passed', 'error']);
+    expect(filter.params[1]).toEqual(['passed', 'error']);
   });
 
   it('adds unreadOnly filter on top of feed view', () => {
     const filter = buildArticleFilter({ view: 'feed-id-1', unreadOnly: true });
     expect(filter.whereSql).toContain('is_read = false');
-    expect(filter.params[1]).toEqual(['passed', 'error']);
+    expect(filter.params[2]).toEqual(['passed', 'error']);
   });
 
   it('filters ai-digest smart view and only returns ai_digest feeds', () => {
@@ -52,15 +52,15 @@ describe('readerSnapshotService', () => {
 
   it('allows filtered articles only for a single feed when includeFiltered=true', () => {
     const filter = buildArticleFilter({ view: 'feed-id-1', includeFiltered: true });
-    expect(filter.params[1]).toEqual(['passed', 'error', 'filtered']);
+    expect(filter.params[2]).toEqual(['passed', 'error', 'filtered']);
 
     const aggregate = buildArticleFilter({ view: 'all', includeFiltered: true });
-    expect(aggregate.params[0]).toEqual(['passed', 'error']);
+    expect(aggregate.params[1]).toEqual(['passed', 'error']);
   });
 
   it('keeps duplicate filtered articles visible when includeFiltered is enabled for a feed', () => {
     const filter = buildArticleFilter({ view: 'feed-id-1', includeFiltered: true });
-    expect(filter.params[1]).toEqual(['passed', 'error', 'filtered']);
+    expect(filter.params[2]).toEqual(['passed', 'error', 'filtered']);
   });
 
   it('roundtrips cursor', () => {

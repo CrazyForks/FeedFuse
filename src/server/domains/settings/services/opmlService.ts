@@ -42,7 +42,7 @@ function normalizeComparableUrl(url: string): string {
 
 export async function importOpml(
   pool: Pool,
-  input: { content: string },
+  input: { content: string; userId?: string },
 ): Promise<OpmlImportResult> {
   let parsed;
 
@@ -55,7 +55,10 @@ export async function importOpml(
     throw error;
   }
 
-  const [existingFeeds, existingCategories] = await Promise.all([listFeeds(pool), listCategories(pool)]);
+  const [existingFeeds, existingCategories] = await Promise.all([
+    listFeeds(pool, input.userId),
+    listCategories(pool, input.userId),
+  ]);
   const existingUrls = new Set(existingFeeds.map((feed) => normalizeComparableUrl(feed.url)));
   const knownCategoryNames = new Set(
     existingCategories
@@ -86,6 +89,7 @@ export async function importOpml(
       url: entry.xmlUrl,
       siteUrl: entry.siteUrl,
       categoryName: entry.category,
+      userId: input.userId,
     });
 
     importedCount += 1;
@@ -108,8 +112,11 @@ export async function importOpml(
   };
 }
 
-export async function exportOpml(pool: Pool): Promise<{ xml: string; fileName: string }> {
-  const [categories, feeds] = await Promise.all([listCategories(pool), listFeeds(pool)]);
+export async function exportOpml(
+  pool: Pool,
+  userId?: string,
+): Promise<{ xml: string; fileName: string }> {
+  const [categories, feeds] = await Promise.all([listCategories(pool, userId), listFeeds(pool, userId)]);
   // OPML 只用于备份真实 RSS 订阅，不导出应用内生成的 AI digest feed。
   const rssFeeds = feeds.filter((feed) => feed.kind === 'rss');
 

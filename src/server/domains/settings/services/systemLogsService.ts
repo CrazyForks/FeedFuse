@@ -29,11 +29,12 @@ function normalizePageSize(input: number | undefined): number {
 
 export async function getSystemLogs(
   pool: Pool,
-  input: { keyword?: string; page?: number; pageSize?: number } = {},
+  input: { userId?: string | null; keyword?: string; page?: number; pageSize?: number } = {},
 ): Promise<SystemLogsPage> {
   const page = normalizePage(input.page);
   const pageSize = normalizePageSize(input.pageSize);
   const result = await listSystemLogs(pool, {
+    userId: input.userId,
     keyword: normalizeKeyword(input.keyword),
     page,
     pageSize,
@@ -49,7 +50,10 @@ export async function getSystemLogs(
   };
 }
 
-export async function clearSystemLogs(pool: Pool): Promise<{ deletedCount: number }> {
-  const deletedCount = await deleteAllSystemLogs(pool);
+export async function clearSystemLogs(
+  pool: Pool,
+  input: { userId?: string | null } = {},
+): Promise<{ deletedCount: number }> {
+  const deletedCount = await deleteAllSystemLogs(pool, { userId: input.userId });
   return { deletedCount };
 }

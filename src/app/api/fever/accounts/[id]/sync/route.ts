@@ -14,30 +14,31 @@ export async function POST(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
     const { id } = await context.params;
-    const account = await getFeverAccountById(getPool(), id);
+    const account = await getFeverAccountById(getPool(), id, session.userId);
     if (!account) {
       return fail(new NotFoundError('Fever 账号不存在'));
     }
     if (!account.enabled) {
       return fail(new ValidationError('Invalid request body', { id: 'Fever 账号已停用' }));
     }
-    const payload = { accountId: id };
+    const payload = { userId: session.userId, accountId: id };
     const attemptedAt = new Date().toISOString();
     const result = await enqueueWithResult(
       JOB_FEVER_SYNC,
       payload,
-      getQueueSendOptions(JOB_FEVER_SYNC, { accountId: id }),
+      getQueueSendOptions(JOB_FEVER_SYNC, payload),
     );
     if (result.status === 'enqueued') {
       await markFeverAccountSyncAttempted(getPool(), {
         accountId: id,
+        userId: session.userId,
         attemptedAt,
       });
       return ok({ queued: true });

@@ -22,9 +22,9 @@ const querySchema = z.object({
 const MAX_REDIRECTS = 3;
 
 export async function GET(request: Request) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   const url = new URL(request.url);

@@ -32,8 +32,9 @@ function shouldRetryFailedFetch(nextRetryAt: string | null): boolean {
 export async function getOrFetchFeedFavicon(
   pool: Pool,
   feedId: string,
+  userId?: string,
 ): Promise<FeedFaviconAsset | null> {
-  const cached = await getFeedFaviconCache(pool, feedId);
+  const cached = await getFeedFaviconCache(pool, feedId, userId);
   if (cached) {
     if (cached.fetchStatus === 'ready' && cached.contentType && cached.body) {
       return {
@@ -50,7 +51,7 @@ export async function getOrFetchFeedFavicon(
     }
   }
 
-  const feed = await getFeedFaviconTarget(pool, feedId);
+  const feed = await getFeedFaviconTarget(pool, feedId, userId);
   if (!feed || feed.kind !== 'rss' || !feed.siteUrl) {
     return null;
   }
@@ -59,6 +60,7 @@ export async function getOrFetchFeedFavicon(
   if (!discovered) {
     await upsertFeedFaviconFailure(pool, {
       feedId,
+      userId,
       failureReason: 'favicon_not_found',
       nextRetryAt: new Date(Date.now() + FAILED_FAVICON_RETRY_WINDOW_MS).toISOString(),
     });
@@ -67,6 +69,7 @@ export async function getOrFetchFeedFavicon(
 
   await upsertFeedFaviconCache(pool, {
     feedId,
+    userId,
     sourceUrl: discovered.sourceUrl,
     contentType: discovered.contentType,
     body: discovered.body,
@@ -74,7 +77,7 @@ export async function getOrFetchFeedFavicon(
     lastModified: discovered.lastModified,
   });
 
-  const refreshed = await getFeedFaviconCache(pool, feedId);
+  const refreshed = await getFeedFaviconCache(pool, feedId, userId);
   if (!refreshed || refreshed.fetchStatus !== 'ready' || !refreshed.contentType || !refreshed.body) {
     return null;
   }

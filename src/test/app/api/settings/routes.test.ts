@@ -138,7 +138,7 @@ describe('/api/settings', () => {
     );
     const json = await res.json();
 
-    expect(updateUiSettingsMock).toHaveBeenCalledWith(client, normalized);
+    expect(updateUiSettingsMock).toHaveBeenCalledWith(client, '1', normalized);
     expect(updateAllFeedsFetchIntervalMinutesMock).toHaveBeenCalledWith(client, 60);
     expect(writeUserOperationSucceededLogMock).toHaveBeenCalledWith(
       client,
@@ -192,7 +192,7 @@ describe('/api/settings', () => {
     );
     const json = await res.json();
 
-    expect(updateUiSettingsMock).toHaveBeenCalledWith(client, normalized);
+    expect(updateUiSettingsMock).toHaveBeenCalledWith(client, '1', normalized);
     expect(updateAllFeedsFetchIntervalMinutesMock).not.toHaveBeenCalled();
     expect(pruneAllFeedsArticlesToLimitMock).not.toHaveBeenCalled();
     expect(json.ok).toBe(true);

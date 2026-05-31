@@ -35,9 +35,9 @@ export async function POST(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -50,32 +50,38 @@ export async function POST(
     }
 
     const pool = getPool();
-    const feed = await getFeedRefreshDispatchRow(pool, paramsParsed.data.id);
+    const feed = await getFeedRefreshDispatchRow(pool, paramsParsed.data.id, session.userId);
     if (!feed || !feed.enabled || feed.kind !== 'rss') {
       return ok({ enqueued: false });
     }
 
     if (feed.provider === 'fever') {
       // Fever 源不支持单独刷新，任意一个源入口都直接升级成账号级同步。
-      const mapping = await getFeverAccountByLocalFeedId(pool, paramsParsed.data.id);
+      const mapping = await getFeverAccountByLocalFeedId(pool, paramsParsed.data.id, session.userId);
       if (!mapping) {
         return ok({ enqueued: false });
       }
 
-      const account = await getFeverAccountById(pool, mapping.feverAccountId);
+      const account = await getFeverAccountById(pool, mapping.feverAccountId, session.userId);
       if (!account || !account.enabled) {
         return ok({ enqueued: false });
       }
 
-      const targetFeedIds = await listActiveLocalFeedIdsByFeverAccountId(pool, mapping.feverAccountId);
+      const targetFeedIds = await listActiveLocalFeedIdsByFeverAccountId(
+        pool,
+        mapping.feverAccountId,
+        session.userId,
+      );
       const run = await initializeFeedRefreshRun(pool, {
         scope: 'single',
         feedId: paramsParsed.data.id,
         targetFeedIds: targetFeedIds.length > 0 ? targetFeedIds : [paramsParsed.data.id],
+        userId: session.userId,
       });
       const payload = {
         accountId: mapping.feverAccountId,
         runId: run.id,
+        userId: session.userId,
         feedIds: targetFeedIds.length > 0 ? targetFeedIds : [paramsParsed.data.id],
       };
       const attemptedAt = new Date().toISOString();
@@ -92,6 +98,7 @@ export async function POST(
             feedId,
             status: 'failed',
             errorMessage: 'Fever 同步任务已在队列中',
+            userId: session.userId,
           });
         }
         return ok({ enqueued: false, runId: run.id });
@@ -99,6 +106,7 @@ export async function POST(
       await markFeverAccountSyncAttempted(pool, {
         accountId: mapping.feverAccountId,
         attemptedAt,
+        userId: session.userId,
       });
       return ok({ enqueued: true, jobId: trackedResult.jobId, runId: run.id });
     }
@@ -107,8 +115,14 @@ export async function POST(
       scope: 'single',
       feedId: paramsParsed.data.id,
       targetFeedIds: [paramsParsed.data.id],
+      userId: session.userId,
     });
-    const payload = { feedId: paramsParsed.data.id, force: true, runId: run.id };
+    const payload = {
+      feedId: paramsParsed.data.id,
+      force: true,
+      runId: run.id,
+      userId: session.userId,
+    };
     const result = await enqueueWithResult(
       JOB_FEED_FETCH,
       payload,

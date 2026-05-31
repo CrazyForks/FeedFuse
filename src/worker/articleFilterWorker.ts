@@ -10,6 +10,7 @@ import { evaluateArticleDuplicate, type ArticleDuplicateMatchResult } from '@/se
 import { enqueueAutoAiTriggersOnFetch } from '@/worker/autoAiTriggers';
 
 export interface ArticleFilterJobData {
+  userId?: string;
   articleId: string;
   articleFilter: ArticleFilterSettings;
   feed: {
@@ -63,12 +64,12 @@ export async function runArticleFilterWorker(input: {
   deps?: Partial<ArticleFilterWorkerDeps>;
 }): Promise<void> {
   const deps = { ...defaultDeps, ...(input.deps ?? {}) };
-  const article = await deps.getArticleById(input.pool, input.job.articleId);
+  const article = await deps.getArticleById(input.pool, input.job.articleId, input.job.userId);
   if (!article) {
     return;
   }
 
-  await deps.setArticleFilterPending(input.pool, article.id);
+  await deps.setArticleFilterPending(input.pool, article.id, article.userId);
 
   let duplicateResult: ArticleDuplicateMatchResult | null = null;
   try {
@@ -83,6 +84,7 @@ export async function runArticleFilterWorker(input: {
 
     if (prefilterResult.filterStatus === 'filtered') {
       await deps.setArticleFilterResult(input.pool, article.id, {
+        userId: article.userId,
         filterStatus: 'filtered',
         isFiltered: true,
         filteredBy: prefilterResult.filteredBy,
@@ -93,12 +95,14 @@ export async function runArticleFilterWorker(input: {
 
     duplicateResult = await deps.evaluateArticleDuplicate({
       pool: input.pool,
+      userId: article.userId,
       article,
     });
     const duplicateFilterFields = buildDuplicateFilterFields(duplicateResult);
 
     if (duplicateResult.matched) {
       await deps.setArticleFilterResult(input.pool, article.id, {
+        userId: article.userId,
         filterStatus: 'filtered',
         isFiltered: true,
         filteredBy: ['duplicate'],
@@ -110,8 +114,8 @@ export async function runArticleFilterWorker(input: {
 
     let articleForFilter = article;
     if (input.job.feed.fullTextOnFetchEnabled) {
-      await deps.fetchFulltextAndStore(input.pool, article.id);
-      articleForFilter = (await deps.getArticleById(input.pool, article.id)) ?? article;
+      await deps.fetchFulltextAndStore(input.pool, article.id, article.userId);
+      articleForFilter = (await deps.getArticleById(input.pool, article.id, article.userId)) ?? article;
     }
 
     const result = await deps.evaluateArticleFilter({
@@ -123,6 +127,7 @@ export async function runArticleFilterWorker(input: {
     });
 
     await deps.setArticleFilterResult(input.pool, article.id, {
+      userId: article.userId,
       filterStatus: result.filterStatus,
       isFiltered: result.isFiltered,
       filteredBy: result.filteredBy,
@@ -135,6 +140,7 @@ export async function runArticleFilterWorker(input: {
     }
 
     await deps.enqueueAutoAiTriggersOnFetch(input.boss, {
+      userId: article.userId,
       feed: {
         aiSummaryOnFetchEnabled: input.job.feed.aiSummaryOnFetchEnabled,
         bodyTranslateOnFetchEnabled: input.job.feed.bodyTranslateOnFetchEnabled,
@@ -145,13 +151,17 @@ export async function runArticleFilterWorker(input: {
     if (input.job.feed.titleTranslateEnabled && !articleForFilter.titleZh?.trim()) {
       await input.boss.send(
         JOB_AI_TRANSLATE_TITLE,
-        { articleId: article.id },
-        getQueueSendOptions(JOB_AI_TRANSLATE_TITLE, { articleId: article.id }),
+        { userId: article.userId, articleId: article.id },
+        getQueueSendOptions(JOB_AI_TRANSLATE_TITLE, {
+          userId: article.userId,
+          articleId: article.id,
+        }),
       );
     }
   } catch (error) {
     const message = error instanceof Error ? error.message.trim() || 'Unknown error' : 'Unknown error';
     await deps.setArticleFilterResult(input.pool, article.id, {
+      userId: article.userId,
       filterStatus: 'error',
       isFiltered: false,
       filteredBy: [],

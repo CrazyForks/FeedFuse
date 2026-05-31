@@ -24,6 +24,18 @@
 - 需要启动期迁移时，入口保持通过 `scripts/db/migrate.mjs`
 - 改变环境变量契约时，同步检查 `.env.example`、`docs/development.md`、部署文档
 
+## 多用户隔离契约
+
+- 单实例多用户默认强隔离；所有用户私有数据必须带 `user_id`，route -> service -> repository -> worker 全链路显式传递当前 `session.userId`。
+- `requireApiSession()` 返回当前用户上下文 `{ userId, role, sessionVersion }`；route 不能再把鉴权结果当成简单布尔值使用。
+- session payload 必须包含 `userId`、`role`、`sessionVersion`、`iat`、`exp`；用户禁用、重置密码或修改密码时必须递增 `session_version` 使旧 session 失效。
+- 用户私有表的唯一约束必须按用户作用域设计，例如 `(user_id, lower(name))`、`(user_id, url)`；跨用户允许相同分类名、订阅 URL 或外部账号标识。
+- `app_settings` 只保留全局兼容配置；用户级 UI 设置、AI key、translation key 必须读写 `user_settings`。
+- 历史单用户数据迁移必须归属默认管理员，并为默认管理员迁移旧 `app_settings` 中的 UI 设置与密钥。
+- 所有异步任务 payload、队列 singleton key、任务状态、系统日志和用户操作日志涉及用户私有数据时都必须携带 `userId`；定时任务没有会话上下文时必须按 active users fan-out。
+- Fever、AI digest、feed refresh、全文抓取、文章过滤、摘要、翻译等 worker 在读取或写入数据前必须用 `userId` 校验资源归属。
+- 管理员才可创建用户、列表用户、重置密码、禁用或启用用户；普通用户只能读取自己的资料和修改自己的密码。
+
 ## RSS 网络访问契约
 
 - `src/server/integrations/rss/ssrfGuard.ts` 是 RSS 外链安全判定的统一入口；`route.ts`、worker 和抓取流程不要各自散落一套网络地址规则。

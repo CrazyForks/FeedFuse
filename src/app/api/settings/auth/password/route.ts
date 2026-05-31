@@ -20,9 +20,9 @@ const changePasswordBodySchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {

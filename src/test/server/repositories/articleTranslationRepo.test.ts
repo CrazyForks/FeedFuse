@@ -34,6 +34,7 @@ describe('articleTranslationRepo', () => {
 
     expect(String(pool.query.mock.calls[0]?.[0] ?? '')).toContain('raw_error_message');
     expect(pool.query.mock.calls[0]?.[1]).toEqual([
+      '1',
       'session-1',
       1,
       'A',

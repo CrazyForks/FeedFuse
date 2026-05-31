@@ -33,7 +33,8 @@ describe('feverMappingsRepo', () => {
 
     const sql = String(query.mock.calls[0]?.[0] ?? '');
     expect(sql).toContain('update fever_item_mappings');
-    expect(sql).toContain("not (fever_item_id = any($2::text[]))");
+    expect(sql).toContain('user_id = $2');
+    expect(sql).toContain("not (fever_item_id = any($3::text[]))");
   });
 
   it('gets fever account by local feed id only from enabled active mapping', async () => {
@@ -120,7 +121,8 @@ describe('feverMappingsRepo', () => {
     const sql = String(query.mock.calls[0]?.[0] ?? '');
     expect(sql).toContain('from fever_item_mappings');
     expect(sql).toContain('join articles on');
-    expect(sql).toContain('articles.feed_id = $1');
+    expect(sql).toContain('articles.user_id = $1');
+    expect(sql).toContain('articles.feed_id = $2');
   });
 
   it('builds local markAllRead SQL with excluded article ids when provided', async () => {

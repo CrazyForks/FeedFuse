@@ -66,8 +66,13 @@ function isForeignKeyViolation(
 
 const patchOperationSource = 'app/api/ai-digests/[feedId]';
 
-async function writeAiDigestUpdateFailure(err: unknown, context?: Record<string, unknown>) {
+async function writeAiDigestUpdateFailure(
+  err: unknown,
+  userId: string,
+  context?: Record<string, unknown>,
+) {
   await writeUserOperationFailedLog(getPool(), {
+    userId,
     actionKey: 'aiDigest.update',
     source: patchOperationSource,
     err,
@@ -79,9 +84,9 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ feedId: string }> },
 ) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -94,7 +99,7 @@ export async function GET(
     }
 
     const pool = getPool();
-    const config = await getAiDigestConfigByFeedId(pool, paramsParsed.data.feedId);
+    const config = await getAiDigestConfigByFeedId(pool, paramsParsed.data.feedId, session.userId);
     if (!config) {
       return fail(new NotFoundError('AI digest config not found'));
     }
@@ -114,9 +119,9 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ feedId: string }> },
 ) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -124,7 +129,7 @@ export async function PATCH(
     const paramsParsed = paramsSchema.safeParse(params);
     if (!paramsParsed.success) {
       const error = new ValidationError('Invalid route params', zodIssuesToFields(paramsParsed.error));
-      await writeAiDigestUpdateFailure(error);
+      await writeAiDigestUpdateFailure(error, session.userId);
       return fail(error);
     }
 
@@ -133,28 +138,30 @@ export async function PATCH(
       const error = new ValidationError('Invalid request body', {
         selectedCategoryIds: 'selectedCategoryIds is not allowed',
       });
-      await writeAiDigestUpdateFailure(error, { feedId: paramsParsed.data.feedId });
+      await writeAiDigestUpdateFailure(error, session.userId, { feedId: paramsParsed.data.feedId });
       return fail(error);
     }
 
     const parsed = patchBodySchema.safeParse(json);
     if (!parsed.success) {
       const error = new ValidationError('Invalid request body', zodIssuesToFields(parsed.error));
-      await writeAiDigestUpdateFailure(error, { feedId: paramsParsed.data.feedId });
+      await writeAiDigestUpdateFailure(error, session.userId, { feedId: paramsParsed.data.feedId });
       return fail(error);
     }
 
     const pool = getPool();
     const updated = await updateAiDigestWithCategoryResolution(pool, {
       feedId: paramsParsed.data.feedId,
+      userId: session.userId,
       ...parsed.data,
     });
     if (!updated) {
       const error = new NotFoundError('AI digest feed not found');
-      await writeAiDigestUpdateFailure(error, { feedId: paramsParsed.data.feedId });
+      await writeAiDigestUpdateFailure(error, session.userId, { feedId: paramsParsed.data.feedId });
       return fail(error);
     }
     await writeUserOperationSucceededLog(pool, {
+      userId: session.userId,
       actionKey: 'aiDigest.update',
       source: patchOperationSource,
       context: { feedId: updated.id },
@@ -164,10 +171,10 @@ export async function PATCH(
   } catch (err) {
     if (isForeignKeyViolation(err, 'feeds_category_id_fkey')) {
       const error = new ValidationError('Invalid request body', { categoryId: 'not_found' });
-      await writeAiDigestUpdateFailure(error);
+      await writeAiDigestUpdateFailure(error, session.userId);
       return fail(error);
     }
-    await writeAiDigestUpdateFailure(err);
+    await writeAiDigestUpdateFailure(err, session.userId);
     return fail(err);
   }
 }

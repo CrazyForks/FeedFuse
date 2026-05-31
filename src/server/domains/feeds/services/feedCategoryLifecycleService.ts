@@ -15,10 +15,12 @@ import {
 } from '@/server/domains/feeds/repositories/feedsRepo';
 import { deleteFeedFaviconCache } from '@/server/domains/feeds/repositories/feedFaviconsRepo';
 import { buildFeedFaviconPath } from '@/server/integrations/rss/feedFaviconUrl';
+import { normalizeUserId } from '@/server/domains/users/userScope';
 
 interface CategoryResolutionInput {
   categoryId?: string | null;
   categoryName?: string | null;
+  userId?: string;
 }
 
 export interface CreateFeedWithCategoryInput extends CategoryResolutionInput {
@@ -71,6 +73,7 @@ async function resolveCategoryId(
   client: PoolClient,
   input: CategoryResolutionInput,
 ): Promise<string | null> {
+  const userId = normalizeUserId(input.userId);
   if (typeof input.categoryId !== 'undefined') {
     return input.categoryId ?? null;
   }
@@ -78,23 +81,24 @@ async function resolveCategoryId(
   const normalizedName = normalizeCategoryName(input.categoryName);
   if (!normalizedName) return null;
 
-  const existing = await findCategoryByNormalizedName(client, normalizedName);
+  const existing = await findCategoryByNormalizedName(client, normalizedName, userId);
   if (existing) return existing.id;
 
-  const position = await getNextCategoryPosition(client);
-  const created = await createCategory(client, { name: normalizedName, position });
+  const position = await getNextCategoryPosition(client, userId);
+  const created = await createCategory(client, { name: normalizedName, position, userId });
   return created.id;
 }
 
 async function cleanupCategoryIfEmpty(
   client: PoolClient,
   categoryId: string | null | undefined,
+  userId?: string,
 ): Promise<void> {
   if (!categoryId) return;
 
-  const remainingCount = await countFeedsByCategoryId(client, categoryId);
+  const remainingCount = await countFeedsByCategoryId(client, categoryId, userId);
   if (remainingCount === 0) {
-    await deleteCategory(client, categoryId);
+    await deleteCategory(client, categoryId, userId);
   }
 }
 
@@ -102,19 +106,21 @@ export async function createFeedWithCategoryResolution(
   pool: Pool,
   input: CreateFeedWithCategoryInput,
 ): Promise<FeedRow> {
+  const userId = normalizeUserId(input.userId);
   const client = await pool.connect();
   try {
     await client.query('begin');
 
-    const resolvedCategoryId = await resolveCategoryId(client, input);
+    const resolvedCategoryId = await resolveCategoryId(client, { ...input, userId });
     const created = await createFeed(client, {
       ...input,
+      userId,
       categoryId: resolvedCategoryId,
     });
 
     const nextCreated =
       created.siteUrl && created.kind === 'rss'
-        ? await updateFeed(client, created.id, { iconUrl: buildFeedFaviconPath(created.id) })
+        ? await updateFeed(client, created.id, { iconUrl: buildFeedFaviconPath(created.id), userId })
         : created;
 
     await client.query('commit');
@@ -132,11 +138,12 @@ export async function updateFeedWithCategoryResolution(
   id: string,
   input: UpdateFeedWithCategoryInput,
 ): Promise<FeedRow | null> {
+  const userId = normalizeUserId(input.userId);
   const client = await pool.connect();
   try {
     await client.query('begin');
 
-    const existing = await getFeedCategoryAssignment(client, id);
+    const existing = await getFeedCategoryAssignment(client, id, userId);
     if (!existing) {
       await client.query('commit');
       return null;
@@ -147,25 +154,25 @@ export async function updateFeedWithCategoryResolution(
     };
 
     if (hasCategoryInput(input)) {
-      nextInput.categoryId = await resolveCategoryId(client, input);
+      nextInput.categoryId = await resolveCategoryId(client, { ...input, userId });
     }
 
     if (typeof input.siteUrl !== 'undefined') {
       nextInput.iconUrl = input.siteUrl ? buildFeedFaviconPath(id) : null;
     }
 
-    const updated = await updateFeed(client, id, nextInput);
+    const updated = await updateFeed(client, id, { ...nextInput, userId });
     if (!updated) {
       await client.query('commit');
       return null;
     }
 
     if (existing.categoryId !== updated.categoryId) {
-      await cleanupCategoryIfEmpty(client, existing.categoryId);
+      await cleanupCategoryIfEmpty(client, existing.categoryId, userId);
     }
 
     if (typeof input.siteUrl !== 'undefined' && existing.siteUrl !== updated.siteUrl) {
-      await deleteFeedFaviconCache(client, id);
+      await deleteFeedFaviconCache(client, id, userId);
     }
 
     await client.query('commit');
@@ -181,24 +188,26 @@ export async function updateFeedWithCategoryResolution(
 export async function deleteFeedAndCleanupCategory(
   pool: Pool,
   id: string,
+  userId?: string,
 ): Promise<boolean> {
+  const scopedUserId = normalizeUserId(userId);
   const client = await pool.connect();
   try {
     await client.query('begin');
 
-    const existing = await getFeedCategoryAssignment(client, id);
+    const existing = await getFeedCategoryAssignment(client, id, scopedUserId);
     if (!existing) {
       await client.query('commit');
       return false;
     }
 
-    const deleted = await deleteFeed(client, id);
+    const deleted = await deleteFeed(client, id, scopedUserId);
     if (!deleted) {
       await client.query('commit');
       return false;
     }
 
-    await cleanupCategoryIfEmpty(client, existing.categoryId);
+    await cleanupCategoryIfEmpty(client, existing.categoryId, scopedUserId);
     await client.query('commit');
     return true;
   } catch (error) {

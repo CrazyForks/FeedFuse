@@ -60,7 +60,7 @@ describe('feverSync worker', () => {
     await runFeverSyncWorker({
       pool,
       boss: boss as never,
-      data: { accountId: '1', runId: 'run-1', feedIds: ['10'] },
+      data: { userId: '1', accountId: '1', runId: 'run-1', feedIds: ['10'] },
       deps: {
         getAppSettings,
         getUiSettings: vi.fn().mockResolvedValue({
@@ -94,11 +94,12 @@ describe('feverSync worker', () => {
       },
     });
 
-    expect(createClientForAccountMock).toHaveBeenCalledWith(pool, '1');
+    expect(createClientForAccountMock).toHaveBeenCalledWith(pool, '1', '1');
     expect(syncFeverAccountMock).toHaveBeenCalledWith(
       pool,
       expect.objectContaining({
         accountId: '1',
+        userId: '1',
         client,
         sinceItemId: null,
         maxItemId: 'remote-9',
@@ -131,6 +132,7 @@ describe('feverSync worker', () => {
       lastFetchError: null,
       lastFetchRawError: null,
       isPodcast: false,
+      userId: '1',
     };
     const remoteFeed = {
       id: 'feed-1',
@@ -171,6 +173,7 @@ describe('feverSync worker', () => {
       'article.filter',
       expect.objectContaining({
         articleId: 'article-1',
+        userId: '1',
         feed: expect.objectContaining({
           fullTextOnFetchEnabled: true,
           aiSummaryOnFetchEnabled: true,
@@ -186,6 +189,7 @@ describe('feverSync worker', () => {
       pool,
       expect.objectContaining({
         accountId: '1',
+        userId: '1',
         lastIncrementalItemId: 'remote-1',
         lastFullSyncAt: expect.any(String),
       }),
@@ -214,7 +218,7 @@ describe('feverSync worker', () => {
     await runFeverSyncWorker({
       pool,
       boss: { send: vi.fn() } as never,
-      data: { accountId: '1' },
+      data: { userId: '1', accountId: '1' },
       deps: {
         getAppSettings: vi.fn().mockResolvedValue({
           rssTimeoutMs: 10000,
@@ -238,6 +242,7 @@ describe('feverSync worker', () => {
       pool,
       expect.objectContaining({
         accountId: '1',
+        userId: '1',
         sinceItemId: null,
       }),
     );
@@ -245,6 +250,7 @@ describe('feverSync worker', () => {
       pool,
       expect.objectContaining({
         accountId: '1',
+        userId: '1',
         lastFullSyncAt: expect.any(String),
       }),
     );

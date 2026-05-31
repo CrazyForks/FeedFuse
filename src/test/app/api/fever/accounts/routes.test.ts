@@ -121,7 +121,7 @@ describe('/api/fever/accounts', () => {
     });
     createFeverAccountMock.mockRejectedValue({
       code: '23505',
-      constraint: 'fever_accounts_base_url_username_unique',
+      constraint: 'fever_accounts_user_base_url_username_unique',
     });
 
     const mod = await import('../../../../../app/api/fever/accounts/route');
@@ -186,7 +186,7 @@ describe('/api/fever/accounts', () => {
     });
     updateFeverAccountMock.mockRejectedValue({
       code: '23505',
-      constraint: 'fever_accounts_base_url_username_unique',
+      constraint: 'fever_accounts_user_base_url_username_unique',
     });
 
     const mod = await import('../../../../../app/api/fever/accounts/route');

@@ -16,6 +16,12 @@ const createCategoryBodySchema = z.object({
   name: z.string().trim().min(1),
 });
 
+// 兼容 0034_multi_user 迁移前后的分类名唯一索引。
+const categoryNameUniqueConstraints = new Set([
+  'categories_user_name_unique',
+  'categories_name_unique',
+]);
+
 function zodIssuesToFields(error: z.ZodError): Record<string, string> {
   const fields: Record<string, string> = {};
   for (const issue of error.issues) {
@@ -27,21 +33,28 @@ function zodIssuesToFields(error: z.ZodError): Record<string, string> {
 
 function isUniqueViolation(
   err: unknown,
-  constraint: string,
+  constraints: ReadonlySet<string>,
 ): err is { code: string; constraint?: string } {
   return (
     typeof err === 'object' &&
     err !== null &&
     'code' in err &&
     (err as { code?: unknown }).code === '23505' &&
-    (!('constraint' in err) || (err as { constraint?: unknown }).constraint === constraint)
+    (
+      !('constraint' in err) ||
+      (
+        typeof (err as { constraint?: unknown }).constraint === 'string' &&
+        constraints.has((err as { constraint: string }).constraint)
+      )
+    )
   );
 }
 
 const operationSource = 'app/api/categories';
 
-async function writeCategoryCreateFailure(err: unknown) {
+async function writeCategoryCreateFailure(err: unknown, userId?: string) {
   await writeUserOperationFailedLog(getPool(), {
+    userId,
     actionKey: 'category.create',
     source: operationSource,
     err,
@@ -49,14 +62,14 @@ async function writeCategoryCreateFailure(err: unknown) {
 }
 
 export async function GET() {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
     const pool = getPool();
-    const categories = await listCategories(pool);
+    const categories = await listCategories(pool, session.userId);
     return ok(categories);
   } catch (err) {
     return fail(err);
@@ -64,9 +77,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -74,25 +87,26 @@ export async function POST(request: Request) {
     const parsed = createCategoryBodySchema.safeParse(json);
     if (!parsed.success) {
       const error = new ValidationError('Invalid request body', zodIssuesToFields(parsed.error));
-      await writeCategoryCreateFailure(error);
+      await writeCategoryCreateFailure(error, session.userId);
       return fail(error);
     }
 
     const pool = getPool();
-    const created = await createCategory(pool, { name: parsed.data.name });
+    const created = await createCategory(pool, { name: parsed.data.name, userId: session.userId });
     await writeUserOperationSucceededLog(pool, {
+      userId: session.userId,
       actionKey: 'category.create',
       source: operationSource,
       context: { categoryId: created.id },
     });
     return ok(created);
   } catch (err) {
-    if (isUniqueViolation(err, 'categories_name_unique')) {
+    if (isUniqueViolation(err, categoryNameUniqueConstraints)) {
       const error = new ConflictError('Category already exists', { name: 'duplicate' });
-      await writeCategoryCreateFailure(error);
+      await writeCategoryCreateFailure(error, session.userId);
       return fail(error);
     }
-    await writeCategoryCreateFailure(err);
+    await writeCategoryCreateFailure(err, session.userId);
     return fail(err);
   }
 }

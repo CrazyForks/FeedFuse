@@ -27,6 +27,9 @@ describe('auth session helpers', () => {
   it('creates and verifies a signed session token', () => {
     const token = createSessionToken({
       secret: 'session-secret',
+      userId: '42',
+      role: 'admin',
+      sessionVersion: 7,
       nowMs: Date.UTC(2026, 0, 1, 0, 0, 0),
       maxAgeSeconds: 60,
     });
@@ -37,12 +40,21 @@ describe('auth session helpers', () => {
         secret: 'session-secret',
         nowMs: Date.UTC(2026, 0, 1, 0, 0, 30),
       }),
-    ).toBe(true);
+    ).toEqual({
+      userId: '42',
+      role: 'admin',
+      sessionVersion: 7,
+      iat: 1767225600,
+      exp: 1767225660,
+    });
   });
 
   it('rejects expired and tampered tokens', () => {
     const token = createSessionToken({
       secret: 'session-secret',
+      userId: '42',
+      role: 'admin',
+      sessionVersion: 7,
       nowMs: Date.UTC(2026, 0, 1, 0, 0, 0),
       maxAgeSeconds: 60,
     });
@@ -53,14 +65,14 @@ describe('auth session helpers', () => {
         secret: 'session-secret',
         nowMs: Date.UTC(2026, 0, 1, 0, 1, 1),
       }),
-    ).toBe(false);
+    ).toBeNull();
     expect(
       verifySessionToken({
         token: `${token}tampered`,
         secret: 'session-secret',
         nowMs: Date.UTC(2026, 0, 1, 0, 0, 30),
       }),
-    ).toBe(false);
+    ).toBeNull();
   });
 
   it('serializes login and logout cookies', () => {

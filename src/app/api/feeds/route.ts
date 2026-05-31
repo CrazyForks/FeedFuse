@@ -42,6 +42,12 @@ const createFeedBodySchema = z
     message: 'categoryId and categoryName are mutually exclusive',
   });
 
+// 兼容 0034_multi_user 迁移前后的订阅 URL 唯一索引。
+const feedUrlUniqueConstraints = new Set([
+  'feeds_user_url_unique',
+  'feeds_url_unique',
+]);
+
 function zodIssuesToFields(error: z.ZodError): Record<string, string> {
   const fields: Record<string, string> = {};
   for (const issue of error.issues) {
@@ -53,14 +59,20 @@ function zodIssuesToFields(error: z.ZodError): Record<string, string> {
 
 function isUniqueViolation(
   err: unknown,
-  constraint: string,
+  constraints: ReadonlySet<string>,
 ): err is { code: string; constraint?: string } {
   return (
     typeof err === 'object' &&
     err !== null &&
     'code' in err &&
     (err as { code?: unknown }).code === '23505' &&
-    (!('constraint' in err) || (err as { constraint?: unknown }).constraint === constraint)
+    (
+      !('constraint' in err) ||
+      (
+        typeof (err as { constraint?: unknown }).constraint === 'string' &&
+        constraints.has((err as { constraint: string }).constraint)
+      )
+    )
   );
 }
 
@@ -79,8 +91,9 @@ function isForeignKeyViolation(
 
 const operationSource = 'app/api/feeds';
 
-async function writeFeedCreateFailure(err: unknown) {
+async function writeFeedCreateFailure(err: unknown, userId?: string) {
   await writeUserOperationFailedLog(getPool(), {
+    userId,
     actionKey: 'feed.create',
     source: operationSource,
     err,
@@ -88,21 +101,22 @@ async function writeFeedCreateFailure(err: unknown) {
 }
 
 export async function GET() {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
     const pool = getPool();
-    const feeds = await listFeeds(pool);
+    const feeds = await listFeeds(pool, session.userId);
 
     const { rows } = await pool.query<{ feedId: string; unreadCount: number }>(`
       select feed_id as "feedId", count(*)::int as "unreadCount"
       from articles
       where is_read = false and filter_status = any('{passed,error}'::text[])
+        and user_id = $1
       group by feed_id
-    `);
+    `, [session.userId]);
 
     const unreadByFeedId = new Map<string, number>();
     for (const row of rows) unreadByFeedId.set(row.feedId, row.unreadCount);
@@ -119,9 +133,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -129,14 +143,14 @@ export async function POST(request: Request) {
     const parsed = createFeedBodySchema.safeParse(json);
     if (!parsed.success) {
       const error = new ValidationError('Invalid request body', zodIssuesToFields(parsed.error));
-      await writeFeedCreateFailure(error);
+      await writeFeedCreateFailure(error, session.userId);
       return fail(error);
     }
     if (!(await isSafeExternalUrl(parsed.data.url, feedUrlSafetyOptions))) {
       const error = new ValidationError('Invalid request body', {
         url: '当前网络环境不允许访问该链接',
       });
-      await writeFeedCreateFailure(error);
+      await writeFeedCreateFailure(error, session.userId);
       return fail(error);
     }
 
@@ -144,6 +158,7 @@ export async function POST(request: Request) {
     const siteUrl = parsed.data.siteUrl ?? null;
     const created = await createFeedWithCategoryResolution(pool, normalizeFeedAutoTriggerFlags({
       ...parsed.data,
+      userId: session.userId,
       siteUrl,
       fullTextOnOpenEnabled: parsed.data.fullTextOnOpenEnabled ?? false,
       fullTextOnFetchEnabled: parsed.data.fullTextOnFetchEnabled ?? false,
@@ -155,6 +170,7 @@ export async function POST(request: Request) {
       bodyTranslateEnabled: parsed.data.bodyTranslateEnabled ?? false,
     }));
     await writeUserOperationSucceededLog(pool, {
+      userId: session.userId,
       actionKey: 'feed.create',
       source: operationSource,
       context: { feedId: created.id },
@@ -162,17 +178,17 @@ export async function POST(request: Request) {
 
     return ok({ ...created, unreadCount: 0 });
   } catch (err) {
-    if (isUniqueViolation(err, 'feeds_url_unique')) {
+    if (isUniqueViolation(err, feedUrlUniqueConstraints)) {
       const error = new ConflictError('Feed already exists', { url: 'duplicate' });
-      await writeFeedCreateFailure(error);
+      await writeFeedCreateFailure(error, session.userId);
       return fail(error);
     }
     if (isForeignKeyViolation(err, 'feeds_category_id_fkey')) {
       const error = new ValidationError('Invalid request body', { categoryId: 'not_found' });
-      await writeFeedCreateFailure(error);
+      await writeFeedCreateFailure(error, session.userId);
       return fail(error);
     }
-    await writeFeedCreateFailure(err);
+    await writeFeedCreateFailure(err, session.userId);
     return fail(err);
   }
 }

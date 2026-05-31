@@ -20,6 +20,7 @@ function meetsMinimumLevel(minLevel: SystemLogLevel, level: SystemLogLevel) {
 }
 
 export interface WriteSystemLogInput {
+  userId?: string | null;
   level: SystemLogLevel;
   category: SystemLogCategory;
   message: string;
@@ -33,9 +34,10 @@ export async function writeSystemLog(
   input: WriteSystemLogInput,
   options?: { forceWrite?: boolean; loggingOverride?: LoggingSettings },
 ): Promise<{ written: boolean }> {
+  // 日志设置也按用户读取，避免多账户共用开关和等级。
   const logging =
     options?.loggingOverride ??
-    normalizePersistedSettings(await getUiSettings(pool)).logging;
+    normalizePersistedSettings(await getUiSettings(pool, input.userId ?? undefined)).logging;
 
   if (!logging.enabled && !options?.forceWrite) {
     return { written: false };
@@ -47,6 +49,7 @@ export async function writeSystemLog(
 
   await insertSystemLog(pool, {
     ...input,
+    userId: input.userId ?? null,
     details: input.details ?? null,
     context: input.context ?? {},
   });

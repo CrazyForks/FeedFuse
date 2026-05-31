@@ -142,7 +142,7 @@ describe('settingsStore', () => {
     });
     await useSettingsStore.getState().saveDraft();
 
-    const raw = window.localStorage.getItem('feedfuse-settings');
+    const raw = window.localStorage.getItem('feedfuse-settings:anonymous');
     expect(raw).not.toContain('sk-test');
 
     expect(lastAiApiKeyPutBodyText).toContain('sk-test');
@@ -265,7 +265,7 @@ describe('settingsStore', () => {
       version: 2,
     };
 
-    window.localStorage.setItem('feedfuse-settings', JSON.stringify(legacy));
+    window.localStorage.setItem('feedfuse-settings:anonymous', JSON.stringify(legacy));
     await useSettingsStore.persist.rehydrate();
 
     expect(useSettingsStore.getState().persistedSettings.general.theme).toBe('dark');

@@ -1,9 +1,11 @@
 import type { Pool, PoolClient } from 'pg';
+import { normalizeUserId } from '@/server/domains/users/userScope';
 
 type DbClient = Pool | PoolClient;
 
 const FEVER_ACCOUNT_COLUMNS = `
   id,
+  user_id::text as "userId",
   base_url as "baseUrl",
   username,
   api_key as "apiKey",
@@ -18,6 +20,7 @@ const FEVER_ACCOUNT_COLUMNS = `
 
 export interface FeverAccountRow {
   id: string;
+  userId: string;
   baseUrl: string;
   username: string;
   apiKey: string;
@@ -38,14 +41,17 @@ export async function createFeverAccount(
     apiKey: string;
     enabled?: boolean;
     autoSyncIntervalMinutes?: number;
+    userId?: string;
   },
 ): Promise<FeverAccountRow> {
+  const userId = normalizeUserId(input.userId);
   const autoSyncIntervalMinutes = input.autoSyncIntervalMinutes ?? 30;
   const autoSyncEnabled = autoSyncIntervalMinutes > 0;
 
   const { rows } = await db.query<FeverAccountRow>(
     `
       insert into fever_accounts(
+        user_id,
         base_url,
         username,
         api_key,
@@ -53,10 +59,11 @@ export async function createFeverAccount(
         auto_sync_enabled,
         auto_sync_interval_minutes
       )
-      values ($1, $2, $3, $4, $5, $6)
+      values ($1, $2, $3, $4, $5, $6, $7)
       returning ${FEVER_ACCOUNT_COLUMNS}
     `,
     [
+      userId,
       input.baseUrl,
       input.username,
       input.apiKey,
@@ -71,49 +78,56 @@ export async function createFeverAccount(
 export async function getFeverAccountById(
   db: DbClient,
   id: string,
+  userId?: string,
 ): Promise<FeverAccountRow | null> {
   const { rows } = await db.query<FeverAccountRow>(
     `
       select ${FEVER_ACCOUNT_COLUMNS}
       from fever_accounts
       where id = $1
+        and user_id = $2
       limit 1
     `,
-    [id],
+    [id, normalizeUserId(userId)],
   );
   return rows[0] ?? null;
 }
 
-export async function listFeverAccounts(db: DbClient): Promise<FeverAccountRow[]> {
+export async function listFeverAccounts(db: DbClient, userId?: string): Promise<FeverAccountRow[]> {
   const { rows } = await db.query<FeverAccountRow>(
     `
       select ${FEVER_ACCOUNT_COLUMNS}
       from fever_accounts
+      where user_id = $1
       order by created_at asc, id asc
     `,
+    [normalizeUserId(userId)],
   );
   return rows;
 }
 
-export async function listEnabledFeverAccounts(db: DbClient): Promise<FeverAccountRow[]> {
+export async function listEnabledFeverAccounts(db: DbClient, userId?: string): Promise<FeverAccountRow[]> {
   const { rows } = await db.query<FeverAccountRow>(
     `
       select ${FEVER_ACCOUNT_COLUMNS}
       from fever_accounts
-      where enabled = true
+      where user_id = $1
+        and enabled = true
       order by created_at asc, id asc
     `,
+    [normalizeUserId(userId)],
   );
   return rows;
 }
 
-export async function deleteFeverAccount(db: DbClient, id: string): Promise<boolean> {
+export async function deleteFeverAccount(db: DbClient, id: string, userId?: string): Promise<boolean> {
   const result = await db.query(
     `
       delete from fever_accounts
       where id = $1
+        and user_id = $2
     `,
-    [id],
+    [id, normalizeUserId(userId)],
   );
 
   return (result.rowCount ?? 0) > 0;
@@ -126,6 +140,7 @@ export async function updateFeverAccountSyncState(
     lastError?: string | null;
     syncedAt?: string | null;
     attemptedAt?: string | null;
+    userId?: string;
   },
 ): Promise<void> {
   await db.query(
@@ -137,19 +152,21 @@ export async function updateFeverAccountSyncState(
         last_sync_attempt_at = coalesce($4::timestamptz, last_sync_attempt_at),
         updated_at = now()
       where id = $1
+        and user_id = $5
     `,
     [
       input.accountId,
       input.syncedAt ?? null,
       input.lastError ?? null,
       input.attemptedAt ?? null,
+      normalizeUserId(input.userId),
     ],
   );
 }
 
 export async function markFeverAccountSyncAttempted(
   db: DbClient,
-  input: { accountId: string; attemptedAt: string },
+  input: { accountId: string; attemptedAt: string; userId?: string },
 ): Promise<void> {
   await db.query(
     `
@@ -158,8 +175,9 @@ export async function markFeverAccountSyncAttempted(
         last_sync_attempt_at = $2::timestamptz,
         updated_at = now()
       where id = $1
+        and user_id = $3
     `,
-    [input.accountId, input.attemptedAt],
+    [input.accountId, input.attemptedAt, normalizeUserId(input.userId)],
   );
 }
 
@@ -169,6 +187,7 @@ export async function updateFeverAccountAutoSyncSettings(
     accountId: string;
     autoSyncEnabled: boolean;
     autoSyncIntervalMinutes: number;
+    userId?: string;
   },
 ): Promise<FeverAccountRow | null> {
   const { rows } = await db.query<FeverAccountRow>(
@@ -179,9 +198,15 @@ export async function updateFeverAccountAutoSyncSettings(
         auto_sync_interval_minutes = $3,
         updated_at = now()
       where id = $1
+        and user_id = $4
       returning ${FEVER_ACCOUNT_COLUMNS}
     `,
-    [input.accountId, input.autoSyncEnabled, input.autoSyncIntervalMinutes],
+    [
+      input.accountId,
+      input.autoSyncEnabled,
+      input.autoSyncIntervalMinutes,
+      normalizeUserId(input.userId),
+    ],
   );
 
   return rows[0] ?? null;
@@ -196,6 +221,7 @@ export async function updateFeverAccount(
     apiKey?: string;
     enabled: boolean;
     autoSyncIntervalMinutes: number;
+    userId?: string;
   },
 ): Promise<FeverAccountRow | null> {
   const autoSyncEnabled = input.autoSyncIntervalMinutes > 0;
@@ -212,6 +238,7 @@ export async function updateFeverAccount(
         auto_sync_interval_minutes = $7,
         updated_at = now()
       where id = $1
+        and user_id = $8
       returning ${FEVER_ACCOUNT_COLUMNS}
     `,
     [
@@ -222,6 +249,7 @@ export async function updateFeverAccount(
       input.enabled,
       autoSyncEnabled,
       input.autoSyncIntervalMinutes,
+      normalizeUserId(input.userId),
     ],
   );
 
@@ -230,15 +258,18 @@ export async function updateFeverAccount(
 
 export async function listEnabledFeverAccountsForAutoSync(
   db: DbClient,
+  userId?: string,
 ): Promise<FeverAccountRow[]> {
   const { rows } = await db.query<FeverAccountRow>(
     `
       select ${FEVER_ACCOUNT_COLUMNS}
       from fever_accounts
-      where enabled = true
+      where user_id = $1
+        and enabled = true
         and auto_sync_enabled = true
       order by created_at asc, id asc
     `,
+    [normalizeUserId(userId)],
   );
 
   return rows;

@@ -33,6 +33,12 @@ export class UnauthorizedError extends AppError {
   }
 }
 
+export class ForbiddenError extends AppError {
+  constructor(message = '没有权限执行该操作') {
+    super(message, 'forbidden', 403);
+  }
+}
+
 export class ServiceUnavailableError extends AppError {
   constructor(message = '服务暂时不可用，请稍后重试') {
     super(message, 'service_unavailable', 503);

@@ -20,6 +20,7 @@ describe('systemLogsRepo', () => {
     expect(sql).toContain('insert into system_logs');
     expect(sql).toContain('context_json');
     expect(query.mock.calls[0]?.[1]).toEqual([
+      null,
       'error',
       'external_api',
       'AI summary request failed',
@@ -37,6 +38,7 @@ describe('systemLogsRepo', () => {
         rows: [
           {
             id: '128',
+            userId: '1',
             level: 'error',
             category: 'external_api',
             message: 'AI summary request failed',
@@ -72,6 +74,7 @@ describe('systemLogsRepo', () => {
     expect(result.items).toEqual([
       {
         id: '128',
+        userId: '1',
         level: 'error',
         category: 'external_api',
         message: 'AI summary request failed',
@@ -107,7 +110,7 @@ describe('systemLogsRepo', () => {
 
     const sql = String(query.mock.calls[0]?.[0] ?? '');
     expect(sql).toContain('delete from system_logs');
-    expect(query.mock.calls[0]?.[1]).toBeUndefined();
+    expect(query.mock.calls[0]?.[1]).toEqual([]);
     expect(deletedCount).toBe(42);
   });
 });

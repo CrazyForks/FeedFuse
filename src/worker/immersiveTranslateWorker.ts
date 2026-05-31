@@ -32,6 +32,7 @@ interface ImmersiveTranslateDeps {
 
 export interface RunImmersiveTranslateSessionInput {
   pool: Pool;
+  userId?: string | null;
   articleId: string;
   sessionId?: string | null;
   segmentIndex?: number | null;
@@ -112,6 +113,7 @@ async function runWithConcurrency<T>(
 
 async function processSegment(input: {
   pool: Pool;
+  userId?: string | null;
   articleId: string;
   session: TranslationSessionRow;
   segment: TranslationSegmentRow;
@@ -122,6 +124,7 @@ async function processSegment(input: {
   const { pool, articleId, session, segment, translateText, deps } = input;
 
   await deps.upsertTranslationSegment(pool, {
+    userId: input.userId,
     sessionId: session.id,
     segmentIndex: segment.segmentIndex,
     sourceText: segment.sourceText,
@@ -132,6 +135,7 @@ async function processSegment(input: {
     rawErrorMessage: null,
   });
   await deps.insertTranslationEvent(pool, {
+    userId: input.userId,
     sessionId: session.id,
     segmentIndex: segment.segmentIndex,
     eventType: 'segment.running',
@@ -151,6 +155,7 @@ async function processSegment(input: {
     await input.ensureSessionActive?.();
 
     await deps.upsertTranslationSegment(pool, {
+      userId: input.userId,
       sessionId: session.id,
       segmentIndex: segment.segmentIndex,
       sourceText: segment.sourceText,
@@ -161,6 +166,7 @@ async function processSegment(input: {
       rawErrorMessage: null,
     });
     await deps.insertTranslationEvent(pool, {
+      userId: input.userId,
       sessionId: session.id,
       segmentIndex: segment.segmentIndex,
       eventType: 'segment.succeeded',
@@ -177,6 +183,7 @@ async function processSegment(input: {
 
     const mapped = mapTaskError({ type: 'ai_translate', err });
     await deps.upsertTranslationSegment(pool, {
+      userId: input.userId,
       sessionId: session.id,
       segmentIndex: segment.segmentIndex,
       sourceText: segment.sourceText,
@@ -187,6 +194,7 @@ async function processSegment(input: {
       rawErrorMessage: mapped.rawErrorMessage,
     });
     await deps.insertTranslationEvent(pool, {
+      userId: input.userId,
       sessionId: session.id,
       segmentIndex: segment.segmentIndex,
       eventType: 'segment.failed',
@@ -214,7 +222,11 @@ export async function runImmersiveTranslateSession(
   let session: TranslationSessionRow | null = null;
 
   try {
-    session = await deps.getTranslationSessionByArticleId(input.pool, input.articleId);
+    session = await deps.getTranslationSessionByArticleId(
+      input.pool,
+      input.articleId,
+      input.userId,
+    );
     if (!session) {
       throw new Error('Translation session not found');
     }
@@ -222,10 +234,15 @@ export async function runImmersiveTranslateSession(
       throw new Error('Translation session mismatch');
     }
 
-    const initialSegments = await deps.listTranslationSegmentsBySessionId(input.pool, session.id);
+    const initialSegments = await deps.listTranslationSegmentsBySessionId(
+      input.pool,
+      session.id,
+      session.userId,
+    );
     const initialCounts = toSegmentCounts(initialSegments);
 
     session = await deps.upsertTranslationSession(input.pool, {
+      userId: session.userId,
       articleId: input.articleId,
       sourceHtmlHash: session.sourceHtmlHash,
       status: 'running',
@@ -236,6 +253,7 @@ export async function runImmersiveTranslateSession(
     });
     const activeSession = session;
     await deps.insertTranslationEvent(input.pool, {
+      userId: activeSession.userId,
       sessionId: activeSession.id,
       segmentIndex: targetSegmentIndex,
       eventType: 'session.started',
@@ -256,6 +274,7 @@ export async function runImmersiveTranslateSession(
       await input.ensureSessionActive?.();
       await processSegment({
         pool: input.pool,
+        userId: activeSession.userId,
         articleId: input.articleId,
         session: activeSession,
         segment,
@@ -266,11 +285,16 @@ export async function runImmersiveTranslateSession(
     });
 
     await input.ensureSessionActive?.();
-    const finalSegments = await deps.listTranslationSegmentsBySessionId(input.pool, activeSession.id);
+    const finalSegments = await deps.listTranslationSegmentsBySessionId(
+      input.pool,
+      activeSession.id,
+      activeSession.userId,
+    );
     const finalCounts = toSegmentCounts(finalSegments);
     const finalStatus = finalCounts.failedSegments > 0 ? 'partial_failed' : 'succeeded';
 
     const updatedSession = await deps.upsertTranslationSession(input.pool, {
+      userId: activeSession.userId,
       articleId: input.articleId,
       sourceHtmlHash: activeSession.sourceHtmlHash,
       status: finalStatus,
@@ -280,6 +304,7 @@ export async function runImmersiveTranslateSession(
       rawErrorMessage: null,
     });
     await deps.insertTranslationEvent(input.pool, {
+      userId: activeSession.userId,
       sessionId: activeSession.id,
       eventType: 'session.completed',
       payload: {
@@ -294,13 +319,18 @@ export async function runImmersiveTranslateSession(
     if (session) {
       try {
         const mapped = mapTaskError({ type: 'ai_translate', err });
-        const segments = await deps.listTranslationSegmentsBySessionId(input.pool, session.id);
+        const segments = await deps.listTranslationSegmentsBySessionId(
+          input.pool,
+          session.id,
+          session.userId,
+        );
         for (const segment of segments) {
           if (segment.status !== 'pending' && segment.status !== 'running') {
             continue;
           }
 
           await deps.upsertTranslationSegment(input.pool, {
+            userId: session.userId,
             sessionId: session.id,
             segmentIndex: segment.segmentIndex,
             sourceText: segment.sourceText,
@@ -312,9 +342,14 @@ export async function runImmersiveTranslateSession(
           });
         }
 
-        const finalSegments = await deps.listTranslationSegmentsBySessionId(input.pool, session.id);
+        const finalSegments = await deps.listTranslationSegmentsBySessionId(
+          input.pool,
+          session.id,
+          session.userId,
+        );
         const counts = toSegmentCounts(finalSegments);
         const failedSession = await deps.upsertTranslationSession(input.pool, {
+          userId: session.userId,
           articleId: input.articleId,
           sourceHtmlHash: session.sourceHtmlHash,
           status: 'failed',
@@ -324,6 +359,7 @@ export async function runImmersiveTranslateSession(
           rawErrorMessage: mapped.rawErrorMessage,
         });
         await deps.insertTranslationEvent(input.pool, {
+          userId: failedSession.userId,
           sessionId: failedSession.id,
           eventType: 'session.failed',
           payload: {

@@ -12,6 +12,7 @@ import { writeSystemLog } from '@/server/infra/logging/systemLogger';
 type Queryable = Pool | PoolClient;
 
 interface WriteUserOperationLogInput {
+  userId?: string | null;
   actionKey: UserOperationActionKey;
   source: string;
   context?: Record<string, unknown>;
@@ -59,6 +60,7 @@ export async function writeUserOperationStartedLog(
 ) {
   const entry = resolveCatalog(input.actionKey);
   return writeSystemLog(pool, {
+    userId: input.userId,
     level: 'info',
     category: entry.category,
     message: renderUserOperationStarted(input.actionKey, input.context),
@@ -76,6 +78,7 @@ export async function writeUserOperationSucceededLog(
 ) {
   const entry = resolveCatalog(input.actionKey);
   return writeSystemLog(pool, {
+    userId: input.userId,
     level: 'info',
     category: entry.category,
     message: renderUserOperationSuccess(input.actionKey, input.context),
@@ -96,6 +99,7 @@ export async function writeUserOperationFailedLog(
   const reason = formatUserOperationFailureReason(input.err);
 
   return writeSystemLog(pool, {
+    userId: input.userId,
     level: 'error',
     category: entry.category,
     message: renderUserOperationFailure(input.actionKey, reason, input.context),

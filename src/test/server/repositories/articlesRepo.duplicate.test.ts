@@ -84,7 +84,8 @@ describe('articlesRepo (duplicate)', () => {
     });
 
     const sql = String(query.mock.calls[0]?.[0] ?? '');
-    expect(sql).toContain('where id <> $1');
+    expect(sql).toContain('where user_id = $1');
+    expect(sql).toContain('and id <> $2');
     expect(sql).toContain('fetched_at < $3');
   });
 });

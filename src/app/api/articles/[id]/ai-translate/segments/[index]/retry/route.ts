@@ -36,9 +36,9 @@ export async function POST(
   _request: Request,
   context: { params: Promise<{ id: string; index: string }> },
 ) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -54,13 +54,17 @@ export async function POST(
     const segmentIndex = paramsParsed.data.index;
     const pool = getPool();
 
-    const article = await getArticleById(pool, articleId);
+    const article = await getArticleById(pool, articleId, session.userId);
     if (!article) return fail(new NotFoundError('Article not found'));
 
-    const session = await getTranslationSessionByArticleId(pool, articleId);
-    if (!session) return fail(new NotFoundError('Translation session not found'));
+    const translationSession = await getTranslationSessionByArticleId(pool, articleId, session.userId);
+    if (!translationSession) return fail(new NotFoundError('Translation session not found'));
 
-    const segments = await listTranslationSegmentsBySessionId(pool, session.id);
+    const segments = await listTranslationSegmentsBySessionId(
+      pool,
+      translationSession.id,
+      translationSession.userId,
+    );
     const segment = segments.find((item) => item.segmentIndex === segmentIndex);
     if (!segment) return fail(new NotFoundError('Translation segment not found'));
 
@@ -73,7 +77,8 @@ export async function POST(
     }
 
     await upsertTranslationSegment(pool, {
-      sessionId: session.id,
+      userId: translationSession.userId,
+      sessionId: translationSession.id,
       segmentIndex,
       sourceText: segment.sourceText,
       translatedText: null,
@@ -84,19 +89,24 @@ export async function POST(
 
     const enqueueResult = await enqueueWithResult(
       JOB_AI_TRANSLATE,
-      { articleId, sessionId: session.id, segmentIndex },
-      getQueueSendOptions(JOB_AI_TRANSLATE, { articleId, force: true }),
+      { userId: translationSession.userId, articleId, sessionId: translationSession.id, segmentIndex },
+      getQueueSendOptions(JOB_AI_TRANSLATE, {
+        userId: translationSession.userId,
+        articleId,
+        force: true,
+      }),
     );
     if (enqueueResult.status !== 'enqueued') {
       return ok({ enqueued: false, reason: 'already_enqueued' });
     }
 
     await writeUserOperationStartedLog(pool, {
+      userId: translationSession.userId,
       actionKey: 'article.aiTranslate.retrySegment',
       source: 'app/api/articles/[id]/ai-translate/segments/[index]/retry',
       context: {
         articleId,
-        sessionId: session.id,
+        sessionId: translationSession.id,
         segmentIndex,
         jobId: enqueueResult.jobId,
       },

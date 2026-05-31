@@ -4,6 +4,7 @@ import { JOB_FEVER_SYNC } from '@/server/infra/queue/jobs';
 import { markFeverAccountSyncAttempted } from '@/server/domains/fever/repositories/feverAccountsRepo';
 
 export interface FeverRefreshAllTarget {
+  userId?: string;
   accountId: string;
   feedIds: string[];
 }
@@ -26,6 +27,7 @@ export async function enqueueFeverRefreshAllTargets(input: {
     }
 
     const payload = {
+      ...(target.userId ? { userId: target.userId } : {}),
       accountId: target.accountId,
       ...(input.runId ? { runId: input.runId } : {}),
       feedIds: target.feedIds,
@@ -43,6 +45,7 @@ export async function enqueueFeverRefreshAllTargets(input: {
     // 全量刷新里的 Fever 账号也要记录最近一次尝试时间，但只能在真正入队后写入。
     await markAttempt(input.pool, {
       accountId: target.accountId,
+      userId: target.userId,
       attemptedAt: input.now.toISOString(),
     });
     enqueued += 1;

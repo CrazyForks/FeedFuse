@@ -42,9 +42,9 @@ export async function GET(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -59,16 +59,17 @@ export async function GET(
     const articleId = paramsParsed.data.id;
     const pool = getPool();
 
-    const article = await getArticleById(pool, articleId);
+    const article = await getArticleById(pool, articleId, session.userId);
     if (!article) return fail(new NotFoundError('Article not found'));
 
-    const session = await getTranslationSessionByArticleId(pool, articleId);
-    if (!session) return fail(new NotFoundError('Translation session not found'));
+    const translationSession = await getTranslationSessionByArticleId(pool, articleId, session.userId);
+    if (!translationSession) return fail(new NotFoundError('Translation session not found'));
 
     const initialAfterEventId = parseLastEventId(request.headers.get('last-event-id'));
     let lastEventId = initialAfterEventId;
     const initialEvents = await listTranslationEventsAfter(pool, {
-      sessionId: session.id,
+      sessionId: translationSession.id,
+      userId: translationSession.userId,
       afterEventId: lastEventId,
     });
     if (initialEvents.length > 0) {
@@ -91,7 +92,8 @@ export async function GET(
 
         const replayTimer = setInterval(() => {
           void listTranslationEventsAfter(pool, {
-            sessionId: session.id,
+            sessionId: translationSession.id,
+            userId: translationSession.userId,
             afterEventId: lastEventId,
           })
             .then((events) => {

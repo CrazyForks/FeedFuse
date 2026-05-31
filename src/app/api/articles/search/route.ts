@@ -34,9 +34,9 @@ function zodIssuesToFields(error: z.ZodError): Record<string, string> {
 }
 
 export async function GET(request: Request) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
     }
 
     const pool = getPool();
-    const items = await searchArticles(pool, parsed.data);
+    const items = await searchArticles(pool, { ...parsed.data, userId: session.userId });
     return ok({ items });
   } catch (err) {
     return fail(err);

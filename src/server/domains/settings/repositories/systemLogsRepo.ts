@@ -5,6 +5,10 @@ export type { SystemLogItem, SystemLogLevel };
 
 type Queryable = Pool | PoolClient;
 
+interface InsertSystemLogInput extends Omit<SystemLogItem, 'id' | 'createdAt' | 'userId'> {
+  userId?: string | null;
+}
+
 function normalizeContext(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -13,11 +17,12 @@ function normalizeContext(value: unknown): Record<string, unknown> {
 
 export async function insertSystemLog(
   pool: Queryable,
-  input: Omit<SystemLogItem, 'id' | 'createdAt'>,
+  input: InsertSystemLogInput,
 ): Promise<void> {
   await pool.query(
     `
       insert into system_logs (
+        user_id,
         level,
         category,
         message,
@@ -25,9 +30,10 @@ export async function insertSystemLog(
         source,
         context_json
       )
-      values ($1, $2, $3, $4, $5, $6)
+      values ($1, $2, $3, $4, $5, $6, $7)
     `,
     [
+      input.userId ?? null,
       input.level,
       input.category,
       input.message,
@@ -40,13 +46,25 @@ export async function insertSystemLog(
 
 export async function listSystemLogs(
   pool: Queryable,
-  input: { keyword?: string; page: number; pageSize: number },
+  input: { userId?: string | null; keyword?: string; page: number; pageSize: number },
 ): Promise<{ items: SystemLogItem[]; total: number }> {
   const keyword = input.keyword?.trim();
-  const params = keyword ? [`%${keyword}%`, `%${keyword}%`, `%${keyword}%`] : [];
-  const whereSql = keyword
-    ? 'where (message ilike $1 or source ilike $2 or category ilike $3)'
-    : '';
+  const params: unknown[] = [];
+  const whereParts: string[] = [];
+
+  if (input.userId) {
+    params.push(input.userId);
+    whereParts.push(`user_id = $${params.length}`);
+  }
+
+  if (keyword) {
+    params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
+    whereParts.push(
+      `(message ilike $${params.length - 2} or source ilike $${params.length - 1} or category ilike $${params.length})`,
+    );
+  }
+
+  const whereSql = whereParts.length > 0 ? `where ${whereParts.join(' and ')}` : '';
   const offset = (input.page - 1) * input.pageSize;
 
   const countResult = await pool.query<{ count: string }>(
@@ -62,6 +80,7 @@ export async function listSystemLogs(
     `
       select
         id::text as id,
+        user_id::text as "userId",
         level,
         category,
         message,
@@ -102,11 +121,22 @@ export async function deleteExpiredSystemLogs(
   return result.rowCount ?? 0;
 }
 
-export async function deleteAllSystemLogs(pool: Queryable): Promise<number> {
+export async function deleteAllSystemLogs(
+  pool: Queryable,
+  input: { userId?: string | null } = {},
+): Promise<number> {
+  const params: unknown[] = [];
+  const whereSql = input.userId ? 'where user_id = $1' : '';
+  if (input.userId) {
+    params.push(input.userId);
+  }
+
   const result = await pool.query(
     `
       delete from system_logs
+      ${whereSql}
     `,
+    params,
   );
 
   return result.rowCount ?? 0;

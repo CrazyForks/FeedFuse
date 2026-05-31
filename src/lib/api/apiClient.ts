@@ -186,10 +186,23 @@ export interface OpmlImportResult {
   invalidItems: Array<{ title: string | null; xmlUrl: string | null; reason: 'missing_xml_url' | 'invalid_url' }>;
 }
 
+export type CurrentUserRole = 'admin' | 'member';
+export type CurrentUserStatus = 'active' | 'disabled';
+
+export interface CurrentUser {
+  id: string;
+  username?: string;
+  role: CurrentUserRole;
+  status?: CurrentUserStatus;
+  sessionVersion?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export async function login(
-  input: { password: string },
+  input: { username: string; password: string },
   options?: RequestApiOptions,
-): Promise<{ authenticated: boolean }> {
+): Promise<{ authenticated: boolean; user?: CurrentUser }> {
   return requestApi(
     '/api/auth/login',
     {
@@ -202,6 +215,13 @@ export async function login(
       redirectOnUnauthorized: false,
     },
   );
+}
+
+export async function getCurrentUser(options?: RequestApiOptions): Promise<CurrentUser> {
+  return requestApi('/api/auth/me', undefined, {
+    ...(options ?? {}),
+    redirectOnUnauthorized: false,
+  });
 }
 
 export async function logout(options?: RequestApiOptions): Promise<{ authenticated: boolean }> {
@@ -232,6 +252,59 @@ export async function changePassword(
       ...(options ?? {}),
       redirectOnUnauthorized: false,
     },
+  );
+}
+
+export async function changeOwnPassword(
+  input: { currentPassword: string; nextPassword: string },
+  options?: RequestApiOptions,
+): Promise<{ updated: boolean }> {
+  return requestApi(
+    '/api/users/me/password',
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    },
+    {
+      ...(options ?? {}),
+      redirectOnUnauthorized: false,
+    },
+  );
+}
+
+export async function listUsers(options?: RequestApiOptions): Promise<CurrentUser[]> {
+  return requestApi('/api/users', undefined, options);
+}
+
+export async function createUser(
+  input: { username: string; password: string; role: CurrentUserRole },
+  options?: RequestApiOptions,
+): Promise<CurrentUser> {
+  return requestApi(
+    '/api/users',
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    },
+    options,
+  );
+}
+
+export async function updateUser(
+  userId: string,
+  input: { status?: CurrentUserStatus; password?: string },
+  options?: RequestApiOptions,
+): Promise<CurrentUser> {
+  return requestApi(
+    `/api/users/${encodeURIComponent(userId)}`,
+    {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    },
+    options,
   );
 }
 

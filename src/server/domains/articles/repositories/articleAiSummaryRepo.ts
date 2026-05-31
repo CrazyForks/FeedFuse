@@ -1,9 +1,11 @@
 import type { Pool } from 'pg';
+import { normalizeUserId } from '@/server/domains/users/userScope';
 
 export type AiSummarySessionStatus = 'queued' | 'running' | 'succeeded' | 'failed';
 
 export interface AiSummarySessionRow {
   id: string;
+  userId: string;
   articleId: string;
   sourceTextHash: string;
   status: AiSummarySessionStatus;
@@ -23,6 +25,7 @@ export interface AiSummarySessionRow {
 
 export interface AiSummaryEventRow {
   eventId: number;
+  userId: string;
   sessionId: string;
   eventType: string;
   payload: Record<string, unknown>;
@@ -30,6 +33,7 @@ export interface AiSummaryEventRow {
 }
 
 export interface UpsertAiSummarySessionInput {
+  userId?: string;
   sessionId?: string | null;
   articleId: string;
   sourceTextHash: string;
@@ -45,17 +49,20 @@ export interface UpsertAiSummarySessionInput {
 }
 
 export interface UpdateAiSummarySessionDraftInput {
+  userId?: string;
   sessionId: string;
   draftText: string;
 }
 
 export interface CompleteAiSummarySessionInput {
+  userId?: string;
   sessionId: string;
   finalText: string;
   model: string;
 }
 
 export interface FailAiSummarySessionInput {
+  userId?: string;
   sessionId: string;
   draftText: string;
   errorCode: string | null;
@@ -64,17 +71,20 @@ export interface FailAiSummarySessionInput {
 }
 
 export interface MarkAiSummarySessionSupersededInput {
+  userId?: string;
   sessionId: string;
   supersededBySessionId: string;
 }
 
 export interface InsertAiSummaryEventInput {
+  userId?: string;
   sessionId: string;
   eventType: string;
   payload?: Record<string, unknown>;
 }
 
 export interface ListAiSummaryEventsAfterInput {
+  userId?: string;
   sessionId: string;
   afterEventId: number;
 }
@@ -82,6 +92,7 @@ export interface ListAiSummaryEventsAfterInput {
 function sessionSelectSql() {
   return `
     id,
+    user_id::text as "userId",
     article_id as "articleId",
     source_text_hash as "sourceTextHash",
     status,
@@ -104,10 +115,12 @@ export async function upsertAiSummarySession(
   pool: Pool,
   input: UpsertAiSummarySessionInput,
 ): Promise<AiSummarySessionRow> {
+  const userId = normalizeUserId(input.userId);
   if (input.sessionId == null) {
     const { rows } = await pool.query<AiSummarySessionRow>(
       `
         insert into article_ai_summary_sessions (
+          user_id,
           article_id,
           source_text_hash,
           status,
@@ -136,14 +149,16 @@ export async function upsertAiSummarySession(
           $9,
           $10,
           $11,
+          $12,
           now(),
-          case when $3 in ('succeeded', 'failed') then now() else null end,
+          case when $4 in ('succeeded', 'failed') then now() else null end,
           now(),
           now()
         )
         returning ${sessionSelectSql()}
       `,
       [
+        userId,
         input.articleId,
         input.sourceTextHash,
         input.status,
@@ -163,6 +178,7 @@ export async function upsertAiSummarySession(
   const { rows } = await pool.query<AiSummarySessionRow>(
     `
       insert into article_ai_summary_sessions (
+        user_id,
         id,
         article_id,
         source_text_hash,
@@ -181,8 +197,8 @@ export async function upsertAiSummarySession(
         updated_at
       )
       values (
-        $1::bigint,
-        $2,
+        $1,
+        $2::bigint,
         $3,
         $4,
         $5,
@@ -193,13 +209,15 @@ export async function upsertAiSummarySession(
         $10,
         $11,
         $12,
+        $13,
         now(),
-        case when $4 in ('succeeded', 'failed') then now() else null end,
+        case when $5 in ('succeeded', 'failed') then now() else null end,
         now(),
         now()
       )
       on conflict (id) do update
       set
+        user_id = excluded.user_id,
         article_id = excluded.article_id,
         source_text_hash = excluded.source_text_hash,
         status = excluded.status,
@@ -219,6 +237,7 @@ export async function upsertAiSummarySession(
       returning ${sessionSelectSql()}
     `,
     [
+      userId,
       input.sessionId ?? null,
       input.articleId,
       input.sourceTextHash,
@@ -239,20 +258,22 @@ export async function upsertAiSummarySession(
 export async function getActiveAiSummarySessionByArticleId(
   pool: Pool,
   articleId: string,
+  userId?: string,
 ): Promise<AiSummarySessionRow | null> {
   const { rows } = await pool.query<AiSummarySessionRow>(
     `
       select
         ${sessionSelectSql()}
       from article_ai_summary_sessions
-      where article_id = $1
+      where user_id = $1
+        and article_id = $2
         and superseded_by_session_id is null
       order by
         case when status in ('queued', 'running') then 0 else 1 end,
         updated_at desc
       limit 1
     `,
-    [articleId],
+    [normalizeUserId(userId), articleId],
   );
   return rows[0] ?? null;
 }
@@ -260,6 +281,7 @@ export async function getActiveAiSummarySessionByArticleId(
 export async function getAiSummarySessionById(
   pool: Pool,
   sessionId: string,
+  userId?: string,
 ): Promise<AiSummarySessionRow | null> {
   const { rows } = await pool.query<AiSummarySessionRow>(
     `
@@ -267,9 +289,10 @@ export async function getAiSummarySessionById(
         ${sessionSelectSql()}
       from article_ai_summary_sessions
       where id = $1
+        and user_id = $2
       limit 1
     `,
-    [sessionId],
+    [sessionId, normalizeUserId(userId)],
   );
   return rows[0] ?? null;
 }
@@ -286,9 +309,10 @@ export async function updateAiSummarySessionDraft(
         draft_text = $2,
         updated_at = now()
       where id = $1
+        and user_id = $3
       returning ${sessionSelectSql()}
     `,
-    [input.sessionId, input.draftText],
+    [input.sessionId, input.draftText, normalizeUserId(input.userId)],
   );
   return rows[0] as AiSummarySessionRow;
 }
@@ -311,9 +335,10 @@ export async function completeAiSummarySession(
         finished_at = now(),
         updated_at = now()
       where id = $1
+        and user_id = $4
       returning ${sessionSelectSql()}
     `,
-    [input.sessionId, input.finalText, input.model],
+    [input.sessionId, input.finalText, input.model, normalizeUserId(input.userId)],
   );
   return rows[0] as AiSummarySessionRow;
 }
@@ -334,9 +359,17 @@ export async function failAiSummarySession(
         finished_at = now(),
         updated_at = now()
       where id = $1
+        and user_id = $6
       returning ${sessionSelectSql()}
     `,
-    [input.sessionId, input.draftText, input.errorCode, input.errorMessage, input.rawErrorMessage],
+    [
+      input.sessionId,
+      input.draftText,
+      input.errorCode,
+      input.errorMessage,
+      input.rawErrorMessage,
+      normalizeUserId(input.userId),
+    ],
   );
   return rows[0] as AiSummarySessionRow;
 }
@@ -352,8 +385,9 @@ export async function markAiSummarySessionSuperseded(
         superseded_by_session_id = $2,
         updated_at = now()
       where id = $1
+        and user_id = $3
     `,
-    [input.sessionId, input.supersededBySessionId],
+    [input.sessionId, input.supersededBySessionId, normalizeUserId(input.userId)],
   );
 }
 
@@ -364,19 +398,21 @@ export async function insertAiSummaryEvent(
   const { rows } = await pool.query<AiSummaryEventRow>(
     `
       insert into article_ai_summary_events (
+        user_id,
         session_id,
         event_type,
         payload
       )
-      values ($1, $2, $3)
+      values ($1, $2, $3, $4)
       returning
         event_id as "eventId",
+        user_id::text as "userId",
         session_id as "sessionId",
         event_type as "eventType",
         payload,
         created_at as "createdAt"
     `,
-    [input.sessionId, input.eventType, input.payload ?? {}],
+    [normalizeUserId(input.userId), input.sessionId, input.eventType, input.payload ?? {}],
   );
   return rows[0] as AiSummaryEventRow;
 }
@@ -389,16 +425,18 @@ export async function listAiSummaryEventsAfter(
     `
       select
         event_id as "eventId",
+        user_id::text as "userId",
         session_id as "sessionId",
         event_type as "eventType",
         payload,
         created_at as "createdAt"
       from article_ai_summary_events
-      where session_id = $1
-        and event_id > $2
+      where user_id = $1
+        and session_id = $2
+        and event_id > $3
       order by event_id asc
     `,
-    [input.sessionId, input.afterEventId],
+    [normalizeUserId(input.userId), input.sessionId, input.afterEventId],
   );
   return rows;
 }

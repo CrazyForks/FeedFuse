@@ -298,9 +298,11 @@ export function findDuplicateCandidate(input: {
 
 export async function evaluateArticleDuplicate(input: {
   pool: DbClient;
+  userId?: string | null;
   article: ArticleRow;
 }): Promise<ArticleDuplicateMatchResult> {
   const candidates = await listArticleDuplicateCandidates(input.pool, {
+    userId: input.userId ?? input.article.userId,
     articleId: input.article.id,
     publishedAt: input.article.publishedAt,
     fetchedAt: input.article.fetchedAt,

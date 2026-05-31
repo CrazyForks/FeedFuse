@@ -33,8 +33,10 @@ describe('reorderCategories', () => {
     expect(query).toHaveBeenLastCalledWith('commit');
     const updateSql = String(query.mock.calls[2]?.[0] ?? '');
     const selectSql = String(query.mock.calls[1]?.[0] ?? '');
-    expect(selectSql).toContain('any($1::bigint[])');
+    expect(selectSql).toContain('user_id = $1');
+    expect(selectSql).toContain('any($2::bigint[])');
     expect(updateSql).toContain('unnest($1::bigint[])');
+    expect(updateSql).toContain('c.user_id = $3');
   });
 });
 
@@ -50,8 +52,8 @@ describe('findCategoryByNormalizedName', () => {
 
     expect(row).toEqual({ id: 'c1', name: 'Tech', position: 2 });
     expect(query).toHaveBeenCalledWith(
-      expect.stringContaining('lower(btrim(name)) = lower(btrim($1))'),
-      ['Tech'],
+      expect.stringContaining('lower(btrim(name)) = lower(btrim($2))'),
+      ['1', 'Tech'],
     );
   });
 });
@@ -69,6 +71,7 @@ describe('getNextCategoryPosition', () => {
     expect(nextPosition).toBe(4);
     expect(query).toHaveBeenCalledWith(
       expect.stringContaining('coalesce(max(position), -1) + 1'),
+      ['1'],
     );
   });
 });

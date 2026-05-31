@@ -16,19 +16,22 @@ describe('LoginPage', () => {
     loginMock.mockReset();
   });
 
-  it('submits password to login api', async () => {
+  it('submits username and password to login api', async () => {
     loginMock.mockImplementation(() => new Promise(() => {}));
 
     const { default: LoginPage } = await import('../../../features/auth/components/LoginPage');
     render(<LoginPage />);
 
+    fireEvent.change(screen.getByLabelText('用户名'), {
+      target: { value: 'admin' },
+    });
     fireEvent.change(screen.getByLabelText('密码'), {
       target: { value: 'initial-password' },
     });
     fireEvent.click(screen.getByRole('button', { name: '进入 FeedFuse' }));
 
     await waitFor(() => {
-      expect(loginMock).toHaveBeenCalledWith({ password: 'initial-password' });
+      expect(loginMock).toHaveBeenCalledWith({ username: 'admin', password: 'initial-password' });
     });
   });
 

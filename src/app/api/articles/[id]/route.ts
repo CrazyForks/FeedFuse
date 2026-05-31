@@ -154,9 +154,9 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -169,7 +169,7 @@ export async function GET(
     }
 
     const pool = getPool();
-    const article = await getArticleById(pool, paramsParsed.data.id);
+    const article = await getArticleById(pool, paramsParsed.data.id, session.userId);
     if (!article) return fail(new NotFoundError('Article not found'));
 
     const usableFulltextHtml = getUsableFulltextHtml(article);
@@ -179,9 +179,9 @@ export async function GET(
         : { ...article, contentFullHtml: usableFulltextHtml };
     const proxiedArticle = rewriteArticleHtmlFields(articleWithUsableFulltext);
     const [aiSummarySession, aiDigestSources, mediaAttachments] = await Promise.all([
-      getActiveAiSummarySessionByArticleId(pool, article.id),
-      listAiDigestRunSourcesByArticleId(pool, article.id),
-      listArticleMediaAttachments(pool, article.id),
+      getActiveAiSummarySessionByArticleId(pool, article.id, session.userId),
+      listAiDigestRunSourcesByArticleId(pool, article.id, session.userId),
+      listArticleMediaAttachments(pool, article.id, session.userId),
     ]);
     const eligibility = evaluateArticleBodyTranslationEligibility({
       sourceLanguage: article.sourceLanguage,
@@ -207,9 +207,9 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   let operation:
@@ -246,11 +246,13 @@ export async function PATCH(
       articleId: paramsParsed.data.id,
       isRead,
       isStarred,
+      userId: session.userId,
       requireRemoteWriteback: true,
     });
 
     if (operation) {
       await writeUserOperationSucceededLog(pool, {
+        userId: session.userId,
         actionKey: operation.actionKey,
         source: 'app/api/articles/[id]',
         context: operation.context,
@@ -261,6 +263,7 @@ export async function PATCH(
   } catch (err) {
     if (operation) {
       await writeUserOperationFailedLog(getPool(), {
+        userId: session.userId,
         actionKey: operation.actionKey,
         source: 'app/api/articles/[id]',
         err,

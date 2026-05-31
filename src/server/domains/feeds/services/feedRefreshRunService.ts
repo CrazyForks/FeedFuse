@@ -10,6 +10,7 @@ import {
   upsertFeedRefreshRunItems,
   updateFeedRefreshRun,
 } from '@/server/domains/feeds/repositories/feedRefreshRunRepo';
+import { normalizeUserId } from '@/server/domains/users/userScope';
 
 type AggregateInputItem = Pick<FeedRefreshRunItemRow, 'feedId' | 'status' | 'errorMessage'>;
 
@@ -75,18 +76,20 @@ export function buildFeedRefreshRunAggregate(input: {
 async function persistAggregate(
   pool: Pool,
   runId: string,
+  userId?: string,
 ): Promise<FeedRefreshRunRow | null> {
+  const scopedUserId = normalizeUserId(userId);
   const client = await pool.connect();
   try {
     await client.query('begin');
 
-    const run = await getFeedRefreshRunById(client as never, runId);
+    const run = await getFeedRefreshRunById(client as never, runId, scopedUserId);
     if (!run) {
       await client.query('rollback');
       return null;
     }
 
-    const items = await listFeedRefreshRunItemsByRunId(client as never, runId);
+    const items = await listFeedRefreshRunItemsByRunId(client as never, runId, scopedUserId);
     const aggregate = buildFeedRefreshRunAggregate({
       scope: run.scope,
       items,
@@ -99,6 +102,7 @@ async function persistAggregate(
       failedCount: aggregate.failedCount,
       errorMessage: aggregate.errorMessage,
       finishedAt: isTerminal ? new Date().toISOString() : null,
+      userId: scopedUserId,
     });
 
     await client.query('commit');
@@ -117,8 +121,10 @@ export async function initializeFeedRefreshRun(
     scope: FeedRefreshRunScope;
     feedId?: string | null;
     targetFeedIds?: string[];
+    userId?: string;
   },
 ): Promise<FeedRefreshRunRow> {
+  const userId = normalizeUserId(input.userId);
   const targetFeedIds = input.targetFeedIds ?? [];
   const totalCount = targetFeedIds.length;
   const hasExplicitTargets = Array.isArray(input.targetFeedIds);
@@ -135,11 +141,13 @@ export async function initializeFeedRefreshRun(
       totalCount,
       errorMessage: null,
       finishedAt: shouldStartSucceeded ? new Date().toISOString() : null,
+      userId,
     });
 
     if (totalCount > 0) {
       await upsertFeedRefreshRunItems(client as never, {
         runId: run.id,
+        userId,
         items: targetFeedIds.map((feedId) => ({
           feedId,
           status: 'queued',
@@ -160,13 +168,14 @@ export async function initializeFeedRefreshRun(
 
 export async function attachFeedRefreshRunItems(
   pool: Pool,
-  input: { runId: string; targetFeedIds: string[] },
+  input: { runId: string; targetFeedIds: string[]; userId?: string },
 ): Promise<FeedRefreshRunRow | null> {
+  const userId = normalizeUserId(input.userId);
   const client = await pool.connect();
   try {
     await client.query('begin');
 
-    const run = await getFeedRefreshRunById(client as never, input.runId);
+    const run = await getFeedRefreshRunById(client as never, input.runId, userId);
     if (!run) {
       await client.query('rollback');
       return null;
@@ -174,6 +183,7 @@ export async function attachFeedRefreshRunItems(
 
     await upsertFeedRefreshRunItems(client as never, {
       runId: input.runId,
+      userId,
       items: input.targetFeedIds.map((feedId) => ({
         feedId,
         status: 'queued',
@@ -189,19 +199,21 @@ export async function attachFeedRefreshRunItems(
     client.release();
   }
 
-  return persistAggregate(pool, input.runId);
+  return persistAggregate(pool, input.runId, userId);
 }
 
 export async function markFeedRefreshRunItemRunning(
   pool: Pool,
-  input: { runId: string; feedId: string },
+  input: { runId: string; feedId: string; userId?: string },
 ): Promise<FeedRefreshRunRow | null> {
+  const userId = normalizeUserId(input.userId);
   await upsertFeedRefreshRunItems(pool, {
     runId: input.runId,
+    userId,
     items: [{ feedId: input.feedId, status: 'running', errorMessage: null }],
   });
 
-  return persistAggregate(pool, input.runId);
+  return persistAggregate(pool, input.runId, userId);
 }
 
 export async function completeFeedRefreshRunItem(
@@ -211,10 +223,13 @@ export async function completeFeedRefreshRunItem(
     feedId: string;
     status: 'succeeded' | 'failed';
     errorMessage?: string | null;
+    userId?: string;
   },
 ): Promise<FeedRefreshRunRow | null> {
+  const userId = normalizeUserId(input.userId);
   await upsertFeedRefreshRunItems(pool, {
     runId: input.runId,
+    userId,
     items: [
       {
         feedId: input.feedId,
@@ -224,5 +239,5 @@ export async function completeFeedRefreshRunItem(
     ],
   });
 
-  return persistAggregate(pool, input.runId);
+  return persistAggregate(pool, input.runId, userId);
 }

@@ -7,6 +7,7 @@ describe('podcast feed ingestion', () => {
       getPool: () => ({ query: vi.fn() }),
       getFeedForFetch: vi.fn().mockResolvedValue({
         id: 'feed-1',
+        userId: '1',
         url: 'https://pod.example.com/rss.xml',
         enabled: true,
         etag: null,
@@ -78,11 +79,13 @@ describe('podcast feed ingestion', () => {
           durationSeconds: 456,
         },
       ],
+      '1',
     );
     expect(boss.send).not.toHaveBeenCalled();
     expect(deps.insertArticleIgnoreDuplicate).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
+        userId: '1',
         filterStatus: 'passed',
         isFiltered: false,
         filteredBy: [],
@@ -97,6 +100,7 @@ describe('podcast feed ingestion', () => {
       getPool: () => ({ query: vi.fn() }),
       getFeedForFetch: vi.fn().mockResolvedValue({
         id: 'feed-1',
+        userId: '1',
         url: 'https://example.com/rss.xml',
         enabled: true,
         etag: null,
@@ -151,6 +155,10 @@ describe('podcast feed ingestion', () => {
 
     expect(result).toEqual({ inserted: 1, errorMessage: null });
     expect(deps.insertArticleMediaAttachments).not.toHaveBeenCalled();
-    expect(boss.send).toHaveBeenCalledTimes(1);
+    expect(boss.send).toHaveBeenCalledWith(
+      'article.filter',
+      expect.objectContaining({ userId: '1', articleId: 'article-1' }),
+      expect.any(Object),
+    );
   });
 });

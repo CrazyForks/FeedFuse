@@ -108,7 +108,7 @@ describe('articleAiSummaryRepo', () => {
     expect(upsertSql).not.toContain('gen_random_uuid');
     expect(String(query.mock.calls[1]?.[0] ?? '')).toContain('insert into article_ai_summary_events');
     expect(String(query.mock.calls[2]?.[0] ?? '')).toContain('superseded_by_session_id is null');
-    expect(String(query.mock.calls[3]?.[0] ?? '')).toContain('event_id > $2');
+    expect(String(query.mock.calls[3]?.[0] ?? '')).toContain('event_id > $3');
   });
 
   it('failAiSummarySession stores raw_error_message', async () => {
@@ -152,6 +152,7 @@ describe('articleAiSummaryRepo', () => {
       'ai_rate_limited',
       '请求太频繁了，请稍后重试',
       '429 rate limit',
+      '1',
     ]);
   });
 });

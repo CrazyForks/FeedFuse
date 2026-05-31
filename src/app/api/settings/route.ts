@@ -25,14 +25,14 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
     const pool = getPool();
-    const raw = await getUiSettings(pool);
+    const raw = await getUiSettings(pool, session.userId);
     return ok(normalizePersistedSettings(raw));
   } catch (err) {
     return fail(err);
@@ -40,9 +40,9 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   const pool = getPool();
@@ -52,9 +52,9 @@ export async function PUT(request: Request) {
     const next = normalizePersistedSettings(json);
 
     const [prevRaw, aiApiKey, translationApiKey] = await Promise.all([
-      getUiSettings(pool),
-      getAiApiKey(pool),
-      getTranslationApiKey(pool),
+      getUiSettings(pool, session.userId),
+      getAiApiKey(pool, session.userId),
+      getTranslationApiKey(pool, session.userId),
     ]);
     const prev = normalizePersistedSettings(prevRaw);
 
@@ -62,7 +62,7 @@ export async function PUT(request: Request) {
 
     try {
       await client.query('begin');
-      const saved = await updateUiSettings(client, next);
+      const saved = await updateUiSettings(client, session.userId, next);
       const normalizedSaved = normalizePersistedSettings(saved);
 
       if (prev.rss.fetchIntervalMinutes !== next.rss.fetchIntervalMinutes) {
@@ -112,6 +112,7 @@ export async function PUT(request: Request) {
       }
 
       await writeUserOperationSucceededLog(client, {
+        userId: session.userId,
         actionKey: 'settings.save',
         source: 'app/api/settings',
       });
@@ -144,6 +145,7 @@ export async function PUT(request: Request) {
     }
   } catch (err) {
     await writeUserOperationFailedLog(pool, {
+      userId: session.userId,
       actionKey: 'settings.save',
       source: 'app/api/settings',
       err,

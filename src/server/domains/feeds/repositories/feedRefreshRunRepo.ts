@@ -1,4 +1,5 @@
 import type { Pool, PoolClient } from 'pg';
+import { normalizeUserId } from '@/server/domains/users/userScope';
 
 type DbClient = Pool | PoolClient;
 
@@ -7,6 +8,7 @@ export type FeedRefreshRunStatus = 'queued' | 'running' | 'succeeded' | 'failed'
 
 export interface FeedRefreshRunRow {
   id: string;
+  userId: string;
   scope: FeedRefreshRunScope;
   status: FeedRefreshRunStatus;
   feedId: string | null;
@@ -21,6 +23,7 @@ export interface FeedRefreshRunRow {
 
 export interface FeedRefreshRunItemRow {
   runId: string;
+  userId: string;
   feedId: string;
   status: FeedRefreshRunStatus;
   errorMessage: string | null;
@@ -31,6 +34,7 @@ export interface FeedRefreshRunItemRow {
 function selectFeedRefreshRunFields() {
   return `
     id,
+    user_id as "userId",
     scope,
     status,
     feed_id as "feedId",
@@ -47,6 +51,7 @@ function selectFeedRefreshRunFields() {
 function selectFeedRefreshRunItemFields() {
   return `
     run_id as "runId",
+    user_id as "userId",
     feed_id as "feedId",
     status,
     error_message as "errorMessage",
@@ -66,11 +71,14 @@ export async function createFeedRefreshRun(
     failedCount?: number;
     errorMessage?: string | null;
     finishedAt?: string | null;
+    userId?: string;
   },
 ): Promise<FeedRefreshRunRow> {
+  const userId = normalizeUserId(input.userId);
   const { rows } = await db.query<FeedRefreshRunRow>(
     `
       insert into feed_refresh_runs (
+        user_id,
         scope,
         status,
         feed_id,
@@ -80,10 +88,11 @@ export async function createFeedRefreshRun(
         error_message,
         finished_at
       )
-      values ($1, $2, $3::bigint, $4, $5, $6, $7, $8::timestamptz)
+      values ($1, $2, $3, $4::bigint, $5, $6, $7, $8, $9::timestamptz)
       returning ${selectFeedRefreshRunFields()}
     `,
     [
+      userId,
       input.scope,
       input.status,
       input.feedId ?? null,
@@ -108,8 +117,10 @@ export async function updateFeedRefreshRun(
     failedCount: number;
     errorMessage: string | null;
     finishedAt: string | null;
+    userId?: string;
   }>,
 ): Promise<FeedRefreshRunRow | null> {
+  const userId = normalizeUserId(patch.userId);
   const fields: string[] = [];
   const values: Array<number | string | null> = [];
   let paramIndex = 1;
@@ -140,17 +151,19 @@ export async function updateFeedRefreshRun(
   }
 
   if (fields.length === 0) {
-    return getFeedRefreshRunById(db, runId);
+    return getFeedRefreshRunById(db, runId, userId);
   }
 
   fields.push('updated_at = now()');
   values.push(runId);
+  values.push(userId);
 
   const { rows } = await db.query<FeedRefreshRunRow>(
     `
       update feed_refresh_runs
       set ${fields.join(', ')}
       where id = $${paramIndex}::bigint
+        and user_id = $${paramIndex + 1}
       returning ${selectFeedRefreshRunFields()}
     `,
     values,
@@ -168,6 +181,7 @@ export async function upsertFeedRefreshRunItems(
       status: FeedRefreshRunStatus;
       errorMessage?: string | null;
     }>;
+    userId?: string;
   },
 ): Promise<void> {
   if (input.items.length === 0) {
@@ -177,43 +191,49 @@ export async function upsertFeedRefreshRunItems(
   const feedIds = input.items.map((item) => item.feedId);
   const statuses = input.items.map((item) => item.status);
   const errorMessages = input.items.map((item) => item.errorMessage ?? null);
+  const userId = normalizeUserId(input.userId);
 
   await db.query(
     `
       insert into feed_refresh_run_items (
+        user_id,
         run_id,
         feed_id,
         status,
         error_message
       )
       select
-        $1::bigint,
+        $1,
+        $2::bigint,
         item.feed_id::bigint,
         item.status,
         item.error_message
-      from unnest($2::bigint[], $3::text[], $4::text[]) as item(feed_id, status, error_message)
+      from unnest($3::bigint[], $4::text[], $5::text[]) as item(feed_id, status, error_message)
       on conflict (run_id, feed_id)
       do update set
+        user_id = excluded.user_id,
         status = excluded.status,
         error_message = excluded.error_message,
         updated_at = now()
     `,
-    [input.runId, feedIds, statuses, errorMessages],
+    [userId, input.runId, feedIds, statuses, errorMessages],
   );
 }
 
 export async function listFeedRefreshRunItemsByRunId(
   db: DbClient,
   runId: string,
+  userId?: string,
 ): Promise<FeedRefreshRunItemRow[]> {
   const { rows } = await db.query<FeedRefreshRunItemRow>(
     `
       select ${selectFeedRefreshRunItemFields()}
       from feed_refresh_run_items
       where run_id = $1::bigint
+        and user_id = $2
       order by feed_id asc
     `,
-    [runId],
+    [runId, normalizeUserId(userId)],
   );
 
   return rows;
@@ -222,15 +242,17 @@ export async function listFeedRefreshRunItemsByRunId(
 export async function getFeedRefreshRunById(
   db: DbClient,
   runId: string,
+  userId?: string,
 ): Promise<FeedRefreshRunRow | null> {
   const { rows } = await db.query<FeedRefreshRunRow>(
     `
       select ${selectFeedRefreshRunFields()}
       from feed_refresh_runs
       where id = $1::bigint
+        and user_id = $2
       limit 1
     `,
-    [runId],
+    [runId, normalizeUserId(userId)],
   );
 
   return rows[0] ?? null;

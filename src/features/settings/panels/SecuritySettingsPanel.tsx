@@ -33,6 +33,7 @@ import {
   ApiError,
   changeOwnPassword,
   createUser,
+  deleteUser,
   listUsers,
   logout,
   updateUser,
@@ -80,7 +81,7 @@ function buildEditUserForm(user: CurrentUser): UserFormState {
 }
 
 function isInitialAdminUser(user: CurrentUser | null | undefined): boolean {
-  return user?.username === 'admin';
+  return user?.id === '1' || user?.username === 'admin';
 }
 
 export default function SecuritySettingsPanel() {
@@ -100,14 +101,17 @@ export default function SecuritySettingsPanel() {
   const [nextPassword, setNextPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<CurrentUser | null>(null);
   const [dialogMode, setDialogMode] = useState<SecurityDialogMode | null>(null);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [userForm, setUserForm] = useState<UserFormState>(EMPTY_USER_FORM);
   const [isPasswordPending, startPasswordTransition] = useTransition();
   const [isLogoutPending, startLogoutTransition] = useTransition();
   const [isUsersPending, startUsersTransition] = useTransition();
+  const [isDeletePending, startDeleteTransition] = useTransition();
 
   const isAdmin = currentUser?.role === 'admin';
+  const canDeleteManagedUsers = isInitialAdminUser(currentUser);
   const isUserEditorOpen = dialogMode === 'create-user' || dialogMode === 'edit-user';
   const managedUsers = useMemo(
     () => users.filter((user) => !isInitialAdminUser(user)),
@@ -168,6 +172,14 @@ export default function SecuritySettingsPanel() {
     resetSecurityForm();
   };
 
+  const closeDeleteDialog = () => {
+    if (isDeletePending) {
+      return;
+    }
+    setDeletingUser(null);
+    resetUsersFeedback();
+  };
+
   const openCurrentUserDialog = () => {
     setDialogMode('current-user');
     resetSecurityFeedback();
@@ -186,6 +198,11 @@ export default function SecuritySettingsPanel() {
     setEditingUserId(user.id);
     // 管理员表格只承载信息展示，所有可编辑数据进入弹窗统一处理。
     setUserForm(buildEditUserForm(user));
+    resetUsersFeedback();
+  };
+
+  const openDeleteDialog = (user: CurrentUser) => {
+    setDeletingUser(user);
     resetUsersFeedback();
   };
 
@@ -319,6 +336,27 @@ export default function SecuritySettingsPanel() {
     });
   };
 
+  const submitDeleteUser = () => {
+    if (!deletingUser) {
+      return;
+    }
+
+    setUsersMessage('');
+    setIsUsersError(false);
+
+    startDeleteTransition(() => {
+      void deleteUser(deletingUser.id, { notifyOnError: false })
+        .then(() => {
+          setUsers((items) => items.filter((item) => item.id !== deletingUser.id));
+          setDeletingUser(null);
+        })
+        .catch((err) => {
+          setIsUsersError(true);
+          setUsersMessage(err instanceof ApiError ? err.message : '删除用户失败');
+        });
+    });
+  };
+
   return (
     <>
       <section className="space-y-5">
@@ -386,32 +424,56 @@ export default function SecuritySettingsPanel() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {managedUsers.map((user) => (
-                    <tr key={user.id} className="bg-background">
-                      <td className="px-4 py-3 font-medium text-foreground">{user.username ?? `#${user.id}`}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-                          {getRoleLabel(user.role)}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant={getStatusBadgeVariant(user.status)}>
-                          {getStatusLabel(user.status)}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <Button
-                          type="button"
-                          size="compact"
-                          variant="secondary"
-                          data-testid={`security-user-edit-${user.id}`}
-                          onClick={() => openEditUserDialog(user)}
-                        >
-                          编辑
-                        </Button>
+                  {managedUsers.length > 0 ? (
+                    managedUsers.map((user) => (
+                      <tr key={user.id} className="bg-background">
+                        <td className="px-4 py-3 font-medium text-foreground">{user.username ?? `#${user.id}`}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                            {getRoleLabel(user.role)}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant={getStatusBadgeVariant(user.status)}>
+                            {getStatusLabel(user.status)}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              type="button"
+                              size="compact"
+                              variant="secondary"
+                              data-testid={`security-user-edit-${user.id}`}
+                              onClick={() => openEditUserDialog(user)}
+                            >
+                              编辑
+                            </Button>
+                            {canDeleteManagedUsers ? (
+                              <Button
+                                type="button"
+                                size="compact"
+                                variant="destructive"
+                                data-testid={`security-user-delete-${user.id}`}
+                                onClick={() => openDeleteDialog(user)}
+                              >
+                                删除
+                              </Button>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr className="bg-background">
+                      <td
+                        colSpan={4}
+                        className="px-4 py-10 text-center text-sm text-muted-foreground"
+                      >
+                        暂无用户
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
@@ -613,6 +675,35 @@ export default function SecuritySettingsPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={Boolean(deletingUser)}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeDeleteDialog();
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>删除用户</AlertDialogTitle>
+            <AlertDialogDescription>
+              删除后会移除该用户及其关联数据，且无法恢复。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletePending}>取消</AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={isDeletePending}
+              onClick={submitDeleteUser}
+            >
+              {isDeletePending ? '删除中…' : '删除'}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={logoutConfirmOpen}

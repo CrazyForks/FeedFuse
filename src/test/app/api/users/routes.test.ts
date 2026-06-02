@@ -9,6 +9,8 @@ const setUserStatusMock = vi.fn();
 const resetUserPasswordMock = vi.fn();
 const changeUserPasswordMock = vi.fn();
 const updateUserMock = vi.fn();
+const deleteUserMock = vi.fn();
+const deleteUserAndOwnedDataMock = vi.fn();
 const hashPasswordMock = vi.fn();
 const verifyPasswordMock = vi.fn();
 
@@ -33,6 +35,11 @@ vi.mock('@/server/domains/auth/repositories/usersRepo', () => ({
   resetUserPassword: (...args: unknown[]) => resetUserPasswordMock(...args),
   changeUserPassword: (...args: unknown[]) => changeUserPasswordMock(...args),
   updateUser: (...args: unknown[]) => updateUserMock(...args),
+  deleteUser: (...args: unknown[]) => deleteUserMock(...args),
+}));
+
+vi.mock('@/server/domains/auth/services/userLifecycleService', () => ({
+  deleteUserAndOwnedData: (...args: unknown[]) => deleteUserAndOwnedDataMock(...args),
 }));
 
 describe('/api/users', () => {
@@ -49,6 +56,8 @@ describe('/api/users', () => {
     resetUserPasswordMock.mockReset();
     changeUserPasswordMock.mockReset();
     updateUserMock.mockReset();
+    deleteUserMock.mockReset();
+    deleteUserAndOwnedDataMock.mockReset();
     hashPasswordMock.mockReset().mockReturnValue('scrypt$hashed');
     verifyPasswordMock.mockReset().mockReturnValue(true);
   });
@@ -173,5 +182,92 @@ describe('/api/users', () => {
       userId: '1',
       passwordHash: 'scrypt$hashed',
     });
+  });
+
+  it('DELETE rejects non-initial admin even if role is admin', async () => {
+    requireApiSessionMock.mockResolvedValue({ userId: '3', role: 'admin', sessionVersion: 1 });
+    getUserByIdMock
+      .mockResolvedValueOnce({
+        id: '3',
+        username: 'ops-admin',
+        passwordHash: 'hash',
+        role: 'admin',
+        status: 'active',
+        sessionVersion: 1,
+      });
+
+    const mod = await import('../../../../app/api/users/[id]/route');
+    const res = await mod.DELETE(
+      new Request('http://localhost/api/users/2', { method: 'DELETE' }),
+      { params: Promise.resolve({ id: '2' }) },
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(json.error.code).toBe('forbidden');
+    expect(deleteUserMock).not.toHaveBeenCalled();
+  });
+
+  it('DELETE rejects deleting the initial admin user', async () => {
+    getUserByIdMock
+      .mockResolvedValueOnce({
+        id: '1',
+        username: 'admin',
+        passwordHash: 'hash',
+        role: 'admin',
+        status: 'active',
+        sessionVersion: 1,
+      })
+      .mockResolvedValueOnce({
+        id: '1',
+        username: 'admin',
+        passwordHash: 'hash',
+        role: 'admin',
+        status: 'active',
+        sessionVersion: 1,
+      });
+
+    const mod = await import('../../../../app/api/users/[id]/route');
+    const res = await mod.DELETE(
+      new Request('http://localhost/api/users/1', { method: 'DELETE' }),
+      { params: Promise.resolve({ id: '1' }) },
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(json.error.code).toBe('forbidden');
+    expect(deleteUserMock).not.toHaveBeenCalled();
+  });
+
+  it('DELETE removes non-initial users for the initial admin', async () => {
+    getUserByIdMock
+      .mockResolvedValueOnce({
+        id: '1',
+        username: 'admin',
+        passwordHash: 'hash',
+        role: 'admin',
+        status: 'active',
+        sessionVersion: 1,
+      })
+      .mockResolvedValueOnce({
+        id: '2',
+        username: 'member',
+        passwordHash: 'hash',
+        role: 'member',
+        status: 'active',
+        sessionVersion: 1,
+      });
+    deleteUserAndOwnedDataMock.mockResolvedValue(true);
+
+    const mod = await import('../../../../app/api/users/[id]/route');
+    const res = await mod.DELETE(
+      new Request('http://localhost/api/users/2', { method: 'DELETE' }),
+      { params: Promise.resolve({ id: '2' }) },
+    );
+    const json = await res.json();
+
+    expect(json.ok).toBe(true);
+    expect(json.data).toEqual({ deleted: true });
+    expect(deleteUserAndOwnedDataMock).toHaveBeenCalledWith(pool, '2');
   });
 });

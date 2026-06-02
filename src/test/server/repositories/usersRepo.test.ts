@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   changeUserPassword,
   createUser,
+  deleteUser,
   ensureUserSettings,
   findUserByUsername,
   listUsers,
@@ -139,6 +140,17 @@ describe('usersRepo', () => {
     const sql = String(query.mock.calls[0]?.[0] ?? '');
     expect(sql).toContain("where id = $1 and password_hash = ''");
     expect(sql).toContain('session_version = session_version + 1');
+  });
+
+  it('deletes a non-initial user by id', async () => {
+    const query = vi.fn().mockResolvedValue({ rowCount: 1 });
+    const pool = { query } as unknown as Pool;
+
+    const deleted = await deleteUser(pool, { userId: '2' });
+
+    expect(deleted).toBe(true);
+    expect(String(query.mock.calls[0]?.[0] ?? '')).toContain('delete from users');
+    expect(query.mock.calls[0]?.[1]).toEqual(['2']);
   });
 
   it('ensures user settings row exists', async () => {

@@ -5,6 +5,7 @@ import { useAuthStore } from '../../../../store/authStore';
 
 const changeOwnPasswordMock = vi.hoisted(() => vi.fn());
 const createUserMock = vi.hoisted(() => vi.fn());
+const deleteUserMock = vi.hoisted(() => vi.fn());
 const listUsersMock = vi.hoisted(() => vi.fn());
 const logoutMock = vi.hoisted(() => vi.fn());
 const updateUserMock = vi.hoisted(() => vi.fn());
@@ -15,6 +16,7 @@ vi.mock('@/lib/api/apiClient', async () => {
     ...actual,
     changeOwnPassword: (...args: unknown[]) => changeOwnPasswordMock(...args),
     createUser: (...args: unknown[]) => createUserMock(...args),
+    deleteUser: (...args: unknown[]) => deleteUserMock(...args),
     listUsers: (...args: unknown[]) => listUsersMock(...args),
     logout: (...args: unknown[]) => logoutMock(...args),
     updateUser: (...args: unknown[]) => updateUserMock(...args),
@@ -31,6 +33,7 @@ describe('SecuritySettingsPanel', () => {
       status: 'active',
       sessionVersion: 1,
     });
+    deleteUserMock.mockReset().mockResolvedValue({ deleted: true });
     listUsersMock.mockReset().mockResolvedValue([
       { id: '1', username: 'admin', role: 'admin', status: 'active', sessionVersion: 1 },
       { id: '2', username: 'member', role: 'member', status: 'active', sessionVersion: 1 },
@@ -77,9 +80,9 @@ describe('SecuritySettingsPanel', () => {
 
     expect(await screen.findByText('member')).toBeInTheDocument();
     expect(screen.queryByTestId('security-user-edit-1')).not.toBeInTheDocument();
+    expect(screen.getByTestId('security-user-delete-2')).toBeInTheDocument();
     expect(screen.queryByPlaceholderText('新密码')).not.toBeInTheDocument();
     expect(screen.queryAllByText('admin')).toHaveLength(1);
-    expect(screen.queryByRole('button', { name: '删除' })).not.toBeInTheDocument();
     expect(screen.queryByText('表格仅展示账号信息，点击编辑后在弹窗中修改用户资料。')).not.toBeInTheDocument();
     expect(screen.queryByText('表格外只展示用户信息，新增和编辑统一通过弹窗处理。')).not.toBeInTheDocument();
     expect(screen.queryByText(/^1$/)).not.toBeInTheDocument();
@@ -93,6 +96,51 @@ describe('SecuritySettingsPanel', () => {
     expect(within(dialog).getByLabelText('状态')).toBeInTheDocument();
     expect(within(dialog).queryByLabelText('新密码')).not.toBeInTheDocument();
     expect(within(dialog).queryByText('所有新增和编辑用户信息都在弹窗中完成，面板外只保留信息展示。')).not.toBeInTheDocument();
+  });
+
+  it('shows delete action only for initial admin and deletes non-initial users through confirm dialog', async () => {
+    render(<SecuritySettingsPanel />);
+
+    fireEvent.click(await screen.findByTestId('security-user-delete-2'));
+
+    const dialog = await screen.findByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: '删除' }));
+
+    await waitFor(() => {
+      expect(deleteUserMock).toHaveBeenCalledWith('2', { notifyOnError: false });
+    });
+    await waitFor(() => {
+      expect(screen.queryByText('member')).not.toBeInTheDocument();
+    });
+  });
+
+  it('hides delete action for non-initial admin users', async () => {
+    useAuthStore.setState({
+      currentUser: {
+        id: '3',
+        username: 'ops-admin',
+        role: 'admin',
+        status: 'active',
+        sessionVersion: 1,
+      },
+    });
+
+    render(<SecuritySettingsPanel />);
+
+    expect(await screen.findByText('member')).toBeInTheDocument();
+    expect(screen.queryByTestId('security-user-delete-2')).not.toBeInTheDocument();
+  });
+
+  it('shows empty state when user management has no managed users', async () => {
+    listUsersMock.mockResolvedValue([
+      { id: '1', username: 'admin', role: 'admin', status: 'active', sessionVersion: 1 },
+    ]);
+
+    render(<SecuritySettingsPanel />);
+
+    expect(await screen.findByText('暂无用户')).toBeInTheDocument();
+    expect(screen.queryByTestId('security-user-edit-2')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('security-user-delete-2')).not.toBeInTheDocument();
   });
 
   it('opens create user dialog and submits through createUser', async () => {

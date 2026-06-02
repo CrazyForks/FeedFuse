@@ -245,3 +245,18 @@ export async function persistInitialAdminPassword(
 
   return rows[0] ?? null;
 }
+
+export async function deleteUser(
+  db: DbClient,
+  input: { userId: string },
+): Promise<boolean> {
+  const result = await db.query(
+    `
+      delete from users
+      where id = $1
+    `,
+    [input.userId],
+  );
+
+  return (result.rowCount ?? 0) > 0;
+}

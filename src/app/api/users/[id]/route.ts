@@ -5,7 +5,8 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '@
 import { numericIdSchema } from '@/server/infra/http/idSchemas';
 import { requireApiSession } from '@/server/domains/auth/services/session';
 import { hashPassword } from '@/server/domains/auth/services/password';
-import { updateUser } from '@/server/domains/auth/repositories/usersRepo';
+import { getUserById, updateUser } from '@/server/domains/auth/repositories/usersRepo';
+import { deleteUserAndOwnedData } from '@/server/domains/auth/services/userLifecycleService';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -85,6 +86,57 @@ export async function PATCH(
     if (isUniqueViolation(err)) {
       return fail(new ConflictError('用户名已存在', { username: 'duplicate' }));
     }
+    return fail(err);
+  }
+}
+
+function isInitialUser(user: { id: string; username: string }): boolean {
+  // 迁移后的初始用户固定为首个 admin，保留 username 兜底兼容现有数据。
+  return user.id === '1' || user.username === 'admin';
+}
+
+export async function DELETE(
+  _request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const session = await requireAdmin();
+  if ('response' in session) {
+    return session.response;
+  }
+
+  try {
+    const params = await context.params;
+    const parsedId = numericIdSchema.safeParse(params.id);
+    if (!parsedId.success) {
+      throw new ValidationError('用户 ID 无效', { id: 'Invalid numeric id' });
+    }
+
+    const pool = getPool();
+    const actor = await getUserById(pool, session.userId);
+    if (!actor || !isInitialUser(actor)) {
+      throw new ForbiddenError('仅初始用户可以删除其他用户');
+    }
+
+    const target = await getUserById(pool, parsedId.data);
+    if (!target) {
+      throw new NotFoundError('用户不存在');
+    }
+
+    if (target.id === session.userId) {
+      throw new ForbiddenError('不能删除当前登录用户');
+    }
+
+    if (isInitialUser(target)) {
+      throw new ForbiddenError('初始用户不可删除');
+    }
+
+    const deleted = await deleteUserAndOwnedData(pool, parsedId.data);
+    if (!deleted) {
+      throw new NotFoundError('用户不存在');
+    }
+
+    return ok({ deleted: true });
+  } catch (err) {
     return fail(err);
   }
 }

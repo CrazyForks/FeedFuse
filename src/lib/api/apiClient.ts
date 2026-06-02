@@ -313,6 +313,19 @@ export async function updateUser(
   );
 }
 
+export async function deleteUser(
+  userId: string,
+  options?: RequestApiOptions,
+): Promise<{ deleted: boolean }> {
+  return requestApi(
+    `/api/users/${encodeURIComponent(userId)}`,
+    {
+      method: 'DELETE',
+    },
+    options,
+  );
+}
+
 export async function importOpml(input: {
   content: string;
   fileName?: string | null;

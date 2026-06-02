@@ -32,7 +32,7 @@ curl -fsSL -o .env https://raw.githubusercontent.com/BryanHoo/FeedFuse/main/depl
 至少需要修改这三个值：
 
 - `IMAGE_PROXY_SECRET`：改成你自己的随机密钥
-- `AUTH_INITIAL_PASSWORD`：改成你的首次登录密码
+- `AUTH_INITIAL_PASSWORD`：改成默认管理员首次登录密码
 - `POSTGRES_PASSWORD`：改成你自己的数据库密码
 
 默认情况下，`.env` 已包含本地自托管所需的基础配置：
@@ -81,11 +81,13 @@ http://127.0.0.1:9559
 
 ## 4. 首次使用
 
-1. 使用 `.env` 里的 `AUTH_INITIAL_PASSWORD` 登录
+1. 使用用户名 `admin` 和 `.env` 里的 `AUTH_INITIAL_PASSWORD` 登录
 2. 添加自己的 RSS 源
 3. 按需整理分类
 4. 如果需要 AI 能力，再到设置中心补充 AI 配置
 5. 开始阅读，并按需要生成摘要、翻译或 `AI解读`
+
+默认管理员首次登录成功后，密码会写入数据库，后续继续使用你修改后的账号密码登录。
 
 ## 5. 配置 AI
 

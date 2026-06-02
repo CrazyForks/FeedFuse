@@ -21,14 +21,18 @@ cp .env.example .env
 根目录 `.env.example` 默认包含：
 
 - `DATABASE_URL=postgresql://feedfuse:feedfuse@127.0.0.1:5432/feedfuse`
+- `AUTH_INITIAL_PASSWORD=change-me-before-first-login`
 - `IMAGE_PROXY_SECRET=change-me-before-prod`
 - `RSS_NETWORK_MODE=public`
 - `RSS_ALLOWED_CIDRS=`
 
-开发环境至少需要保证：
+全新数据库的开发环境至少需要保证：
 
 - `DATABASE_URL` 指向可用的 PostgreSQL
+- `AUTH_INITIAL_PASSWORD` 已配置，供默认管理员首次登录使用
 - `IMAGE_PROXY_SECRET` 不为空
+
+首次启动新库后，登录用户名固定为 `admin`，密码来自 `AUTH_INITIAL_PASSWORD`。首登成功后，密码会写入数据库，后续按应用内修改后的密码登录。
 
 RSS 网络访问默认使用 `RSS_NETWORK_MODE=public`，只允许公网地址。可选模式：
 
@@ -82,6 +86,19 @@ pnpm worker:dev
 ```
 
 `worker` 负责后台任务，包括全文抓取、摘要、翻译和 `AI解读` 等异步流程。
+
+## 7. 首次登录
+
+启动 Web 与 Worker 后，打开：
+
+```text
+http://127.0.0.1:9559/login
+```
+
+首次登录默认使用：
+
+- 用户名：`admin`
+- 密码：`.env` 里的 `AUTH_INITIAL_PASSWORD`
 
 ## 常用命令
 

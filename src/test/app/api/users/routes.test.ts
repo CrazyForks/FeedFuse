@@ -8,6 +8,7 @@ const getUserByIdMock = vi.fn();
 const setUserStatusMock = vi.fn();
 const resetUserPasswordMock = vi.fn();
 const changeUserPasswordMock = vi.fn();
+const updateUserMock = vi.fn();
 const hashPasswordMock = vi.fn();
 const verifyPasswordMock = vi.fn();
 
@@ -31,6 +32,7 @@ vi.mock('@/server/domains/auth/repositories/usersRepo', () => ({
   setUserStatus: (...args: unknown[]) => setUserStatusMock(...args),
   resetUserPassword: (...args: unknown[]) => resetUserPasswordMock(...args),
   changeUserPassword: (...args: unknown[]) => changeUserPasswordMock(...args),
+  updateUser: (...args: unknown[]) => updateUserMock(...args),
 }));
 
 describe('/api/users', () => {
@@ -46,6 +48,7 @@ describe('/api/users', () => {
     setUserStatusMock.mockReset();
     resetUserPasswordMock.mockReset();
     changeUserPasswordMock.mockReset();
+    updateUserMock.mockReset();
     hashPasswordMock.mockReset().mockReturnValue('scrypt$hashed');
     verifyPasswordMock.mockReset().mockReturnValue(true);
   });
@@ -103,18 +106,11 @@ describe('/api/users', () => {
     });
   });
 
-  it('PATCH updates status and resets password', async () => {
-    setUserStatusMock.mockResolvedValue({
+  it('PATCH updates username role status and password', async () => {
+    updateUserMock.mockResolvedValue({
       id: '2',
-      username: 'member',
-      role: 'member',
-      status: 'disabled',
-      sessionVersion: 2,
-    });
-    resetUserPasswordMock.mockResolvedValue({
-      id: '2',
-      username: 'member',
-      role: 'member',
+      username: 'member-next',
+      role: 'admin',
       status: 'disabled',
       sessionVersion: 3,
     });
@@ -124,16 +120,23 @@ describe('/api/users', () => {
       new Request('http://localhost/api/users/2', {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ status: 'disabled', password: 'next-password-123' }),
+        body: JSON.stringify({
+          username: 'member-next',
+          role: 'admin',
+          status: 'disabled',
+          password: 'next-password-123',
+        }),
       }),
       { params: Promise.resolve({ id: '2' }) },
     );
     const json = await res.json();
 
     expect(json.ok).toBe(true);
-    expect(setUserStatusMock).toHaveBeenCalledWith(pool, { userId: '2', status: 'disabled' });
-    expect(resetUserPasswordMock).toHaveBeenCalledWith(pool, {
+    expect(updateUserMock).toHaveBeenCalledWith(pool, {
       userId: '2',
+      username: 'member-next',
+      role: 'admin',
+      status: 'disabled',
       passwordHash: 'scrypt$hashed',
     });
   });

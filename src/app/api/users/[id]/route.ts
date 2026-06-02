@@ -1,16 +1,18 @@
 import { z } from 'zod';
 import { getPool } from '@/server/infra/db/pool';
 import { ok, fail } from '@/server/infra/http/apiResponse';
-import { ForbiddenError, NotFoundError, ValidationError } from '@/server/infra/http/errors';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '@/server/infra/http/errors';
 import { numericIdSchema } from '@/server/infra/http/idSchemas';
 import { requireApiSession } from '@/server/domains/auth/services/session';
 import { hashPassword } from '@/server/domains/auth/services/password';
-import { resetUserPassword, setUserStatus } from '@/server/domains/auth/repositories/usersRepo';
+import { updateUser } from '@/server/domains/auth/repositories/usersRepo';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const patchUserBodySchema = z.object({
+  username: z.string().trim().min(1).optional(),
+  role: z.enum(['admin', 'member']).optional(),
   status: z.enum(['active', 'disabled']).optional(),
   password: z.string().trim().min(8).optional(),
 });
@@ -35,6 +37,15 @@ async function requireAdmin() {
   return session;
 }
 
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code?: unknown }).code === '23505'
+  );
+}
+
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
@@ -57,25 +68,23 @@ export async function PATCH(
       throw new ValidationError('用户信息校验失败', zodIssuesToFields(parsed.error));
     }
 
-    let user = null;
-    if (parsed.data.status) {
-      user = await setUserStatus(getPool(), {
-        userId: parsedId.data,
-        status: parsed.data.status,
-      });
-    }
-    if (parsed.data.password) {
-      user = await resetUserPassword(getPool(), {
-        userId: parsedId.data,
-        passwordHash: hashPassword(parsed.data.password),
-      });
-    }
+    // 管理员编辑用户信息统一走一个 patch，前端可在单个弹窗里提交完整修改。
+    const user = await updateUser(getPool(), {
+      userId: parsedId.data,
+      username: parsed.data.username,
+      role: parsed.data.role,
+      status: parsed.data.status,
+      passwordHash: parsed.data.password ? hashPassword(parsed.data.password) : undefined,
+    });
     if (!user) {
       throw new NotFoundError('用户不存在');
     }
 
     return ok(user);
   } catch (err) {
+    if (isUniqueViolation(err)) {
+      return fail(new ConflictError('用户名已存在', { username: 'duplicate' }));
+    }
     return fail(err);
   }
 }

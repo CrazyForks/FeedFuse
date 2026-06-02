@@ -9,6 +9,7 @@ import {
   persistInitialAdminPassword,
   resetUserPassword,
   setUserStatus,
+  updateUser,
 } from '@/server/domains/auth/repositories/usersRepo';
 
 describe('usersRepo', () => {
@@ -96,6 +97,35 @@ describe('usersRepo', () => {
     expect(String(query.mock.calls[0]?.[0] ?? '')).toContain('status = $2');
     expect(String(query.mock.calls[1]?.[0] ?? '')).toContain('session_version = session_version + 1');
     expect(String(query.mock.calls[2]?.[0] ?? '')).toContain('password_hash = $2');
+  });
+
+  it('updates username role status and password in one statement', async () => {
+    const query = vi.fn().mockResolvedValue({
+      rows: [{ id: '2', username: 'member-next', role: 'admin', status: 'disabled', sessionVersion: 4 }],
+    });
+
+    const pool = { query } as unknown as Pool;
+    await updateUser(pool, {
+      userId: '2',
+      username: ' member-next ',
+      role: 'admin',
+      status: 'disabled',
+      passwordHash: 'scrypt$next',
+    });
+
+    const sql = String(query.mock.calls[0]?.[0] ?? '');
+    expect(sql).toContain('username = $2');
+    expect(sql).toContain('role = $3');
+    expect(sql).toContain('status = $4');
+    expect(sql).toContain('password_hash = $5');
+    expect(sql).toContain('session_version = session_version + 1');
+    expect(query.mock.calls[0]?.[1]).toEqual([
+      '2',
+      'member-next',
+      'admin',
+      'disabled',
+      'scrypt$next',
+    ]);
   });
 
   it('persists initial admin password only when hash is empty', async () => {

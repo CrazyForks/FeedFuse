@@ -168,6 +168,64 @@ export async function changeUserPassword(
   return resetUserPassword(db, input);
 }
 
+export async function updateUser(
+  db: DbClient,
+  input: {
+    userId: string;
+    username?: string;
+    role?: UserRole;
+    status?: UserStatus;
+    passwordHash?: string;
+  },
+): Promise<PublicUserRow | null> {
+  const values: string[] = [input.userId];
+  const assignments: string[] = [];
+  const shouldBumpSessionVersion =
+    input.role !== undefined || input.status !== undefined || input.passwordHash !== undefined;
+
+  // 只拼接实际提交的字段，避免空 patch 覆盖现有数据。
+  if (input.username !== undefined) {
+    values.push(normalizeUsername(input.username));
+    assignments.push(`username = $${values.length}`);
+  }
+
+  if (input.role !== undefined) {
+    values.push(input.role);
+    assignments.push(`role = $${values.length}`);
+  }
+
+  if (input.status !== undefined) {
+    values.push(input.status);
+    assignments.push(`status = $${values.length}`);
+  }
+
+  if (input.passwordHash !== undefined) {
+    values.push(input.passwordHash);
+    assignments.push(`password_hash = $${values.length}`);
+  }
+
+  if (assignments.length === 0) {
+    return null;
+  }
+
+  if (shouldBumpSessionVersion) {
+    assignments.push('session_version = session_version + 1');
+  }
+  assignments.push('updated_at = now()');
+
+  const { rows } = await db.query<PublicUserRow>(
+    `
+      update users
+      set ${assignments.join(', ')}
+      where id = $1
+      returning ${publicUserColumns}
+    `,
+    values,
+  );
+
+  return rows[0] ?? null;
+}
+
 export async function persistInitialAdminPassword(
   db: DbClient,
   input: { userId: string; passwordHash: string },

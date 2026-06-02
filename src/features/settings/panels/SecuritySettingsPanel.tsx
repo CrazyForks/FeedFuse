@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
-import { Shield, UserPlus } from 'lucide-react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
+import { SquarePen, UserPlus } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -11,10 +11,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   ApiError,
   changeOwnPassword,
@@ -24,43 +38,101 @@ import {
   updateUser,
   type CurrentUser,
   type CurrentUserRole,
+  type CurrentUserStatus,
 } from '@/lib/api/apiClient';
 import { useAuthStore } from '@/store/authStore';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import SettingTooltipLabel from '../components/SettingTooltipLabel';
+
+type SecurityDialogMode = 'current-user' | 'create-user' | 'edit-user';
+
+interface UserFormState {
+  username: string;
+  role: CurrentUserRole;
+  status: CurrentUserStatus;
+  password: string;
+}
+
+const EMPTY_USER_FORM: UserFormState = {
+  username: '',
+  role: 'member',
+  status: 'active',
+  password: '',
+};
+
+function getRoleLabel(role?: CurrentUserRole): string {
+  return role === 'admin' ? '管理员' : '成员';
+}
+
+function getStatusLabel(status?: CurrentUserStatus): string {
+  return status === 'disabled' ? '已禁用' : '启用中';
+}
+
+function getStatusBadgeVariant(status?: CurrentUserStatus): 'destructive' | 'outline' {
+  return status === 'disabled' ? 'destructive' : 'outline';
+}
+
+function buildEditUserForm(user: CurrentUser): UserFormState {
+  return {
+    username: user.username ?? '',
+    role: user.role,
+    status: user.status ?? 'active',
+    password: '',
+  };
+}
+
+function isInitialAdminUser(user: CurrentUser | null | undefined): boolean {
+  return user?.username === 'admin';
+}
 
 export default function SecuritySettingsPanel() {
   const currentPasswordLabelId = 'settings-current-password-label';
   const nextPasswordLabelId = 'settings-next-password-label';
   const confirmPasswordLabelId = 'settings-confirm-password-label';
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [nextPassword, setNextPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [securityMessage, setSecurityMessage] = useState('');
-  const [isSecurityError, setIsSecurityError] = useState(false);
-  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
-  const [users, setUsers] = useState<CurrentUser[]>([]);
-  const [usersMessage, setUsersMessage] = useState('');
-  const [isUsersError, setIsUsersError] = useState(false);
-  const [newUsername, setNewUsername] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [newRole, setNewRole] = useState<CurrentUserRole>('member');
-  const [resetPasswords, setResetPasswords] = useState<Record<string, string>>({});
-  const [isPasswordPending, startPasswordTransition] = useTransition();
-  const [isLogoutPending, startLogoutTransition] = useTransition();
-  const [isUsersPending, startUsersTransition] = useTransition();
   const currentUser = useAuthStore((state) => state.currentUser);
   const setCurrentUser = useAuthStore((state) => state.setCurrentUser);
   const clearCurrentUser = useAuthStore((state) => state.clearCurrentUser);
 
+  const [users, setUsers] = useState<CurrentUser[]>([]);
+  const [usersMessage, setUsersMessage] = useState('');
+  const [isUsersError, setIsUsersError] = useState(false);
+  const [securityMessage, setSecurityMessage] = useState('');
+  const [isSecurityError, setIsSecurityError] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [nextPassword, setNextPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<SecurityDialogMode | null>(null);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [userForm, setUserForm] = useState<UserFormState>(EMPTY_USER_FORM);
+  const [isPasswordPending, startPasswordTransition] = useTransition();
+  const [isLogoutPending, startLogoutTransition] = useTransition();
+  const [isUsersPending, startUsersTransition] = useTransition();
+
+  const isAdmin = currentUser?.role === 'admin';
+  const isUserEditorOpen = dialogMode === 'create-user' || dialogMode === 'edit-user';
+  const managedUsers = useMemo(
+    () => users.filter((user) => !isInitialAdminUser(user)),
+    [users],
+  );
+  const editingUser = useMemo(
+    () => users.find((user) => user.id === editingUserId) ?? null,
+    [editingUserId, users],
+  );
+
+  const resetUsersFeedback = () => {
+    setUsersMessage('');
+    setIsUsersError(false);
+  };
+
+  const resetSecurityFeedback = () => {
+    setSecurityMessage('');
+    setIsSecurityError(false);
+  };
+
   const loadUsers = () => {
-    if (currentUser?.role !== 'admin') return;
+    if (!isAdmin) {
+      setUsers([]);
+      return;
+    }
 
     startUsersTransition(() => {
       void listUsers({ notifyOnError: false })
@@ -85,6 +157,36 @@ export default function SecuritySettingsPanel() {
     setCurrentPassword('');
     setNextPassword('');
     setConfirmPassword('');
+  };
+
+  const closeEditorDialog = () => {
+    setDialogMode(null);
+    setEditingUserId(null);
+    setUserForm(EMPTY_USER_FORM);
+    resetUsersFeedback();
+    resetSecurityFeedback();
+    resetSecurityForm();
+  };
+
+  const openCurrentUserDialog = () => {
+    setDialogMode('current-user');
+    resetSecurityFeedback();
+    resetSecurityForm();
+  };
+
+  const openCreateUserDialog = () => {
+    setDialogMode('create-user');
+    setEditingUserId(null);
+    setUserForm(EMPTY_USER_FORM);
+    resetUsersFeedback();
+  };
+
+  const openEditUserDialog = (user: CurrentUser) => {
+    setDialogMode('edit-user');
+    setEditingUserId(user.id);
+    // 管理员表格只承载信息展示，所有可编辑数据进入弹窗统一处理。
+    setUserForm(buildEditUserForm(user));
+    resetUsersFeedback();
   };
 
   const submitPasswordChange = () => {
@@ -124,12 +226,7 @@ export default function SecuritySettingsPanel() {
           setSecurityMessage('密码已更新');
         } catch (err) {
           setIsSecurityError(true);
-          if (err instanceof ApiError) {
-            setSecurityMessage(err.message);
-            return;
-          }
-
-          setSecurityMessage('修改密码失败，请稍后重试');
+          setSecurityMessage(err instanceof ApiError ? err.message : '修改密码失败，请稍后重试');
         }
       })();
     });
@@ -154,7 +251,7 @@ export default function SecuritySettingsPanel() {
     setUsersMessage('');
     setIsUsersError(false);
 
-    if (!newUsername.trim() || newPassword.trim().length < 8) {
+    if (!userForm.username.trim() || userForm.password.trim().length < 8) {
       setIsUsersError(true);
       setUsersMessage('请输入用户名和至少 8 位密码');
       return;
@@ -162,15 +259,16 @@ export default function SecuritySettingsPanel() {
 
     startUsersTransition(() => {
       void createUser(
-        { username: newUsername.trim(), password: newPassword, role: newRole },
+        {
+          username: userForm.username.trim(),
+          password: userForm.password,
+          role: userForm.role,
+        },
         { notifyOnError: false },
       )
         .then((created) => {
           setUsers((items) => [...items, created]);
-          setNewUsername('');
-          setNewPassword('');
-          setNewRole('member');
-          setUsersMessage('用户已创建');
+          closeEditorDialog();
         })
         .catch((err) => {
           setIsUsersError(true);
@@ -179,22 +277,40 @@ export default function SecuritySettingsPanel() {
     });
   };
 
-  const submitUserPatch = (
-    user: CurrentUser,
-    patch: { status?: 'active' | 'disabled'; password?: string },
-  ) => {
+  const submitEditUser = () => {
+    if (!editingUser) {
+      return;
+    }
+
+    const normalizedUsername = userForm.username.trim();
+    if (!normalizedUsername) {
+      setIsUsersError(true);
+      setUsersMessage('请输入用户名');
+      return;
+    }
+
     setUsersMessage('');
     setIsUsersError(false);
 
+    const patch: {
+      username?: string;
+      role?: CurrentUserRole;
+      status?: CurrentUserStatus;
+      password?: string;
+    } = {
+      username: normalizedUsername,
+      role: userForm.role,
+      status: userForm.status,
+    };
+
     startUsersTransition(() => {
-      void updateUser(user.id, patch, { notifyOnError: false })
+      void updateUser(editingUser.id, patch, { notifyOnError: false })
         .then((updated) => {
           setUsers((items) => items.map((item) => (item.id === updated.id ? updated : item)));
-          if (updated.id === currentUser?.id) {
+          if (updated.id === currentUser?.id && currentUser) {
             setCurrentUser({ ...currentUser, ...updated });
           }
-          setResetPasswords((items) => ({ ...items, [user.id]: '' }));
-          setUsersMessage('用户已更新');
+          closeEditorDialog();
         })
         .catch((err) => {
           setIsUsersError(true);
@@ -207,34 +323,130 @@ export default function SecuritySettingsPanel() {
     <>
       <section className="space-y-5">
         <div className="rounded-lg border border-border bg-background p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1">
-              <SettingTooltipLabel
-                label="当前账号"
-                description="当前登录用户和权限。"
-                className="text-sm font-medium text-foreground"
-              />
-              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                <span>{currentUser?.username ?? 'admin'}</span>
-                <Badge variant="secondary">{currentUser?.role === 'admin' ? '管理员' : '成员'}</Badge>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-foreground">当前账号</p>
+              <div className="space-y-1 text-sm text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-base font-medium text-foreground">{currentUser?.username ?? 'admin'}</p>
+                  <Badge variant="secondary">{getRoleLabel(currentUser?.role)}</Badge>
+                  <Badge variant={getStatusBadgeVariant(currentUser?.status)}>
+                    {getStatusLabel(currentUser?.status)}
+                  </Badge>
+                </div>
               </div>
             </div>
-            <Shield className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                data-testid="security-current-user-edit-button"
+                onClick={openCurrentUserDialog}
+              >
+                <SquarePen className="mr-2 h-4 w-4" />
+                编辑
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="compact"
+                onClick={() => setLogoutConfirmOpen(true)}
+                disabled={isLogoutPending}
+              >
+                {isLogoutPending ? '退出中…' : '退出登录'}
+              </Button>
+            </div>
           </div>
         </div>
 
-        <div className="rounded-lg border border-border bg-background p-4">
-          <div className="space-y-1">
-            <SettingTooltipLabel
-              label="修改密码"
-              description="更新后会立即刷新当前登录会话。"
-              className="text-sm font-medium text-foreground"
-            />
-          </div>
+        {isAdmin ? (
+          <div className="rounded-lg border border-border bg-background p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-medium text-foreground">用户管理</p>
+              <Button
+                type="button"
+                size="compact"
+                data-testid="security-create-user-button"
+                onClick={openCreateUserDialog}
+              >
+                <UserPlus className="mr-2 h-4 w-4" />
+                新增用户
+              </Button>
+            </div>
 
-          <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <div className="mt-4 overflow-x-auto rounded-md border border-border">
+              <table className="min-w-full divide-y divide-border text-sm">
+                <thead className="bg-muted/40">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">用户名</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">角色</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">状态</th>
+                    <th className="px-4 py-3 text-right font-medium text-muted-foreground">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {managedUsers.map((user) => (
+                    <tr key={user.id} className="bg-background">
+                      <td className="px-4 py-3 font-medium text-foreground">{user.username ?? `#${user.id}`}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                          {getRoleLabel(user.role)}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant={getStatusBadgeVariant(user.status)}>
+                          {getStatusLabel(user.status)}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Button
+                          type="button"
+                          size="compact"
+                          variant="secondary"
+                          data-testid={`security-user-edit-${user.id}`}
+                          onClick={() => openEditUserDialog(user)}
+                        >
+                          编辑
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {usersMessage ? (
+              <p className={isUsersError ? 'mt-3 text-sm text-red-600' : 'mt-3 text-sm text-muted-foreground'}>
+                {usersMessage}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+      </section>
+
+      <Dialog
+        open={dialogMode === 'current-user'}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeEditorDialog();
+          }
+        }}
+      >
+        <DialogContent
+          className="max-w-xl"
+          closeLabel="关闭当前账号编辑弹窗"
+          aria-describedby={undefined}
+        >
+          <DialogHeader>
+            <DialogTitle>编辑当前账号</DialogTitle>
+          </DialogHeader>
+
+          <div className="grid gap-4">
             <div className="space-y-2">
-              <Label id={currentPasswordLabelId}>当前密码</Label>
+              <Label id={currentPasswordLabelId} htmlFor="settings-current-password">
+                当前密码
+              </Label>
               <Input
                 id="settings-current-password"
                 type="password"
@@ -246,7 +458,9 @@ export default function SecuritySettingsPanel() {
               />
             </div>
             <div className="space-y-2">
-              <Label id={nextPasswordLabelId}>新密码</Label>
+              <Label id={nextPasswordLabelId} htmlFor="settings-next-password">
+                新密码
+              </Label>
               <Input
                 id="settings-next-password"
                 type="password"
@@ -258,7 +472,9 @@ export default function SecuritySettingsPanel() {
               />
             </div>
             <div className="space-y-2">
-              <Label id={confirmPasswordLabelId}>确认新密码</Label>
+              <Label id={confirmPasswordLabelId} htmlFor="settings-confirm-password">
+                确认新密码
+              </Label>
               <Input
                 id="settings-confirm-password"
                 type="password"
@@ -271,149 +487,132 @@ export default function SecuritySettingsPanel() {
             </div>
           </div>
 
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+          <DialogFooter className="items-center gap-3">
             {securityMessage ? (
               <p className={isSecurityError ? 'text-sm text-red-600' : 'text-sm text-muted-foreground'}>
                 {securityMessage}
               </p>
             ) : null}
-            <Button
-              type="button"
-              onClick={submitPasswordChange}
-              disabled={isPasswordPending}
-            >
+            <Button type="button" variant="secondary" onClick={closeEditorDialog}>
+              关闭
+            </Button>
+            <Button type="button" onClick={submitPasswordChange} disabled={isPasswordPending}>
               {isPasswordPending ? '更新中…' : '更新密码'}
             </Button>
-          </div>
-        </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        <div className="rounded-lg border border-border bg-background p-4">
-          {/* 将退出登录独立为单独模块，避免与修改密码操作混淆。 */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1">
-              <SettingTooltipLabel
-                label="退出登录"
-                description="退出后将返回登录页面。"
-                className="text-sm font-medium text-foreground"
-              />
-            </div>
-            <Button
-              type="button"
-              variant="destructive"
-              size="compact"
-              onClick={() => {
-                // 危险操作先二次确认，确认后再真正调用退出接口。
-                setLogoutConfirmOpen(true);
-              }}
-              disabled={isLogoutPending}
-            >
-              {isLogoutPending ? '退出中…' : '退出登录'}
-            </Button>
-          </div>
-        </div>
+      <Dialog
+        open={isUserEditorOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeEditorDialog();
+          }
+        }}
+      >
+        <DialogContent
+          className="max-w-xl"
+          closeLabel="关闭用户编辑弹窗"
+          aria-describedby={undefined}
+        >
+          <DialogHeader>
+            <DialogTitle>{dialogMode === 'create-user' ? '新增用户' : '编辑用户'}</DialogTitle>
+          </DialogHeader>
 
-        {currentUser?.role === 'admin' ? (
-          <div className="rounded-lg border border-border bg-background p-4">
-            <div className="space-y-1">
-              <SettingTooltipLabel
-                label="用户管理"
-                description="管理员可创建账号、重置密码、禁用或启用账号。"
-                className="text-sm font-medium text-foreground"
-              />
-            </div>
-
-            <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr_160px_auto]">
+          <div className="grid gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="security-user-form-username">用户名</Label>
               <Input
-                value={newUsername}
-                onChange={(event) => setNewUsername(event.target.value)}
-                placeholder="用户名"
+                id="security-user-form-username"
+                value={userForm.username}
+                onChange={(event) =>
+                  setUserForm((current) => ({ ...current, username: event.target.value }))
+                }
+                placeholder="输入用户名"
                 autoComplete="off"
               />
-              <Input
-                type="password"
-                value={newPassword}
-                onChange={(event) => setNewPassword(event.target.value)}
-                placeholder="初始密码"
-                autoComplete="new-password"
-              />
-              <Select value={newRole} onValueChange={(value) => setNewRole(value as CurrentUserRole)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="member">成员</SelectItem>
-                  <SelectItem value="admin">管理员</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button type="button" onClick={submitCreateUser} disabled={isUsersPending}>
-                <UserPlus className="mr-2 h-4 w-4" />
-                创建
-              </Button>
             </div>
 
-            <div className="mt-4 divide-y divide-border rounded-md border border-border">
-              {users.map((user) => {
-                const disabled = user.status === 'disabled';
-                return (
-                  <div
-                    key={user.id}
-                    className="grid gap-3 p-3 lg:grid-cols-[1fr_100px_100px_1fr_auto_auto]"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{user.username ?? `#${user.id}`}</p>
-                      <p className="text-xs text-muted-foreground">ID {user.id}</p>
-                    </div>
-                    <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-                      {user.role === 'admin' ? '管理员' : '成员'}
-                    </Badge>
-                    <Badge variant={disabled ? 'destructive' : 'outline'}>
-                      {disabled ? '已禁用' : '启用中'}
-                    </Badge>
-                    <Input
-                      type="password"
-                      value={resetPasswords[user.id] ?? ''}
-                      onChange={(event) =>
-                        setResetPasswords((items) => ({
-                          ...items,
-                          [user.id]: event.target.value,
-                        }))
-                      }
-                      placeholder="新密码"
-                      autoComplete="new-password"
-                    />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="compact"
-                      disabled={isUsersPending || !(resetPasswords[user.id] ?? '').trim()}
-                      onClick={() => submitUserPatch(user, { password: resetPasswords[user.id] })}
-                    >
-                      重置
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={disabled ? 'secondary' : 'destructive'}
-                      size="compact"
-                      disabled={isUsersPending || user.id === currentUser.id}
-                      onClick={() =>
-                        submitUserPatch(user, { status: disabled ? 'active' : 'disabled' })
-                      }
-                    >
-                      {disabled ? '启用' : '禁用'}
-                    </Button>
-                  </div>
-                );
-              })}
+            {dialogMode === 'create-user' ? (
+              <div className="space-y-2">
+                <Label htmlFor="security-user-form-password">新密码</Label>
+                <Input
+                  id="security-user-form-password"
+                  type="password"
+                  value={userForm.password}
+                  onChange={(event) =>
+                    setUserForm((current) => ({ ...current, password: event.target.value }))
+                  }
+                  placeholder="至少 8 位"
+                  autoComplete="new-password"
+                />
+              </div>
+            ) : null}
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="security-user-form-role">角色</Label>
+                <Select
+                  value={userForm.role}
+                  onValueChange={(value) =>
+                    setUserForm((current) => ({
+                      ...current,
+                      role: value as CurrentUserRole,
+                    }))
+                  }
+                >
+                  <SelectTrigger id="security-user-form-role" aria-label="角色">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="member">成员</SelectItem>
+                    <SelectItem value="admin">管理员</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="security-user-form-status">状态</Label>
+                <Select
+                  value={userForm.status}
+                  onValueChange={(value) =>
+                    setUserForm((current) => ({
+                      ...current,
+                      status: value as CurrentUserStatus,
+                    }))
+                  }
+                >
+                  <SelectTrigger id="security-user-form-status" aria-label="状态">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">启用中</SelectItem>
+                    <SelectItem value="disabled">已禁用</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            {usersMessage ? (
-              <p className={isUsersError ? 'mt-3 text-sm text-red-600' : 'mt-3 text-sm text-muted-foreground'}>
-                {usersMessage}
-              </p>
+            {isUsersError && usersMessage ? (
+              <p className="text-sm text-red-600">{usersMessage}</p>
             ) : null}
           </div>
-        ) : null}
-      </section>
+
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={closeEditorDialog}>
+              取消
+            </Button>
+            <Button
+              type="button"
+              onClick={dialogMode === 'create-user' ? submitCreateUser : submitEditUser}
+              disabled={isUsersPending}
+            >
+              {isUsersPending ? '保存中…' : '保存'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={logoutConfirmOpen}

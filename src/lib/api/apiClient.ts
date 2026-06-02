@@ -294,7 +294,12 @@ export async function createUser(
 
 export async function updateUser(
   userId: string,
-  input: { status?: CurrentUserStatus; password?: string },
+  input: {
+    username?: string;
+    role?: CurrentUserRole;
+    status?: CurrentUserStatus;
+    password?: string;
+  },
   options?: RequestApiOptions,
 ): Promise<CurrentUser> {
   return requestApi(

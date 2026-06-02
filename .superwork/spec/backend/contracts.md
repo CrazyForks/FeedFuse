@@ -35,6 +35,8 @@
 - 所有异步任务 payload、队列 singleton key、任务状态、系统日志和用户操作日志涉及用户私有数据时都必须携带 `userId`；定时任务没有会话上下文时必须按 active users fan-out。
 - Fever、AI digest、feed refresh、全文抓取、文章过滤、摘要、翻译等 worker 在读取或写入数据前必须用 `userId` 校验资源归属。
 - 管理员才可创建用户、列表用户、重置密码、禁用或启用用户；普通用户只能读取自己的资料和修改自己的密码。
+- `PATCH /api/users/[id]` 作为管理员用户资料编辑入口时，允许一次提交 `username`、`role`、`status` 组合更新；这类资料编辑保持管理员语义，不再承担普通用户自助改密入口。
+- 普通用户自助密码修改继续固定走 `POST /api/users/me/password`；只有涉及 `role`、`status` 或密码 hash 变更时才递增 `session_version` 使旧 session 失效，纯用户名编辑不强制登出当前会话。
 
 ## RSS 网络访问契约
 

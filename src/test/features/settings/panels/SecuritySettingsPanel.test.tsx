@@ -2,30 +2,30 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SecuritySettingsPanel from '../../../../features/settings/panels/SecuritySettingsPanel';
 import { useAuthStore } from '../../../../store/authStore';
+import { ApiError } from '../../../../lib/api/apiClient';
 
-const changeOwnPasswordMock = vi.hoisted(() => vi.fn());
 const createUserMock = vi.hoisted(() => vi.fn());
 const deleteUserMock = vi.hoisted(() => vi.fn());
 const listUsersMock = vi.hoisted(() => vi.fn());
 const logoutMock = vi.hoisted(() => vi.fn());
+const updateCurrentUserProfileMock = vi.hoisted(() => vi.fn());
 const updateUserMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/api/apiClient', async () => {
   const actual = await vi.importActual<typeof import('@/lib/api/apiClient')>('@/lib/api/apiClient');
   return {
     ...actual,
-    changeOwnPassword: (...args: unknown[]) => changeOwnPasswordMock(...args),
     createUser: (...args: unknown[]) => createUserMock(...args),
     deleteUser: (...args: unknown[]) => deleteUserMock(...args),
     listUsers: (...args: unknown[]) => listUsersMock(...args),
     logout: (...args: unknown[]) => logoutMock(...args),
+    updateCurrentUserProfile: (...args: unknown[]) => updateCurrentUserProfileMock(...args),
     updateUser: (...args: unknown[]) => updateUserMock(...args),
   };
 });
 
 describe('SecuritySettingsPanel', () => {
   beforeEach(() => {
-    changeOwnPasswordMock.mockReset().mockResolvedValue({ updated: true });
     createUserMock.mockReset().mockResolvedValue({
       id: '3',
       username: 'new-user',
@@ -39,6 +39,13 @@ describe('SecuritySettingsPanel', () => {
       { id: '2', username: 'member', role: 'member', status: 'active', sessionVersion: 1 },
     ]);
     logoutMock.mockReset().mockResolvedValue({ authenticated: false });
+    updateCurrentUserProfileMock.mockReset().mockImplementation(async (input: Record<string, unknown>) => ({
+      id: '1',
+      username: String(input.username ?? 'admin'),
+      role: 'admin',
+      status: 'active',
+      sessionVersion: 1,
+    }));
     updateUserMock.mockReset().mockImplementation(async (_userId: string, input: Record<string, unknown>) => ({
       id: '2',
       username: String(input.username ?? 'member'),
@@ -57,7 +64,7 @@ describe('SecuritySettingsPanel', () => {
     });
   });
 
-  it('opens current account dialog for password changes only', async () => {
+  it('opens current account dialog for unified profile editing', async () => {
     render(<SecuritySettingsPanel />);
 
     expect(screen.queryByLabelText('当前密码')).not.toBeInTheDocument();
@@ -67,12 +74,92 @@ describe('SecuritySettingsPanel', () => {
     fireEvent.click(screen.getByTestId('security-current-user-edit-button'));
 
     const dialog = await screen.findByRole('dialog', { name: '编辑当前账号' });
-    expect(within(dialog).getByLabelText('当前密码')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('用户名')).toHaveValue('admin');
+    expect(within(dialog).queryByLabelText('当前密码')).not.toBeInTheDocument();
     expect(within(dialog).getByLabelText('新密码')).toBeInTheDocument();
     expect(within(dialog).getByLabelText('确认新密码')).toBeInTheDocument();
-    expect(within(dialog).queryByLabelText('用户名')).not.toBeInTheDocument();
     expect(within(dialog).queryByText('当前账号资料只展示在这里，所有用户都可在此修改自己的密码。')).not.toBeInTheDocument();
     expect(within(dialog).queryByText('ID 1')).not.toBeInTheDocument();
+  });
+
+  it('submits current account username edits through updateCurrentUserProfile', async () => {
+    render(<SecuritySettingsPanel />);
+
+    fireEvent.click(screen.getByTestId('security-current-user-edit-button'));
+
+    const dialog = await screen.findByRole('dialog', { name: '编辑当前账号' });
+    fireEvent.change(within(dialog).getByLabelText('用户名'), { target: { value: 'renamed-admin' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(updateCurrentUserProfileMock).toHaveBeenCalledWith(
+        { username: 'renamed-admin' },
+        { notifyOnError: false, redirectOnUnauthorized: false },
+      );
+    });
+    await waitFor(() => {
+      expect(useAuthStore.getState().currentUser?.username).toBe('renamed-admin');
+    });
+  });
+
+  it('shows duplicate username error in current account dialog', async () => {
+    updateCurrentUserProfileMock.mockRejectedValueOnce(
+      new ApiError('用户名已存在', 'conflict', { username: 'duplicate' }),
+    );
+
+    render(<SecuritySettingsPanel />);
+
+    fireEvent.click(screen.getByTestId('security-current-user-edit-button'));
+
+    const dialog = await screen.findByRole('dialog', { name: '编辑当前账号' });
+    fireEvent.change(within(dialog).getByLabelText('用户名'), { target: { value: 'member' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: '保存' }));
+
+    expect(await within(dialog).findByText('用户名已存在')).toBeInTheDocument();
+  });
+
+  it('submits current account username and password through one save action', async () => {
+    render(<SecuritySettingsPanel />);
+
+    fireEvent.click(screen.getByTestId('security-current-user-edit-button'));
+
+    const dialog = await screen.findByRole('dialog', { name: '编辑当前账号' });
+    fireEvent.change(within(dialog).getByLabelText('用户名'), { target: { value: 'renamed-admin' } });
+    fireEvent.change(within(dialog).getByLabelText('新密码'), {
+      target: { value: 'new-password-123' },
+    });
+    fireEvent.change(within(dialog).getByLabelText('确认新密码'), {
+      target: { value: 'new-password-123' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(updateCurrentUserProfileMock).toHaveBeenCalledWith(
+        {
+          username: 'renamed-admin',
+          nextPassword: 'new-password-123',
+        },
+        { notifyOnError: false, redirectOnUnauthorized: false },
+      );
+    });
+  });
+
+  it('blocks save when password confirmation does not match', async () => {
+    render(<SecuritySettingsPanel />);
+
+    fireEvent.click(screen.getByTestId('security-current-user-edit-button'));
+
+    const dialog = await screen.findByRole('dialog', { name: '编辑当前账号' });
+    fireEvent.change(within(dialog).getByLabelText('新密码'), {
+      target: { value: 'new-password-123' },
+    });
+    fireEvent.change(within(dialog).getByLabelText('确认新密码'), {
+      target: { value: 'different-password' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: '保存' }));
+
+    expect(updateCurrentUserProfileMock).not.toHaveBeenCalled();
+    expect(await within(dialog).findByText('两次输入的新密码不一致')).toBeInTheDocument();
   });
 
   it('hides initial admin from user table and opens user edit dialog for other users', async () => {

@@ -273,6 +273,27 @@ export async function changeOwnPassword(
   );
 }
 
+export async function updateCurrentUserProfile(
+  input: {
+    username: string;
+    nextPassword?: string;
+  },
+  options?: RequestApiOptions,
+): Promise<CurrentUser> {
+  return requestApi(
+    '/api/users/me',
+    {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    },
+    {
+      ...(options ?? {}),
+      redirectOnUnauthorized: false,
+    },
+  );
+}
+
 export async function listUsers(options?: RequestApiOptions): Promise<CurrentUser[]> {
   return requestApi('/api/users', undefined, options);
 }

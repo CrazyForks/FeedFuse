@@ -1,12 +1,46 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   AUTH_SESSION_COOKIE_NAME,
+  createSessionCookieHeader,
   createSessionToken,
   serializeExpiredSessionCookie,
   serializeSessionCookie,
+  verifyPasswordAgainstAuthConfig,
   verifySessionToken,
+  verifyUserPassword,
 } from '@/server/domains/auth/services/session';
 import { hashPassword, verifyPassword, verifyPlainPassword } from '@/server/domains/auth/services/password';
+
+const getPoolMock = vi.hoisted(() => vi.fn());
+const getAuthSettingsMock = vi.hoisted(() => vi.fn());
+const findUserByUsernameMock = vi.hoisted(() => vi.fn());
+const getUserByIdMock = vi.hoisted(() => vi.fn());
+const persistInitialAdminPasswordMock = vi.hoisted(() => vi.fn());
+const getServerEnvMock = vi.hoisted(() => vi.fn());
+
+vi.mock('@/server/infra/db/pool', () => ({
+  getPool: (...args: unknown[]) => getPoolMock(...args),
+}));
+
+vi.mock('@/server/domains/settings/repositories/settingsRepo', () => ({
+  getAuthSettings: (...args: unknown[]) => getAuthSettingsMock(...args),
+}));
+
+vi.mock('@/server/domains/auth/repositories/usersRepo', async () => {
+  const actual = await vi.importActual<typeof import('@/server/domains/auth/repositories/usersRepo')>(
+    '@/server/domains/auth/repositories/usersRepo',
+  );
+  return {
+    ...actual,
+    findUserByUsername: (...args: unknown[]) => findUserByUsernameMock(...args),
+    getUserById: (...args: unknown[]) => getUserByIdMock(...args),
+    persistInitialAdminPassword: (...args: unknown[]) => persistInitialAdminPasswordMock(...args),
+  };
+});
+
+vi.mock('@/server/infra/env', () => ({
+  getServerEnv: (...args: unknown[]) => getServerEnvMock(...args),
+}));
 
 describe('auth password helpers', () => {
   it('hashes and verifies passwords', () => {
@@ -24,6 +58,15 @@ describe('auth password helpers', () => {
 });
 
 describe('auth session helpers', () => {
+  beforeEach(() => {
+    getPoolMock.mockReset().mockReturnValue('pool');
+    getAuthSettingsMock.mockReset().mockResolvedValue({ authSessionSecret: 'session-secret' });
+    findUserByUsernameMock.mockReset();
+    getUserByIdMock.mockReset();
+    persistInitialAdminPasswordMock.mockReset();
+    getServerEnvMock.mockReset().mockReturnValue({ AUTH_INITIAL_PASSWORD: 'initial-password' });
+  });
+
   it('creates and verifies a signed session token', () => {
     const token = createSessionToken({
       secret: 'session-secret',
@@ -86,5 +129,93 @@ describe('auth session helpers', () => {
     expect(expiredCookie).toContain('Max-Age=0');
     expect(cookie).not.toContain('Secure');
     expect(expiredCookie).not.toContain('Secure');
+  });
+
+  it('uses the fixed initial user id for legacy session cookie fallback', async () => {
+    getUserByIdMock.mockResolvedValue({
+      id: '1',
+      username: 'renamed-admin',
+      passwordHash: 'hash',
+      role: 'admin',
+      status: 'active',
+      sessionVersion: 5,
+      createdAt: '2026-01-01',
+      updatedAt: '2026-01-02',
+    });
+
+    const cookie = await createSessionCookieHeader('session-secret');
+    const token = cookie.split(';')[0].split('=')[1];
+    const payload = verifySessionToken({
+      token: decodeURIComponent(token),
+      secret: 'session-secret',
+    });
+
+    expect(getUserByIdMock).toHaveBeenCalledWith('pool', '1');
+    expect(payload).toMatchObject({
+      userId: '1',
+      role: 'admin',
+      sessionVersion: 5,
+    });
+  });
+
+  it('accepts initial password fallback for the renamed initial user', async () => {
+    findUserByUsernameMock.mockResolvedValue({
+      id: '1',
+      username: 'renamed-admin',
+      passwordHash: '',
+      role: 'admin',
+      status: 'active',
+      sessionVersion: 1,
+      createdAt: '2026-01-01',
+      updatedAt: '2026-01-01',
+    });
+    persistInitialAdminPasswordMock.mockResolvedValue({
+      id: '1',
+      username: 'renamed-admin',
+      passwordHash: 'scrypt$persisted',
+      role: 'admin',
+      status: 'active',
+      sessionVersion: 2,
+      createdAt: '2026-01-01',
+      updatedAt: '2026-01-02',
+    });
+
+    const result = await verifyUserPassword({
+      username: 'renamed-admin',
+      password: 'initial-password',
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      user: { userId: '1', role: 'admin', sessionVersion: 2 },
+    });
+  });
+
+  it('verifies auth config password against the fixed initial user id', async () => {
+    getUserByIdMock.mockResolvedValue({
+      id: '1',
+      username: 'renamed-admin',
+      passwordHash: '',
+      role: 'admin',
+      status: 'active',
+      sessionVersion: 1,
+      createdAt: '2026-01-01',
+      updatedAt: '2026-01-01',
+    });
+    persistInitialAdminPasswordMock.mockResolvedValue({
+      id: '1',
+      username: 'renamed-admin',
+      passwordHash: 'scrypt$persisted',
+      role: 'admin',
+      status: 'active',
+      sessionVersion: 2,
+      createdAt: '2026-01-01',
+      updatedAt: '2026-01-02',
+    });
+
+    const result = await verifyPasswordAgainstAuthConfig('initial-password');
+
+    expect(getUserByIdMock).toHaveBeenCalledWith('pool', '1');
+    expect(result).toEqual({ ok: true });
   });
 });

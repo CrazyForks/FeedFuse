@@ -31,11 +31,11 @@ import {
 } from '@/components/ui/select';
 import {
   ApiError,
-  changeOwnPassword,
   createUser,
   deleteUser,
   listUsers,
   logout,
+  updateCurrentUserProfile,
   updateUser,
   type CurrentUser,
   type CurrentUserRole,
@@ -81,11 +81,10 @@ function buildEditUserForm(user: CurrentUser): UserFormState {
 }
 
 function isInitialAdminUser(user: CurrentUser | null | undefined): boolean {
-  return user?.id === '1' || user?.username === 'admin';
+  return user?.id === '1';
 }
 
 export default function SecuritySettingsPanel() {
-  const currentPasswordLabelId = 'settings-current-password-label';
   const nextPasswordLabelId = 'settings-next-password-label';
   const confirmPasswordLabelId = 'settings-confirm-password-label';
   const currentUser = useAuthStore((state) => state.currentUser);
@@ -97,15 +96,15 @@ export default function SecuritySettingsPanel() {
   const [isUsersError, setIsUsersError] = useState(false);
   const [securityMessage, setSecurityMessage] = useState('');
   const [isSecurityError, setIsSecurityError] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
   const [nextPassword, setNextPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [currentUsername, setCurrentUsername] = useState('');
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [deletingUser, setDeletingUser] = useState<CurrentUser | null>(null);
   const [dialogMode, setDialogMode] = useState<SecurityDialogMode | null>(null);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [userForm, setUserForm] = useState<UserFormState>(EMPTY_USER_FORM);
-  const [isPasswordPending, startPasswordTransition] = useTransition();
+  const [isCurrentUserPending, startCurrentUserTransition] = useTransition();
   const [isLogoutPending, startLogoutTransition] = useTransition();
   const [isUsersPending, startUsersTransition] = useTransition();
   const [isDeletePending, startDeleteTransition] = useTransition();
@@ -158,7 +157,6 @@ export default function SecuritySettingsPanel() {
   }, [currentUser?.id, currentUser?.role]);
 
   const resetSecurityForm = () => {
-    setCurrentPassword('');
     setNextPassword('');
     setConfirmPassword('');
   };
@@ -182,6 +180,7 @@ export default function SecuritySettingsPanel() {
 
   const openCurrentUserDialog = () => {
     setDialogMode('current-user');
+    setCurrentUsername(currentUser?.username ?? '');
     resetSecurityFeedback();
     resetSecurityForm();
   };
@@ -206,46 +205,57 @@ export default function SecuritySettingsPanel() {
     resetUsersFeedback();
   };
 
-  const submitPasswordChange = () => {
+  const submitCurrentUserProfile = () => {
+    const normalizedUsername = currentUsername.trim();
+    const normalizedNextPassword = nextPassword.trim();
+    const normalizedConfirmPassword = confirmPassword.trim();
+    const shouldChangePassword =
+      normalizedNextPassword.length > 0 || normalizedConfirmPassword.length > 0;
+
+    if (!normalizedUsername) {
+      setIsSecurityError(true);
+      setSecurityMessage('请输入用户名');
+      return;
+    }
+
+    if (shouldChangePassword) {
+      if (normalizedNextPassword.length < 8) {
+        setIsSecurityError(true);
+        setSecurityMessage('新密码至少需要 8 位');
+        return;
+      }
+
+      if (normalizedNextPassword !== normalizedConfirmPassword) {
+        setIsSecurityError(true);
+        setSecurityMessage('两次输入的新密码不一致');
+        return;
+      }
+    }
+
     setSecurityMessage('');
     setIsSecurityError(false);
 
-    if (!currentPassword.trim()) {
-      setIsSecurityError(true);
-      setSecurityMessage('请输入当前密码');
-      return;
-    }
-
-    if (nextPassword.trim().length < 8) {
-      setIsSecurityError(true);
-      setSecurityMessage('新密码至少需要 8 位');
-      return;
-    }
-
-    if (nextPassword !== confirmPassword) {
-      setIsSecurityError(true);
-      setSecurityMessage('两次输入的新密码不一致');
-      return;
-    }
-
-    startPasswordTransition(() => {
-      void (async () => {
-        try {
-          await changeOwnPassword(
-            {
-              currentPassword,
-              nextPassword,
-            },
-            { notifyOnError: false, redirectOnUnauthorized: false },
-          );
+    startCurrentUserTransition(() => {
+      void updateCurrentUserProfile(
+        {
+          username: normalizedUsername,
+          nextPassword: shouldChangePassword ? nextPassword : undefined,
+        },
+        { notifyOnError: false, redirectOnUnauthorized: false },
+      )
+        .then((updated) => {
+          // 当前账号保存成功后，同时刷新当前用户和管理员列表中的镜像数据。
+          setCurrentUser(updated);
+          setUsers((items) => items.map((item) => (item.id === updated.id ? updated : item)));
+          setCurrentUsername(updated.username ?? normalizedUsername);
           resetSecurityForm();
           setIsSecurityError(false);
-          setSecurityMessage('密码已更新');
-        } catch (err) {
+          setSecurityMessage('账号信息已更新');
+        })
+        .catch((err) => {
           setIsSecurityError(true);
-          setSecurityMessage(err instanceof ApiError ? err.message : '修改密码失败，请稍后重试');
-        }
-      })();
+          setSecurityMessage(err instanceof ApiError ? err.message : '更新账号信息失败，请稍后重试');
+        });
     });
   };
 
@@ -506,19 +516,16 @@ export default function SecuritySettingsPanel() {
 
           <div className="grid gap-4">
             <div className="space-y-2">
-              <Label id={currentPasswordLabelId} htmlFor="settings-current-password">
-                当前密码
-              </Label>
+              <Label htmlFor="settings-current-username">用户名</Label>
               <Input
-                id="settings-current-password"
-                type="password"
-                autoComplete="current-password"
-                aria-labelledby={currentPasswordLabelId}
-                value={currentPassword}
-                onChange={(event) => setCurrentPassword(event.target.value)}
-                placeholder="输入当前密码"
+                id="settings-current-username"
+                value={currentUsername}
+                onChange={(event) => setCurrentUsername(event.target.value)}
+                placeholder="输入用户名"
+                autoComplete="username"
               />
             </div>
+
             <div className="space-y-2">
               <Label id={nextPasswordLabelId} htmlFor="settings-next-password">
                 新密码
@@ -558,8 +565,8 @@ export default function SecuritySettingsPanel() {
             <Button type="button" variant="secondary" onClick={closeEditorDialog}>
               关闭
             </Button>
-            <Button type="button" onClick={submitPasswordChange} disabled={isPasswordPending}>
-              {isPasswordPending ? '更新中…' : '更新密码'}
+            <Button type="button" onClick={submitCurrentUserProfile} disabled={isCurrentUserPending}>
+              {isCurrentUserPending ? '保存中…' : '保存'}
             </Button>
           </DialogFooter>
         </DialogContent>

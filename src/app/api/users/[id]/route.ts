@@ -90,9 +90,9 @@ export async function PATCH(
   }
 }
 
-function isInitialUser(user: { id: string; username: string }): boolean {
-  // 迁移后的初始用户固定为首个 admin，保留 username 兜底兼容现有数据。
-  return user.id === '1' || user.username === 'admin';
+function isInitialUser(user: { id: string }): boolean {
+  // 初始用户语义固定绑定首条管理员记录，不能跟随用户名漂移。
+  return user.id === '1';
 }
 
 export async function DELETE(

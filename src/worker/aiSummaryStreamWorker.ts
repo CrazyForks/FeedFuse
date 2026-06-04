@@ -143,6 +143,7 @@ async function ensureSummarySession(input: {
     }
 
     return deps.upsertAiSummarySession(pool, {
+      userId: input.userId ?? session.userId,
       sessionId: session.id,
       articleId,
       sourceTextHash,
@@ -158,7 +159,11 @@ async function ensureSummarySession(input: {
     });
   }
 
-  const activeSession = await deps.getActiveAiSummarySessionByArticleId(pool, articleId);
+  const activeSession = await deps.getActiveAiSummarySessionByArticleId(
+    pool,
+    articleId,
+    input.userId ?? undefined,
+  );
   if (
     activeSession &&
     activeSession.supersededBySessionId === null &&

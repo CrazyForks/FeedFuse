@@ -108,14 +108,26 @@ export async function listSystemLogs(
 
 export async function deleteExpiredSystemLogs(
   pool: Queryable,
-  input: { retentionDays: number },
+  input: { retentionDays: number; userId?: string | null },
 ): Promise<number> {
+  const params: unknown[] = [input.retentionDays];
+  const userScopeSql =
+    typeof input.userId === 'string'
+      ? `and user_id = $2`
+      : input.userId === null
+        ? 'and user_id is null'
+        : '';
+  if (typeof input.userId === 'string') {
+    params.push(input.userId);
+  }
+
   const result = await pool.query(
     `
       delete from system_logs
       where created_at < now() - make_interval(days => $1)
+        ${userScopeSql}
     `,
-    [input.retentionDays],
+    params,
   );
 
   return result.rowCount ?? 0;

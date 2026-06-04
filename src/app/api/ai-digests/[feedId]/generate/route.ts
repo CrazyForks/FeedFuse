@@ -130,11 +130,11 @@ export async function POST(
           userId: session.userId,
         }))!.id;
 
-    const payload = { runId, sharedConfigFingerprint };
+    const payload = { userId: session.userId, runId, sharedConfigFingerprint };
     const enqueueResult = await enqueueWithResult(
       JOB_AI_DIGEST_GENERATE,
       payload,
-      getQueueSendOptions(JOB_AI_DIGEST_GENERATE, { runId }),
+      getQueueSendOptions(JOB_AI_DIGEST_GENERATE, payload),
     );
     if (enqueueResult.status !== 'enqueued') {
       return ok({ enqueued: false, reason: 'already_running', runId });

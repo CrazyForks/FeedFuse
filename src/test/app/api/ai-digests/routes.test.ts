@@ -296,8 +296,12 @@ describe('/api/ai-digests/:feedId/generate', () => {
     expect(json.data.runId).toBe('5001');
     expect(enqueueWithResultMock).toHaveBeenCalledWith(
       JOB_AI_DIGEST_GENERATE,
-      expect.objectContaining({ runId: '5001', sharedConfigFingerprint: expect.any(String) }),
-      getQueueSendOptions(JOB_AI_DIGEST_GENERATE, { runId: '5001' }),
+      expect.objectContaining({
+        userId: '2',
+        runId: '5001',
+        sharedConfigFingerprint: expect.any(String),
+      }),
+      getQueueSendOptions(JOB_AI_DIGEST_GENERATE, { userId: '2', runId: '5001' }),
     );
     expect(writeUserOperationStartedLogMock).toHaveBeenCalledWith(
       pool,

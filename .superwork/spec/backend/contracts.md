@@ -37,10 +37,13 @@
 - 管理员才可创建用户、列表用户、重置密码、禁用或启用用户；普通用户只能读取自己的资料和修改自己的密码。
 - 删除用户属于更强权限操作：只有初始用户可删除其他用户，且初始用户自身永远不可删除；后端必须在 route/service 层显式校验，不能只依赖前端隐藏按钮。
 - 初始用户语义固定绑定 `users.id = '1'`；删除权限、初始密码 fallback、旧会话兼容分支都不能再依赖 `username === 'admin'` 这类可变字段。
+- 用户 DTO 必须稳定返回 `type = 'initial_admin' | 'admin' | 'member'`；其中 `initial_admin` 只由固定初始用户派生，前端展示和常规权限分支优先消费该字段。
 - `PATCH /api/users/[id]` 作为管理员用户资料编辑入口时，允许一次提交 `username`、`role`、`status` 组合更新；这类资料编辑保持管理员语义，不再承担普通用户自助改密入口。
+- `PATCH /api/users/[id]` 即使由其他 admin 调用，也必须拒绝修改初始用户；初始用户资料只能走本人会话入口修改，不能作为后台管理对象被代改。
 - `PATCH /api/users/me` 是当前登录用户自助编辑入口，允许一次提交 `username` 与可选的 `nextPassword`；用户名冲突继续返回 `用户名已存在`，纯用户名编辑不递增 `session_version`。
 - 当前用户通过 `PATCH /api/users/me` 修改密码时，后端直接基于已登录会话更新密码 hash，并在响应里同步下发新的 session cookie；只有涉及 `role`、`status` 或密码 hash 变更时才递增 `session_version` 使旧 session 失效，纯用户名编辑不强制登出当前会话。
 - `POST /api/users/me/password` 仅保留兼容用途；设置中心“当前账号”交互不再把用户名保存和密码保存拆成两个接口动作。
+- 兼容密码接口若继续保留，必须收束为“仅初始用户本人修改自己的密码”；其他 admin 不能借兼容入口修改初始用户或切换成初始用户会话。
 
 ## RSS 网络访问契约
 

@@ -35,13 +35,14 @@ describe('SecuritySettingsPanel', () => {
     });
     deleteUserMock.mockReset().mockResolvedValue({ deleted: true });
     listUsersMock.mockReset().mockResolvedValue([
-      { id: '1', username: 'admin', role: 'admin', status: 'active', sessionVersion: 1 },
-      { id: '2', username: 'member', role: 'member', status: 'active', sessionVersion: 1 },
+      { id: '1', username: 'admin', type: 'initial_admin', role: 'admin', status: 'active', sessionVersion: 1 },
+      { id: '2', username: 'member', type: 'member', role: 'member', status: 'active', sessionVersion: 1 },
     ]);
     logoutMock.mockReset().mockResolvedValue({ authenticated: false });
     updateCurrentUserProfileMock.mockReset().mockImplementation(async (input: Record<string, unknown>) => ({
       id: '1',
       username: String(input.username ?? 'admin'),
+      type: 'initial_admin',
       role: 'admin',
       status: 'active',
       sessionVersion: 1,
@@ -49,6 +50,7 @@ describe('SecuritySettingsPanel', () => {
     updateUserMock.mockReset().mockImplementation(async (_userId: string, input: Record<string, unknown>) => ({
       id: '2',
       username: String(input.username ?? 'member'),
+      type: ((input.role as 'admin' | 'member' | undefined) ?? 'member') === 'admin' ? 'admin' : 'member',
       role: (input.role as 'admin' | 'member' | undefined) ?? 'member',
       status: (input.status as 'active' | 'disabled' | undefined) ?? 'active',
       sessionVersion: 2,
@@ -57,6 +59,7 @@ describe('SecuritySettingsPanel', () => {
       currentUser: {
         id: '1',
         username: 'admin',
+        type: 'initial_admin',
         role: 'admin',
         status: 'active',
         sessionVersion: 1,
@@ -206,6 +209,7 @@ describe('SecuritySettingsPanel', () => {
       currentUser: {
         id: '3',
         username: 'ops-admin',
+        type: 'admin',
         role: 'admin',
         status: 'active',
         sessionVersion: 1,
@@ -220,7 +224,7 @@ describe('SecuritySettingsPanel', () => {
 
   it('shows empty state when user management has no managed users', async () => {
     listUsersMock.mockResolvedValue([
-      { id: '1', username: 'admin', role: 'admin', status: 'active', sessionVersion: 1 },
+      { id: '1', username: 'admin', type: 'initial_admin', role: 'admin', status: 'active', sessionVersion: 1 },
     ]);
 
     render(<SecuritySettingsPanel />);

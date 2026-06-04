@@ -66,11 +66,17 @@ export async function PUT(request: Request) {
       const normalizedSaved = normalizePersistedSettings(saved);
 
       if (prev.rss.fetchIntervalMinutes !== next.rss.fetchIntervalMinutes) {
-        await updateAllFeedsFetchIntervalMinutes(client, next.rss.fetchIntervalMinutes);
+        // 订阅抓取间隔属于当前用户的订阅集合，必须按 userId 限定更新范围。
+        await updateAllFeedsFetchIntervalMinutes(client, next.rss.fetchIntervalMinutes, session.userId);
       }
 
       if (prev.rss.maxStoredArticlesPerFeed !== normalizedSaved.rss.maxStoredArticlesPerFeed) {
-        await pruneAllFeedsArticlesToLimit(client, normalizedSaved.rss.maxStoredArticlesPerFeed);
+        // 文章留存上限只应裁剪当前用户的数据，避免串改其他账号内容。
+        await pruneAllFeedsArticlesToLimit(
+          client,
+          normalizedSaved.rss.maxStoredArticlesPerFeed,
+          session.userId,
+        );
       }
 
       const nextLogging = normalizedSaved.logging;

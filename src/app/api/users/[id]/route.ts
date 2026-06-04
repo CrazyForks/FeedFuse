@@ -7,6 +7,7 @@ import { requireApiSession } from '@/server/domains/auth/services/session';
 import { hashPassword } from '@/server/domains/auth/services/password';
 import { getUserById, updateUser } from '@/server/domains/auth/repositories/usersRepo';
 import { deleteUserAndOwnedData } from '@/server/domains/auth/services/userLifecycleService';
+import { isInitialUser } from '@/server/domains/auth/userType';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -69,18 +70,23 @@ export async function PATCH(
       throw new ValidationError('用户信息校验失败', zodIssuesToFields(parsed.error));
     }
 
+    const pool = getPool();
+    const target = await getUserById(pool, parsedId.data);
+    if (!target) {
+      throw new NotFoundError('用户不存在');
+    }
+    if (isInitialUser(target)) {
+      throw new ForbiddenError('初始用户只能由本人修改');
+    }
+
     // 管理员编辑用户信息统一走一个 patch，前端可在单个弹窗里提交完整修改。
-    const user = await updateUser(getPool(), {
+    const user = await updateUser(pool, {
       userId: parsedId.data,
       username: parsed.data.username,
       role: parsed.data.role,
       status: parsed.data.status,
       passwordHash: parsed.data.password ? hashPassword(parsed.data.password) : undefined,
     });
-    if (!user) {
-      throw new NotFoundError('用户不存在');
-    }
-
     return ok(user);
   } catch (err) {
     if (isUniqueViolation(err)) {
@@ -88,11 +94,6 @@ export async function PATCH(
     }
     return fail(err);
   }
-}
-
-function isInitialUser(user: { id: string }): boolean {
-  // 初始用户语义固定绑定首条管理员记录，不能跟随用户名漂移。
-  return user.id === '1';
 }
 
 export async function DELETE(

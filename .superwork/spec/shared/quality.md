@@ -18,3 +18,4 @@
 
 - 新增跨层业务实体（如自动化规则）时，结构与字段语义统一定义在 `src/types/index.ts`，避免在 frontend/backend 各自复制声明。
 - 共享类型字段新增后，至少同步检查 API route 测试与组件消费测试，确保请求/响应与 UI 消费一致。
+- 用户身份展示或权限分支新增共享字段时，必须优先落到 `src/types/index.ts`，并让 API route、`src/lib/api/apiClient.ts`、前端消费测试同步对齐，避免前后端各自推导角色语义。

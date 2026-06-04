@@ -5,6 +5,7 @@ import type {
   Feed,
   PersistedSettings,
   SystemLogsPage,
+  UserType,
 } from '@/types';
 import { notifyApiError } from './apiErrorNotifier';
 import { normalizeFeedAutoTriggerFlags } from '@/lib/feeds/feedAutoTriggerPolicy';
@@ -192,6 +193,7 @@ export type CurrentUserStatus = 'active' | 'disabled';
 export interface CurrentUser {
   id: string;
   username?: string;
+  type?: UserType;
   role: CurrentUserRole;
   status?: CurrentUserStatus;
   sessionVersion?: number;

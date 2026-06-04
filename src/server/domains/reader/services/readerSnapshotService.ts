@@ -378,6 +378,7 @@ async function queryArticleTotalCount(
     view: input.view,
     unreadOnly: input.unreadOnly,
     includeFiltered: input.includeFiltered,
+    userId: input.userId,
   });
 
   const { rows } = await pool.query<{ totalCount: number }>(

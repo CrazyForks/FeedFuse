@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const pool = {};
+const requireApiSessionMock = vi.fn();
 const listFeverAccountsMock = vi.fn();
 const createFeverAccountMock = vi.fn();
 const deleteFeverAccountMock = vi.fn();
@@ -13,6 +14,10 @@ const createFeverClientMock = vi.fn();
 
 vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
+}));
+
+vi.mock('@/server/domains/auth/services/session', () => ({
+  requireApiSession: (...args: unknown[]) => requireApiSessionMock(...args),
 }));
 
 vi.mock('@/server/domains/fever/repositories/feverAccountsRepo', () => ({
@@ -38,6 +43,11 @@ vi.mock('@/server/integrations/fever/feverClient', () => ({
 
 describe('/api/fever/accounts', () => {
   beforeEach(() => {
+    requireApiSessionMock.mockReset().mockResolvedValue({
+      userId: '2',
+      role: 'member',
+      sessionVersion: 1,
+    });
     listFeverAccountsMock.mockReset();
     createFeverAccountMock.mockReset();
     deleteFeverAccountMock.mockReset();
@@ -89,6 +99,7 @@ describe('/api/fever/accounts', () => {
       apiKey: 'secret',
       enabled: false,
       autoSyncIntervalMinutes: 0,
+      userId: '2',
     });
   });
 
@@ -168,6 +179,7 @@ describe('/api/fever/accounts', () => {
 
     expect(json.ok).toBe(true);
     expect(json.data[0].apiKey).toBeUndefined();
+    expect(listFeverAccountsMock).toHaveBeenCalledWith(pool, '2');
   });
 
   it('PATCH returns conflict when updating to an existing fever account identity', async () => {
@@ -375,6 +387,7 @@ describe('/api/fever/accounts', () => {
       apiKey: 'updated-secret',
       enabled: false,
       autoSyncIntervalMinutes: 0,
+      userId: '2',
     });
     expect(json.data.apiKey).toBeUndefined();
     expect(json.data.baseUrl).toBe('https://updated.example.com');
@@ -453,7 +466,7 @@ describe('/api/fever/accounts', () => {
     const json = await response.json();
 
     expect(json.ok).toBe(true);
-    expect(deleteFeverAccountAndSourcesMock).toHaveBeenCalledWith(pool, '1');
+    expect(deleteFeverAccountAndSourcesMock).toHaveBeenCalledWith(pool, '1', '2');
     expect(json.data.deleted).toBe(true);
   });
 

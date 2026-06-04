@@ -35,7 +35,7 @@ describe('/api/auth/login', () => {
 
     expect(json.ok).toBe(true);
     expect(json.data.authenticated).toBe(true);
-    expect(json.data.user).toEqual({ id: '1', role: 'admin' });
+    expect(json.data.user).toEqual({ id: '1', type: 'initial_admin', role: 'admin' });
     expect(verifyUserPasswordMock).toHaveBeenCalledWith({
       username: 'admin',
       password: 'initial-password',

@@ -63,6 +63,10 @@ function getRoleLabel(role?: CurrentUserRole): string {
   return role === 'admin' ? '管理员' : '成员';
 }
 
+function getUserTypeLabel(user: CurrentUser | null | undefined): string | null {
+  return user?.type === 'initial_admin' ? '初始用户' : null;
+}
+
 function getStatusLabel(status?: CurrentUserStatus): string {
   return status === 'disabled' ? '已禁用' : '启用中';
 }
@@ -81,7 +85,7 @@ function buildEditUserForm(user: CurrentUser): UserFormState {
 }
 
 function isInitialAdminUser(user: CurrentUser | null | undefined): boolean {
-  return user?.id === '1';
+  return user?.type === 'initial_admin';
 }
 
 export default function SecuritySettingsPanel() {
@@ -377,6 +381,9 @@ export default function SecuritySettingsPanel() {
               <div className="space-y-1 text-sm text-muted-foreground">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-base font-medium text-foreground">{currentUser?.username ?? 'admin'}</p>
+                  {getUserTypeLabel(currentUser) ? (
+                    <Badge variant="default">{getUserTypeLabel(currentUser)}</Badge>
+                  ) : null}
                   <Badge variant="secondary">{getRoleLabel(currentUser?.role)}</Badge>
                   <Badge variant={getStatusBadgeVariant(currentUser?.status)}>
                     {getStatusLabel(currentUser?.status)}

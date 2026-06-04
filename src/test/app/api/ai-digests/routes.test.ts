@@ -3,6 +3,7 @@ import { getQueueSendOptions } from '@/server/infra/queue/contracts';
 import { JOB_AI_DIGEST_GENERATE } from '@/server/infra/queue/jobs';
 
 const pool = { connect: vi.fn(), query: vi.fn() };
+const requireApiSessionMock = vi.fn();
 const createAiDigestWithCategoryResolutionMock = vi.fn();
 const updateAiDigestWithCategoryResolutionMock = vi.fn();
 
@@ -20,6 +21,10 @@ const writeUserOperationFailedLogMock = vi.fn();
 vi.mock('@/server/infra/db/pool', () => ({ getPool: () => pool }));
 vi.mock('@/server/infra/db/pool', () => ({ getPool: () => pool }));
 vi.mock('@/server/infra/db/pool', () => ({ getPool: () => pool }));
+
+vi.mock('@/server/domains/auth/services/session', () => ({
+  requireApiSession: (...args: unknown[]) => requireApiSessionMock(...args),
+}));
 
 vi.mock('@/server/domains/ai-digests/services/aiDigestLifecycleService', () => ({
   createAiDigestWithCategoryResolution: (...args: unknown[]) =>
@@ -102,6 +107,11 @@ vi.mock('@/server/infra/logging/userOperationLogger', () => ({
 
 describe('/api/ai-digests', () => {
   beforeEach(() => {
+    requireApiSessionMock.mockReset().mockResolvedValue({
+      userId: '2',
+      role: 'member',
+      sessionVersion: 1,
+    });
     pool.connect.mockReset();
     pool.query.mockReset();
     createAiDigestWithCategoryResolutionMock.mockReset();
@@ -155,7 +165,9 @@ describe('/api/ai-digests', () => {
     expect(json.data.kind).toBe('ai_digest');
     expect(createAiDigestWithCategoryResolutionMock).toHaveBeenCalledWith(
       pool,
-      expect.not.objectContaining({ feedId: expect.anything() }),
+      expect.objectContaining({
+        userId: '2',
+      }),
     );
   });
 
@@ -227,6 +239,11 @@ describe('/api/ai-digests', () => {
 
 describe('/api/ai-digests/:feedId/generate', () => {
   beforeEach(() => {
+    requireApiSessionMock.mockReset().mockResolvedValue({
+      userId: '2',
+      role: 'member',
+      sessionVersion: 1,
+    });
     getAiApiKeyMock.mockReset();
     getUiSettingsMock.mockReset();
     getUiSettingsMock.mockResolvedValue({});

@@ -8,6 +8,7 @@ const client = {
 const pool = {
   connect: vi.fn(),
 };
+const requireApiSessionMock = vi.fn();
 
 const getUiSettingsMock = vi.fn();
 const updateUiSettingsMock = vi.fn();
@@ -25,6 +26,12 @@ vi.mock('@/server/infra/db/pool', () => ({
 }));
 vi.mock('@/server/infra/db/pool', () => ({
   getPool: () => pool,
+}));
+vi.mock('@/server/domains/auth/services/session', () => ({
+  requireApiSession: (...args: unknown[]) => requireApiSessionMock(...args),
+}));
+vi.mock('@/server/domains/auth/services/session', () => ({
+  requireApiSession: (...args: unknown[]) => requireApiSessionMock(...args),
 }));
 
 vi.mock('@/server/domains/settings/repositories/settingsRepo', () => ({
@@ -84,6 +91,11 @@ vi.mock('@/server/integrations/ai/cleanupAiRuntimeState', () => ({
 
 describe('/api/settings', () => {
   beforeEach(() => {
+    requireApiSessionMock.mockReset().mockResolvedValue({
+      userId: '1',
+      role: 'admin',
+      sessionVersion: 1,
+    });
     getUiSettingsMock.mockReset();
     updateUiSettingsMock.mockReset();
     getAiApiKeyMock.mockReset().mockResolvedValue('sk-shared');
@@ -139,7 +151,7 @@ describe('/api/settings', () => {
     const json = await res.json();
 
     expect(updateUiSettingsMock).toHaveBeenCalledWith(client, '1', normalized);
-    expect(updateAllFeedsFetchIntervalMinutesMock).toHaveBeenCalledWith(client, 60);
+    expect(updateAllFeedsFetchIntervalMinutesMock).toHaveBeenCalledWith(client, 60, '1');
     expect(writeUserOperationSucceededLogMock).toHaveBeenCalledWith(
       client,
       expect.objectContaining({ actionKey: 'settings.save' }),
@@ -168,11 +180,37 @@ describe('/api/settings', () => {
     );
     const json = await res.json();
 
-    expect(pruneAllFeedsArticlesToLimitMock).toHaveBeenCalledWith(client, 1000);
+    expect(pruneAllFeedsArticlesToLimitMock).toHaveBeenCalledWith(client, 1000, '1');
     expect(json.ok).toBe(true);
     expect(
       (json.data.rss as { maxStoredArticlesPerFeed?: number }).maxStoredArticlesPerFeed,
     ).toBe(1000);
+  });
+
+  it('PUT scopes feed interval updates to the current user', async () => {
+    requireApiSessionMock.mockResolvedValue({
+      userId: '2',
+      role: 'member',
+      sessionVersion: 1,
+    });
+    getUiSettingsMock.mockResolvedValue({ rss: { fetchIntervalMinutes: 30 } });
+
+    const payload = {
+      rss: { fetchIntervalMinutes: 60 },
+    };
+    const normalized = normalizePersistedSettings(payload);
+    updateUiSettingsMock.mockResolvedValue(normalized);
+
+    const mod = await import('../../../../app/api/settings/route');
+    await mod.PUT(
+      new Request('http://localhost/api/settings', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      }),
+    );
+
+    expect(updateAllFeedsFetchIntervalMinutesMock).toHaveBeenCalledWith(client, 60, '2');
   });
 
   it('PUT does not update all feeds when only general.theme changes', async () => {

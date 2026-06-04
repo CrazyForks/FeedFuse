@@ -21,6 +21,7 @@ export async function GET() {
   return ok({
     id: user.id,
     username: user.username,
+    type: user.type,
     role: user.role,
     status: user.status,
     sessionVersion: user.sessionVersion,

@@ -69,7 +69,7 @@ describe('/api/users', () => {
 
   it('GET lists users for admins', async () => {
     listUsersMock.mockResolvedValue([
-      { id: '1', username: 'admin', role: 'admin', status: 'active', sessionVersion: 1 },
+      { id: '1', username: 'admin', role: 'admin', status: 'active', sessionVersion: 1, type: 'initial_admin' },
     ]);
 
     const mod = await import('../../../../app/api/users/route');
@@ -99,6 +99,7 @@ describe('/api/users', () => {
       role: 'member',
       status: 'active',
       sessionVersion: 1,
+      type: 'member',
     });
 
     const mod = await import('../../../../app/api/users/route');
@@ -121,12 +122,22 @@ describe('/api/users', () => {
   });
 
   it('PATCH updates username role status and password', async () => {
+    getUserByIdMock.mockResolvedValue({
+      id: '2',
+      username: 'member',
+      passwordHash: 'hash',
+      role: 'member',
+      status: 'active',
+      sessionVersion: 1,
+      type: 'member',
+    });
     updateUserMock.mockResolvedValue({
       id: '2',
       username: 'member-next',
       role: 'admin',
       status: 'disabled',
       sessionVersion: 3,
+      type: 'admin',
     });
 
     const mod = await import('../../../../app/api/users/[id]/route');
@@ -162,6 +173,7 @@ describe('/api/users', () => {
       role: 'admin',
       status: 'active',
       sessionVersion: 1,
+      type: 'initial_admin',
     });
 
     const mod = await import('../../../../app/api/users/me/route');
@@ -188,6 +200,7 @@ describe('/api/users', () => {
       role: 'admin',
       status: 'active',
       sessionVersion: 2,
+      type: 'initial_admin',
     });
 
     const mod = await import('../../../../app/api/users/me/route');
@@ -267,6 +280,7 @@ describe('/api/users', () => {
       role: 'member',
       status: 'active',
       sessionVersion: 1,
+      type: 'member',
     });
     changeUserPasswordMock.mockResolvedValue({
       id: '2',
@@ -274,6 +288,7 @@ describe('/api/users', () => {
       role: 'member',
       status: 'active',
       sessionVersion: 2,
+      type: 'member',
     });
 
     const mod = await import('../../../../app/api/users/me/password/route');
@@ -291,6 +306,38 @@ describe('/api/users', () => {
       userId: '1',
       passwordHash: 'scrypt$hashed',
     });
+  });
+
+  it('PATCH rejects editing the initial user through admin endpoint', async () => {
+    getUserByIdMock.mockResolvedValue({
+      id: '1',
+      username: 'renamed-admin',
+      passwordHash: 'hash',
+      role: 'admin',
+      status: 'active',
+      sessionVersion: 1,
+      type: 'initial_admin',
+    });
+
+    const mod = await import('../../../../app/api/users/[id]/route');
+    const res = await mod.PATCH(
+      new Request('http://localhost/api/users/1', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          username: 'hijacked-admin',
+          role: 'member',
+          status: 'disabled',
+        }),
+      }),
+      { params: Promise.resolve({ id: '1' }) },
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(json.ok).toBe(false);
+    expect(json.error.code).toBe('forbidden');
+    expect(updateUserMock).not.toHaveBeenCalled();
   });
 
   it('DELETE rejects non-initial admin even if role is admin', async () => {

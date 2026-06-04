@@ -48,8 +48,9 @@ function zodIssuesToFields(error: z.ZodError): Record<string, string> {
 
 const operationSource = 'app/api/ai-digests';
 
-async function writeAiDigestCreateFailure(err: unknown) {
+async function writeAiDigestCreateFailure(err: unknown, userId?: string) {
   await writeUserOperationFailedLog(getPool(), {
+    userId,
     actionKey: 'aiDigest.create',
     source: operationSource,
     err,
@@ -68,27 +69,31 @@ export async function POST(request: Request) {
       const error = new ValidationError('Invalid request body', {
         selectedCategoryIds: 'selectedCategoryIds is not allowed',
       });
-      await writeAiDigestCreateFailure(error);
+      await writeAiDigestCreateFailure(error, session.userId);
       return fail(error);
     }
 
     const parsed = bodySchema.safeParse(json);
     if (!parsed.success) {
       const error = new ValidationError('Invalid request body', zodIssuesToFields(parsed.error));
-      await writeAiDigestCreateFailure(error);
+      await writeAiDigestCreateFailure(error, session.userId);
       return fail(error);
     }
 
     const pool = getPool();
-    const created = await createAiDigestWithCategoryResolution(pool, parsed.data);
+    const created = await createAiDigestWithCategoryResolution(pool, {
+      ...parsed.data,
+      userId: session.userId,
+    });
     await writeUserOperationSucceededLog(pool, {
+      userId: session.userId,
       actionKey: 'aiDigest.create',
       source: operationSource,
       context: { feedId: created.id },
     });
     return ok({ ...created, unreadCount: 0 });
   } catch (err) {
-    await writeAiDigestCreateFailure(err);
+    await writeAiDigestCreateFailure(err, session.userId);
     return fail(err);
   }
 }

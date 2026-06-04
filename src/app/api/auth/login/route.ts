@@ -40,6 +40,7 @@ export async function POST(request: Request) {
         authenticated: true,
         user: {
           id: result.user.userId,
+          type: result.user.userId === '1' ? 'initial_admin' : result.user.role,
           role: result.user.role,
         },
       },

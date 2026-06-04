@@ -4,10 +4,12 @@ type DbClient = Pool | PoolClient;
 
 export type UserRole = 'admin' | 'member';
 export type UserStatus = 'active' | 'disabled';
+export type UserType = 'initial_admin' | 'admin' | 'member';
 
 export interface UserRow {
   id: string;
   username: string;
+  type: UserType;
   passwordHash: string;
   role: UserRole;
   status: UserStatus;
@@ -21,6 +23,11 @@ export type PublicUserRow = Omit<UserRow, 'passwordHash'>;
 const userColumns = `
   id,
   username,
+  case
+    when id = 1 then 'initial_admin'
+    when role = 'admin' then 'admin'
+    else 'member'
+  end as type,
   password_hash as "passwordHash",
   role,
   status,
@@ -32,6 +39,11 @@ const userColumns = `
 const publicUserColumns = `
   id,
   username,
+  case
+    when id = 1 then 'initial_admin'
+    when role = 'admin' then 'admin'
+    else 'member'
+  end as type,
   role,
   status,
   session_version as "sessionVersion",

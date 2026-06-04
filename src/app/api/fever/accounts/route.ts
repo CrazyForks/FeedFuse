@@ -89,7 +89,8 @@ export async function GET() {
   }
 
   try {
-    const accounts = await listFeverAccounts(getPool());
+    // 多账号场景必须显式绑定当前用户作用域，避免回退到默认管理员数据。
+    const accounts = await listFeverAccounts(getPool(), session.userId);
     return ok(accounts.map((account) => sanitizeFeverAccount(account)));
   } catch (err) {
     return fail(err);
@@ -111,7 +112,10 @@ export async function POST(request: Request) {
 
     // 保存前先校验凭据和服务可用性，避免把错误配置写成“成功”状态。
     await verifyFeverAccountConnection(parsed.data);
-    const account = await createFeverAccount(getPool(), parsed.data);
+    const account = await createFeverAccount(getPool(), {
+      ...parsed.data,
+      userId: session.userId,
+    });
     return ok(sanitizeFeverAccount(account));
   } catch (err) {
     if (isUniqueViolation(err, feverAccountUniqueConstraints)) {
@@ -137,7 +141,7 @@ export async function PATCH(request: Request) {
       return fail(new ValidationError('Invalid request body', zodIssuesToFields(parsed.error)));
     }
 
-    const existing = await getFeverAccountById(getPool(), parsed.data.id);
+    const existing = await getFeverAccountById(getPool(), parsed.data.id, session.userId);
     if (!existing) {
       return fail(new ValidationError('Invalid request body', { id: 'Fever 账号不存在' }));
     }
@@ -162,6 +166,7 @@ export async function PATCH(request: Request) {
       apiKey: parsed.data.apiKey,
       enabled: parsed.data.enabled,
       autoSyncIntervalMinutes: parsed.data.autoSyncIntervalMinutes,
+      userId: session.userId,
     });
     if (!account) {
       return fail(new ValidationError('Invalid request body', { id: 'Fever 账号不存在' }));
@@ -191,7 +196,7 @@ export async function DELETE(request: Request) {
       return fail(new ValidationError('Invalid request query', { id: '缺少 Fever 账号 id' }));
     }
 
-    const deleted = await deleteFeverAccountAndSources(getPool(), accountId);
+    const deleted = await deleteFeverAccountAndSources(getPool(), accountId, session.userId);
     return ok({ deleted });
   } catch (err) {
     return fail(err);

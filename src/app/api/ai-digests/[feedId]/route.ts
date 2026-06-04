@@ -13,6 +13,10 @@ import {
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+const feedCategoryForeignKeyConstraints = new Set([
+  'feeds_category_id_fkey',
+  'feeds_category_user_scope_fkey',
+]);
 
 const paramsSchema = z.object({
   feedId: numericIdSchema,
@@ -53,14 +57,20 @@ function zodIssuesToFields(error: z.ZodError): Record<string, string> {
 
 function isForeignKeyViolation(
   err: unknown,
-  constraint: string,
+  constraints: ReadonlySet<string>,
 ): err is { code: string; constraint?: string } {
   return (
     typeof err === 'object' &&
     err !== null &&
     'code' in err &&
     (err as { code?: unknown }).code === '23503' &&
-    (!('constraint' in err) || (err as { constraint?: unknown }).constraint === constraint)
+    (
+      !('constraint' in err) ||
+      (
+        typeof (err as { constraint?: unknown }).constraint === 'string' &&
+        constraints.has((err as { constraint: string }).constraint)
+      )
+    )
   );
 }
 
@@ -169,7 +179,7 @@ export async function PATCH(
 
     return ok(updated);
   } catch (err) {
-    if (isForeignKeyViolation(err, 'feeds_category_id_fkey')) {
+    if (isForeignKeyViolation(err, feedCategoryForeignKeyConstraints)) {
       const error = new ValidationError('Invalid request body', { categoryId: 'not_found' });
       await writeAiDigestUpdateFailure(error, session.userId);
       return fail(error);

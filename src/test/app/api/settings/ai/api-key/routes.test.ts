@@ -108,6 +108,7 @@ describe('/api/settings/ai/api-key', () => {
     expect(cleanupAiRuntimeStateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         pool,
+        userId: '1',
         scopes: {
           summary: true,
           translation: true,
@@ -135,6 +136,7 @@ describe('/api/settings/ai/api-key', () => {
     expect(cleanupAiRuntimeStateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         pool,
+        userId: '1',
         scopes: {
           summary: true,
           translation: true,

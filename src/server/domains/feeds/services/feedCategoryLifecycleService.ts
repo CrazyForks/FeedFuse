@@ -3,6 +3,7 @@ import {
   createCategory,
   deleteCategory,
   findCategoryByNormalizedName,
+  getCategoryById,
   getNextCategoryPosition,
 } from '@/server/domains/feeds/repositories/categoriesRepo';
 import {
@@ -16,6 +17,7 @@ import {
 import { deleteFeedFaviconCache } from '@/server/domains/feeds/repositories/feedFaviconsRepo';
 import { buildFeedFaviconPath } from '@/server/integrations/rss/feedFaviconUrl';
 import { normalizeUserId } from '@/server/domains/users/userScope';
+import { ValidationError } from '@/server/infra/http/errors';
 
 interface CategoryResolutionInput {
   categoryId?: string | null;
@@ -75,7 +77,16 @@ async function resolveCategoryId(
 ): Promise<string | null> {
   const userId = normalizeUserId(input.userId);
   if (typeof input.categoryId !== 'undefined') {
-    return input.categoryId ?? null;
+    if (input.categoryId === null) {
+      return null;
+    }
+
+    // 显式 categoryId 必须属于当前用户，避免跨账号绑定其他用户的分类。
+    const category = await getCategoryById(client, input.categoryId, userId);
+    if (!category) {
+      throw new ValidationError('Invalid request body', { categoryId: 'not_found' });
+    }
+    return category.id;
   }
 
   const normalizedName = normalizeCategoryName(input.categoryName);

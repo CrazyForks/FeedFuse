@@ -28,11 +28,14 @@
 
 - 单实例多用户默认强隔离；所有用户私有数据必须带 `user_id`，route -> service -> repository -> worker 全链路显式传递当前 `session.userId`。
 - `requireApiSession()` 返回当前用户上下文 `{ userId, role, sessionVersion }`；route 不能再把鉴权结果当成简单布尔值使用。
+- 用户显式提交 `categoryId` 时，service / repository 在写入 `feeds`、`ai_digest` 等用户私有资源前，必须校验该分类存在且 `categories.user_id = session.userId`；不能只依赖前端下拉选项或全局 `category_id -> categories(id)` 外键。
+- `feeds.category_id` 的同用户归属必须有数据库层兜底；即使应用层漏校验，也要拒绝把某个用户的 feed / ai_digest 绑定到其他用户的分类。
 - session payload 必须包含 `userId`、`role`、`sessionVersion`、`iat`、`exp`；用户禁用、重置密码或修改密码时必须递增 `session_version` 使旧 session 失效。
 - 用户私有表的唯一约束必须按用户作用域设计，例如 `(user_id, lower(name))`、`(user_id, url)`；跨用户允许相同分类名、订阅 URL 或外部账号标识。
 - `app_settings` 只保留全局兼容配置；用户级 UI 设置、AI key、translation key 必须读写 `user_settings`。
 - 历史单用户数据迁移必须归属默认管理员，并为默认管理员迁移旧 `app_settings` 中的 UI 设置与密钥。
 - 所有异步任务 payload、队列 singleton key、任务状态、系统日志和用户操作日志涉及用户私有数据时都必须携带 `userId`；定时任务没有会话上下文时必须按 active users fan-out。
+- AI 配置变更触发的运行态清理也属于用户私有异步状态；`cleanup` / cancel / fail 这类收尾逻辑必须按当前用户 `userId` 限定更新范围，并在写入 `article_ai_summary_events`、`article_translation_events` 等事件表时同步写入 `user_id`。
 - Fever、AI digest、feed refresh、全文抓取、文章过滤、摘要、翻译等 worker 在读取或写入数据前必须用 `userId` 校验资源归属。
 - 管理员才可创建用户、列表用户、重置密码、禁用或启用用户；普通用户只能读取自己的资料和修改自己的密码。
 - 删除用户属于更强权限操作：只有初始用户可删除其他用户，且初始用户自身永远不可删除；后端必须在 route/service 层显式校验，不能只依赖前端隐藏按钮。

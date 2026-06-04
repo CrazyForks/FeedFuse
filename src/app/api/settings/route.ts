@@ -139,6 +139,7 @@ export async function PUT(request: Request) {
       if (hasAiCleanupScopes(cleanupScopes)) {
         await cleanupAiRuntimeState({
           pool,
+          userId: session.userId,
           scopes: cleanupScopes,
         });
       }

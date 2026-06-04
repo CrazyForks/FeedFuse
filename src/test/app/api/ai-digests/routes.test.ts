@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ValidationError } from '@/server/infra/http/errors';
 import { getQueueSendOptions } from '@/server/infra/queue/contracts';
 import { JOB_AI_DIGEST_GENERATE } from '@/server/infra/queue/jobs';
 
@@ -188,6 +189,33 @@ describe('/api/ai-digests', () => {
     );
 
     expect(res.status).toBe(400);
+  });
+
+  it('POST returns validation error when categoryId is scoped to another user', async () => {
+    createAiDigestWithCategoryResolutionMock.mockRejectedValue(
+      new ValidationError('Invalid request body', { categoryId: 'not_found' }),
+    );
+
+    const mod = await import('../../../../app/api/ai-digests/route');
+    const res = await mod.POST(
+      new Request('http://localhost/api/ai-digests', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          title: 'My Digest',
+          prompt: '解读这些文章',
+          intervalMinutes: 60,
+          selectedFeedIds: ['1002'],
+          categoryId: '2999',
+        }),
+      }),
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.ok).toBe(false);
+    expect(json.error.code).toBe('validation_error');
+    expect(json.error.fields.categoryId).toBe('not_found');
   });
 
   it('PATCH writes aiDigest.update success log through the shared helper', async () => {

@@ -4,6 +4,7 @@ import {
   createCategory,
   deleteCategory,
   findCategoryByNormalizedName,
+  getCategoryById,
   getNextCategoryPosition,
 } from '@/server/domains/feeds/repositories/categoriesRepo';
 import {
@@ -19,6 +20,7 @@ import {
   updateAiDigestConfig,
 } from '@/server/domains/ai-digests/repositories/aiDigestRepo';
 import { normalizeUserId } from '@/server/domains/users/userScope';
+import { ValidationError } from '@/server/infra/http/errors';
 
 const LEGACY_AI_DIGEST_RELEVANT_CAP = 500;
 
@@ -40,7 +42,16 @@ async function resolveCategoryId(
 ): Promise<string | null> {
   const userId = normalizeUserId(input.userId);
   if (typeof input.categoryId !== 'undefined') {
-    return input.categoryId ?? null;
+    if (input.categoryId === null) {
+      return null;
+    }
+
+    // 智能报告与普通 feed 一样，不能引用其他用户的分类。
+    const category = await getCategoryById(client as never, input.categoryId, userId);
+    if (!category) {
+      throw new ValidationError('Invalid request body', { categoryId: 'not_found' });
+    }
+    return category.id;
   }
 
   const normalizedName = normalizeCategoryName(input.categoryName);

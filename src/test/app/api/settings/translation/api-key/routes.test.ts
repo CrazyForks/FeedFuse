@@ -87,6 +87,7 @@ describe('/api/settings/translation/api-key', () => {
     expect(cleanupAiRuntimeStateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         pool,
+        userId: '1',
         scopes: {
           summary: false,
           translation: true,

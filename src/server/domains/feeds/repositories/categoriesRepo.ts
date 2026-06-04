@@ -98,6 +98,24 @@ export async function findCategoryByNormalizedName(
   return rows[0] ?? null;
 }
 
+export async function getCategoryById(
+  db: DbClient,
+  id: string,
+  userId?: string,
+): Promise<CategoryRow | null> {
+  const { rows } = await db.query<CategoryRow>(
+    `
+      select id, name, position
+      from categories
+      where id = $1
+        and user_id = $2
+      limit 1
+    `,
+    [id, normalizeUserId(userId)],
+  );
+  return rows[0] ?? null;
+}
+
 export async function getNextCategoryPosition(db: DbClient, userId?: string): Promise<number> {
   const { rows } = await db.query<{ nextPosition: number }>(
     'select coalesce(max(position), -1) + 1 as "nextPosition" from categories where user_id = $1',

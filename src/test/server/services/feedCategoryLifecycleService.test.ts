@@ -1,5 +1,6 @@
 import type { Pool, PoolClient } from 'pg';
 import { describe, expect, it, vi } from 'vitest';
+import { ValidationError } from '@/server/infra/http/errors';
 import {
   createFeedWithCategoryResolution,
   deleteFeedAndCleanupCategory,
@@ -121,6 +122,33 @@ describe('feedCategoryLifecycleService', () => {
     );
   });
 
+  it('rejects categoryId that does not belong to the current user when creating a feed', async () => {
+    const { pool, client } = createMockPool();
+
+    client.query
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce(undefined);
+
+    await expect(
+      createFeedWithCategoryResolution(pool, {
+        title: 'Example',
+        url: 'https://example.com/feed.xml',
+        categoryId: 'cat-other-user',
+        userId: '2',
+      }),
+    ).rejects.toEqual(
+      new ValidationError('Invalid request body', {
+        categoryId: 'not_found',
+      }),
+    );
+
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('from categories'),
+      ['cat-other-user', '2'],
+    );
+  });
+
   it('removes the previous category when an update leaves it empty', async () => {
     const { pool, client } = createMockPool();
 
@@ -168,6 +196,40 @@ describe('feedCategoryLifecycleService', () => {
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining('delete from categories'),
       ['cat-old', '1'],
+    );
+  });
+
+  it('rejects categoryId that does not belong to the current user when updating a feed', async () => {
+    const { pool, client } = createMockPool();
+
+    client.query
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'feed-1',
+            categoryId: 'cat-old',
+            siteUrl: null,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce(undefined);
+
+    await expect(
+      updateFeedWithCategoryResolution(pool, 'feed-1', {
+        categoryId: 'cat-other-user',
+        userId: '2',
+      }),
+    ).rejects.toEqual(
+      new ValidationError('Invalid request body', {
+        categoryId: 'not_found',
+      }),
+    );
+
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('from categories'),
+      ['cat-other-user', '2'],
     );
   });
 

@@ -39,7 +39,7 @@ describe('usersRepo', () => {
   });
 
   it('creates users and ensures user settings in a transaction', async () => {
-    const query = vi
+    const clientQuery = vi
       .fn()
       .mockResolvedValueOnce(undefined)
       .mockResolvedValueOnce({
@@ -56,8 +56,10 @@ describe('usersRepo', () => {
       })
       .mockResolvedValueOnce(undefined)
       .mockResolvedValueOnce(undefined);
+    const release = vi.fn();
+    const connect = vi.fn().mockResolvedValue({ query: clientQuery, release });
 
-    const pool = { query } as unknown as Pool;
+    const pool = { connect } as unknown as Pool;
     const user = await createUser(pool, {
       username: 'member',
       passwordHash: 'scrypt$hash',
@@ -65,10 +67,12 @@ describe('usersRepo', () => {
     });
 
     expect(user.id).toBe('2');
-    expect(query).toHaveBeenNthCalledWith(1, 'begin');
-    expect(String(query.mock.calls[1]?.[0] ?? '')).toContain('insert into users');
-    expect(String(query.mock.calls[2]?.[0] ?? '')).toContain('insert into user_settings');
-    expect(query).toHaveBeenLastCalledWith('commit');
+    expect(connect).toHaveBeenCalledTimes(1);
+    expect(clientQuery).toHaveBeenNthCalledWith(1, 'begin');
+    expect(String(clientQuery.mock.calls[1]?.[0] ?? '')).toContain('insert into users');
+    expect(String(clientQuery.mock.calls[2]?.[0] ?? '')).toContain('insert into user_settings');
+    expect(clientQuery).toHaveBeenLastCalledWith('commit');
+    expect(release).toHaveBeenCalledTimes(1);
   });
 
   it('lists users without exposing password_hash', async () => {

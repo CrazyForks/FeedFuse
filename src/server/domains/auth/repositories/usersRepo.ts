@@ -110,12 +110,14 @@ export async function listUsers(db: DbClient): Promise<PublicUserRow[]> {
 }
 
 export async function createUser(
-  db: DbClient,
+  db: Pool,
   input: { username: string; passwordHash: string; role: UserRole },
 ): Promise<UserRow> {
-  await db.query('begin');
+  const client = await db.connect();
   try {
-    const { rows } = await db.query<UserRow>(
+    // 创建用户和默认设置必须绑定同一个连接，保证事务真正生效。
+    await client.query('begin');
+    const { rows } = await client.query<UserRow>(
       `
         insert into users(username, password_hash, role, status)
         values ($1, $2, $3, 'active')
@@ -124,12 +126,14 @@ export async function createUser(
       [normalizeUsername(input.username), input.passwordHash, input.role],
     );
     const user = rows[0];
-    await ensureUserSettings(db, user.id);
-    await db.query('commit');
+    await ensureUserSettings(client, user.id);
+    await client.query('commit');
     return user;
   } catch (err) {
-    await db.query('rollback');
+    await client.query('rollback');
     throw err;
+  } finally {
+    client.release();
   }
 }
 

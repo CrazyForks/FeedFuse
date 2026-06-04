@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { getPool } from '@/server/infra/db/pool';
 import { ok, fail } from '@/server/infra/http/apiResponse';
 import { UnauthorizedError, ValidationError } from '@/server/infra/http/errors';
-import { requireApiSession } from '@/server/domains/auth/services/session';
+import { createSessionCookieHeader, requireApiSession } from '@/server/domains/auth/services/session';
 import { hashPassword, verifyPassword } from '@/server/domains/auth/services/password';
 import { changeUserPassword, getUserById } from '@/server/domains/auth/repositories/usersRepo';
 
@@ -45,7 +45,20 @@ export async function POST(request: Request) {
       passwordHash: hashPassword(parsed.data.nextPassword),
     });
 
-    return ok({ updated: Boolean(updated) });
+    const sessionCookie = await createSessionCookieHeader({
+      userId: user.id,
+      role: user.role,
+      sessionVersion: updated?.sessionVersion ?? session.sessionVersion,
+    });
+
+    return ok(
+      { updated: Boolean(updated) },
+      {
+        headers: {
+          'set-cookie': sessionCookie,
+        },
+      },
+    );
   } catch (err) {
     return fail(err);
   }

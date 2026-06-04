@@ -273,6 +273,7 @@ describe('/api/users', () => {
   });
 
   it('POST /api/users/me/password changes current user password', async () => {
+    requireApiSessionMock.mockResolvedValue({ userId: '2', role: 'member', sessionVersion: 1 });
     getUserByIdMock.mockResolvedValue({
       id: '2',
       username: 'member',
@@ -303,9 +304,15 @@ describe('/api/users', () => {
 
     expect(json.ok).toBe(true);
     expect(changeUserPasswordMock).toHaveBeenCalledWith(pool, {
-      userId: '1',
+      userId: '2',
       passwordHash: 'scrypt$hashed',
     });
+    expect(createSessionCookieHeaderMock).toHaveBeenCalledWith({
+      userId: '2',
+      role: 'member',
+      sessionVersion: 2,
+    });
+    expect(res.headers.get('set-cookie')).toContain('feedfuse_session=rotated-token');
   });
 
   it('PATCH rejects editing the initial user through admin endpoint', async () => {

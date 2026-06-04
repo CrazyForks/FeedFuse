@@ -261,6 +261,7 @@ export async function fetchAndIngestFeed(
   if (!(await deps.isSafeExternalUrl(feed.url))) {
     const mapped = mapFeedFetchError('Unsafe URL');
     await deps.recordFeedFetchResult(pool, feedId, {
+      userId: feed.userId,
       status: null,
       error: mapped.errorMessage,
       rawError: mapped.rawErrorMessage,

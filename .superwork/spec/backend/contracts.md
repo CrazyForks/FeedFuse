@@ -27,6 +27,7 @@
 ## 多用户隔离契约
 
 - 单实例多用户默认强隔离；所有用户私有数据必须带 `user_id`，route -> service -> repository -> worker 全链路显式传递当前 `session.userId`。
+- 用户私有表的 `user_id` 必须由数据库外键引用 `users(id)`；非日志类私有数据使用 `on delete cascade`，`system_logs.user_id` 可为空并使用 `on delete set null` 保留系统级日志语义。
 - `requireApiSession()` 返回当前用户上下文 `{ userId, role, sessionVersion }`；route 不能再把鉴权结果当成简单布尔值使用。
 - 用户显式提交 `categoryId` 时，service / repository 在写入 `feeds`、`ai_digest` 等用户私有资源前，必须校验该分类存在且 `categories.user_id = session.userId`；不能只依赖前端下拉选项或全局 `category_id -> categories(id)` 外键。
 - `feeds.category_id` 的同用户归属必须有数据库层兜底；即使应用层漏校验，也要拒绝把某个用户的 feed / ai_digest 绑定到其他用户的分类。

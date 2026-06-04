@@ -9,6 +9,7 @@ const findCategoryByNormalizedNameMock = vi.fn();
 const getNextCategoryPositionMock = vi.fn();
 const createCategoryMock = vi.fn();
 const createAiDigestFeedMock = vi.fn();
+const listFeedsByIdsMock = vi.fn();
 const createAiDigestConfigMock = vi.fn();
 const updateFeedMock = vi.fn();
 const getFeedCategoryAssignmentMock = vi.fn();
@@ -28,6 +29,7 @@ vi.mock('@/server/domains/feeds/repositories/categoriesRepo', () => ({
 }));
 vi.mock('@/server/domains/feeds/repositories/feedsRepo', () => ({
   createAiDigestFeed: (...args: unknown[]) => createAiDigestFeedMock(...args),
+  listFeedsByIds: (...args: unknown[]) => listFeedsByIdsMock(...args),
   updateFeed: (...args: unknown[]) => updateFeedMock(...args),
   getFeedCategoryAssignment: (...args: unknown[]) => getFeedCategoryAssignmentMock(...args),
   countFeedsByCategoryId: (...args: unknown[]) => countFeedsByCategoryIdMock(...args),
@@ -47,6 +49,7 @@ describe('aiDigestLifecycleService', () => {
     getNextCategoryPositionMock.mockReset();
     createCategoryMock.mockReset();
     createAiDigestFeedMock.mockReset();
+    listFeedsByIdsMock.mockReset();
     createAiDigestConfigMock.mockReset();
     updateFeedMock.mockReset();
     getFeedCategoryAssignmentMock.mockReset();
@@ -57,6 +60,9 @@ describe('aiDigestLifecycleService', () => {
     getCategoryByIdMock.mockReset();
 
     queryMock.mockResolvedValue(undefined);
+    listFeedsByIdsMock.mockImplementation(async (_db, ids: string[]) =>
+      ids.map((id) => ({ id, kind: 'rss', provider: 'local_rss' })),
+    );
     connectMock.mockResolvedValue({
       query: queryMock,
       release: releaseMock,
@@ -191,5 +197,60 @@ describe('aiDigestLifecycleService', () => {
         categoryId: 'not_found',
       }),
     );
+  });
+
+  it('rejects selectedFeedIds that do not belong to the current user when creating ai digest', async () => {
+    const pool = { connect: connectMock };
+    listFeedsByIdsMock.mockResolvedValue([]);
+
+    const { createAiDigestWithCategoryResolution } = await import('@/server/domains/ai-digests/services/aiDigestLifecycleService');
+
+    await expect(
+      createAiDigestWithCategoryResolution(pool as never, {
+        title: 'My Digest',
+        prompt: '解读这些文章',
+        intervalMinutes: 60,
+        selectedFeedIds: ['feed-other-user'],
+        userId: '2',
+      }),
+    ).rejects.toEqual(
+      new ValidationError('Invalid request body', {
+        selectedFeedIds: 'not_found',
+      }),
+    );
+    expect(createAiDigestFeedMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects non-local-rss selectedFeedIds when updating ai digest', async () => {
+    const pool = { connect: connectMock };
+    getFeedCategoryAssignmentMock.mockResolvedValue({
+      id: 'feed-1',
+      categoryId: null,
+    });
+    getAiDigestConfigByFeedIdMock.mockResolvedValue({
+      feedId: 'feed-1',
+      prompt: '旧提示词',
+      intervalMinutes: 60,
+      selectedFeedIds: [],
+    });
+    listFeedsByIdsMock.mockResolvedValue([{ id: 'fever-feed-1', kind: 'rss', provider: 'fever' }]);
+
+    const { updateAiDigestWithCategoryResolution } = await import('@/server/domains/ai-digests/services/aiDigestLifecycleService');
+
+    await expect(
+      updateAiDigestWithCategoryResolution(pool as never, {
+        feedId: 'feed-1',
+        title: 'My Digest',
+        prompt: '解读这些文章',
+        intervalMinutes: 60,
+        selectedFeedIds: ['fever-feed-1'],
+        userId: '2',
+      }),
+    ).rejects.toEqual(
+      new ValidationError('Invalid request body', {
+        selectedFeedIds: 'not_found',
+      }),
+    );
+    expect(updateFeedMock).not.toHaveBeenCalled();
   });
 });

@@ -66,9 +66,8 @@ export async function upsertFeverSyncState(
         updated_at
       )
       values ($1, $2, $3, $4::timestamptz, $5::timestamptz, $6, now())
-      on conflict (fever_account_id)
+      on conflict (user_id, fever_account_id)
       do update set
-        user_id = excluded.user_id,
         last_incremental_item_id = coalesce(excluded.last_incremental_item_id, fever_sync_states.last_incremental_item_id),
         last_incremental_synced_at = coalesce(excluded.last_incremental_synced_at, fever_sync_states.last_incremental_synced_at),
         last_full_sync_at = coalesce(excluded.last_full_sync_at, fever_sync_states.last_full_sync_at),

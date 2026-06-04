@@ -24,7 +24,7 @@ describe('articlesRepo (media attachments)', () => {
 
     const sql = String(query.mock.calls[0]?.[0] ?? '');
     expect(sql).toContain('insert into article_media_attachments');
-    expect(sql).toContain('on conflict (article_id, url) do nothing');
+    expect(sql).toContain('on conflict (user_id, article_id, url) do nothing');
     expect(query.mock.calls[0]?.[1]).toEqual([
       '1',
       'article-1',

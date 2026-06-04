@@ -35,7 +35,8 @@ describe('feedRefreshRunRepo', () => {
 
     const sql = String(query.mock.calls[0]?.[0] ?? '');
     expect(sql).toContain('insert into feed_refresh_run_items');
-    expect(sql).toContain('on conflict (run_id, feed_id)');
+    expect(sql).toContain('on conflict (user_id, run_id, feed_id)');
+    expect(sql).not.toContain('user_id = excluded.user_id');
     expect(sql).toContain('updated_at = now()');
   });
 

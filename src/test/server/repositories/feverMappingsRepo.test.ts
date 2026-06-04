@@ -18,7 +18,29 @@ describe('feverMappingsRepo', () => {
 
     const sql = String(query.mock.calls[0]?.[0] ?? '');
     expect(sql).toContain('insert into fever_feed_mappings');
-    expect(sql).toContain('on conflict (fever_account_id, fever_feed_id)');
+    expect(sql).toContain('on conflict (user_id, fever_account_id, fever_feed_id)');
+    expect(sql).not.toContain('user_id = excluded.user_id');
+  });
+
+  it('upsertFeverItemMapping keeps conflict handling user scoped', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    const pool = { query } as unknown as Pool;
+    const mod = await import('@/server/domains/fever/repositories/feverMappingsRepo');
+
+    await mod.upsertFeverItemMapping(pool, {
+      accountId: '1',
+      feverItemId: 'remote-item-1',
+      feverFeedId: 'remote-feed-1',
+      localFeedId: '10',
+      localArticleId: '100',
+      remoteIsRead: false,
+      remoteIsSaved: false,
+    });
+
+    const sql = String(query.mock.calls[0]?.[0] ?? '');
+    expect(sql).toContain('insert into fever_item_mappings');
+    expect(sql).toContain('on conflict (user_id, fever_account_id, fever_item_id)');
+    expect(sql).not.toContain('user_id = excluded.user_id');
   });
 
   it('marks missing fever items inactive by seen ids', async () => {

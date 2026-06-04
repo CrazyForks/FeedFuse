@@ -36,7 +36,8 @@ describe('articleTasksRepo', () => {
 
     const sql = String(query.mock.calls[0]?.[0] ?? '');
     expect(sql).toContain('insert into article_tasks');
-    expect(sql).toContain('on conflict (article_id, type) do update');
+    expect(sql).toContain('on conflict (user_id, article_id, type) do update');
+    expect(sql).not.toContain('user_id = excluded.user_id');
     expect(sql).toContain('attempts');
     expect(sql).toContain('raw_error_message');
     expect(sql).toContain('updated_at = now()');

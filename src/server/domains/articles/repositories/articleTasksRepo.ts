@@ -121,9 +121,8 @@ async function upsertBase(
         updated_at
       )
       values ($1, $2, $3, $4, $5, now(), null, null, 0, null, null, null, now(), now())
-      on conflict (article_id, type) do update
+      on conflict (user_id, article_id, type) do update
       set
-        user_id = excluded.user_id,
         status = $4,
         job_id = coalesce($5, article_tasks.job_id),
         requested_at = ${requestedAtSql},

@@ -11,6 +11,7 @@ import {
   countFeedsByCategoryId,
   createAiDigestFeed,
   getFeedCategoryAssignment,
+  listFeedsByIds,
   type FeedRow,
   updateFeed,
 } from '@/server/domains/feeds/repositories/feedsRepo';
@@ -78,6 +79,25 @@ async function cleanupCategoryIfEmpty(
   }
 }
 
+async function assertSelectedFeedsBelongToUser(
+  client: { query: Pool['query'] },
+  selectedFeedIds: string[],
+  userId: string,
+): Promise<void> {
+  const uniqueIds = Array.from(new Set(selectedFeedIds));
+  const feeds = await listFeedsByIds(client as never, uniqueIds, userId);
+  const validIds = new Set(
+    feeds
+      .filter((feed) => feed.kind === 'rss' && feed.provider === 'local_rss')
+      .map((feed) => feed.id),
+  );
+
+  // 智能报告只允许选择当前用户自己的本地 RSS 源，避免保存跨账号引用。
+  if (uniqueIds.some((id) => !validIds.has(id))) {
+    throw new ValidationError('Invalid request body', { selectedFeedIds: 'not_found' });
+  }
+}
+
 export async function createAiDigestWithCategoryResolution(
   pool: Pool,
   input: {
@@ -96,6 +116,7 @@ export async function createAiDigestWithCategoryResolution(
     await client.query('begin');
 
     const categoryId = await resolveCategoryId(client as never, { ...input, userId });
+    await assertSelectedFeedsBelongToUser(client as never, input.selectedFeedIds, userId);
 
     const createdFeed = await createAiDigestFeed(client as never, {
       title: input.title,
@@ -160,6 +181,7 @@ export async function updateAiDigestWithCategoryResolution(
     }
 
     const nextCategoryId = await resolveCategoryId(client as never, { ...input, userId });
+    await assertSelectedFeedsBelongToUser(client as never, input.selectedFeedIds, userId);
 
     // 编辑智能报告源时同时更新 feeds 与 ai_digest_configs，确保同事务一致。
     const updatedFeed = await updateFeed(client as never, input.feedId, {

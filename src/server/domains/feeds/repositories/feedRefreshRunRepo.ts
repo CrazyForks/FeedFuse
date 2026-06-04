@@ -209,9 +209,8 @@ export async function upsertFeedRefreshRunItems(
         item.status,
         item.error_message
       from unnest($3::bigint[], $4::text[], $5::text[]) as item(feed_id, status, error_message)
-      on conflict (run_id, feed_id)
+      on conflict (user_id, run_id, feed_id)
       do update set
-        user_id = excluded.user_id,
         status = excluded.status,
         error_message = excluded.error_message,
         updated_at = now()

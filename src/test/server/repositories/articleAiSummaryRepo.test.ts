@@ -155,4 +155,46 @@ describe('articleAiSummaryRepo', () => {
       '1',
     ]);
   });
+
+  it('does not reassign user_id when upserting an explicit summary session id', async () => {
+    const query = vi.fn().mockResolvedValue({
+      rows: [
+        {
+          id: 'session-1',
+          articleId: 'article-1',
+          sourceTextHash: 'hash-1',
+          status: 'running',
+          draftText: 'TL;DR',
+          finalText: null,
+          model: null,
+          jobId: 'job-1',
+          errorCode: null,
+          errorMessage: null,
+          rawErrorMessage: null,
+          supersededBySessionId: null,
+          startedAt: '2026-03-09T00:00:00.000Z',
+          finishedAt: null,
+          createdAt: '2026-03-09T00:00:00.000Z',
+          updatedAt: '2026-03-09T00:00:00.000Z',
+        },
+      ],
+    });
+    const pool = { query };
+    const mod = await import('@/server/domains/articles/repositories/articleAiSummaryRepo');
+
+    await mod.upsertAiSummarySession(pool as never, {
+      sessionId: 'session-1',
+      articleId: 'article-1',
+      sourceTextHash: 'hash-1',
+      status: 'running',
+      draftText: 'TL;DR',
+      jobId: 'job-1',
+      userId: '2',
+    });
+
+    const sql = String(query.mock.calls[0]?.[0] ?? '');
+    expect(sql).toContain('on conflict (id) do update');
+    expect(sql).toContain('where article_ai_summary_sessions.user_id = excluded.user_id');
+    expect(sql).not.toContain('set\n        user_id = excluded.user_id');
+  });
 });

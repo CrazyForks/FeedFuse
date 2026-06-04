@@ -52,6 +52,11 @@ describe('aiDigestRepo', () => {
     const joinedSql = query.mock.calls.map((call) => String(call[0])).join('\n');
     expect(joinedSql).toContain('delete from ai_digest_run_sources');
     expect(joinedSql).toContain('insert into ai_digest_run_sources');
+    expect(joinedSql).toContain('select $2, r.id, a.id');
+    expect(joinedSql).toContain('join ai_digest_runs r on r.id = $1::bigint');
+    expect(joinedSql).toContain('join articles a on a.id = source.source_article_id');
+    expect(joinedSql).toContain('r.user_id = $2');
+    expect(joinedSql).toContain('a.user_id = $2');
     expect(joinedSql).toContain('::bigint');
   });
 

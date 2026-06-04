@@ -32,6 +32,8 @@
 - `feeds.category_id` 的同用户归属必须有数据库层兜底；即使应用层漏校验，也要拒绝把某个用户的 feed / ai_digest 绑定到其他用户的分类。
 - session payload 必须包含 `userId`、`role`、`sessionVersion`、`iat`、`exp`；用户禁用、重置密码或修改密码时必须递增 `session_version` 使旧 session 失效。
 - 用户私有表的唯一约束必须按用户作用域设计，例如 `(user_id, lower(name))`、`(user_id, url)`；跨用户允许相同分类名、订阅 URL 或外部账号标识。
+- 用户私有关系表的唯一键、upsert 冲突键和数据库兜底也必须按用户作用域设计；`article_tasks`、`feed_refresh_run_items`、Fever 映射、AI digest sources、AI/翻译会话、favicon、媒体附件等表不能在冲突更新中重写 `user_id`，并且必须拒绝关联到其他用户的父资源。
+- AI digest 的 `selectedFeedIds` 只能保存当前用户自己的本地 RSS feed；不能保存其他用户、Fever 投影源或不存在的 feed id，即使生成 worker 后续会按用户过滤候选文章。
 - `app_settings` 只保留全局兼容配置；用户级 UI 设置、AI key、translation key 必须读写 `user_settings`。
 - 历史单用户数据迁移必须归属默认管理员，并为默认管理员迁移旧 `app_settings` 中的 UI 设置与密钥。
 - 所有异步任务 payload、队列 singleton key、任务状态、系统日志和用户操作日志涉及用户私有数据时都必须携带 `userId`；定时任务没有会话上下文时必须按 active users fan-out。

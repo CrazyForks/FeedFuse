@@ -402,13 +402,18 @@ export async function replaceAiDigestRunSources(
     const positionParam = index * 2 + 3;
     const articleParam = index * 2 + 4;
     values.push(source.position, source.sourceArticleId);
-    return `($2, $1, $${articleParam}::bigint, $${positionParam})`;
+    return `($${articleParam}::bigint, $${positionParam})`;
   });
 
   await db.query(
     `
       insert into ai_digest_run_sources(user_id, run_id, source_article_id, position)
-      values ${placeholders.join(', ')}
+      select $2, r.id, a.id, source.position
+      from (values ${placeholders.join(', ')}) as source(source_article_id, position)
+      join ai_digest_runs r on r.id = $1::bigint
+      join articles a on a.id = source.source_article_id
+      where r.user_id = $2
+        and a.user_id = $2
     `,
     values,
   );

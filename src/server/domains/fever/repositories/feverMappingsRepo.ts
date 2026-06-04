@@ -84,9 +84,8 @@ export async function upsertFeverFeedMapping(
         last_seen_at
       )
       values ($1, $2, $3, $4, $5, $6, $7, $8, true, now())
-      on conflict (fever_account_id, fever_feed_id)
+      on conflict (user_id, fever_account_id, fever_feed_id)
       do update set
-        user_id = excluded.user_id,
         local_feed_id = excluded.local_feed_id,
         remote_group_name = excluded.remote_group_name,
         remote_title = excluded.remote_title,
@@ -244,9 +243,8 @@ export async function upsertFeverItemMapping(
         last_seen_at
       )
       values ($1, $2, $3, $4, $5, $6, $7, $8, $9::timestamptz, true, now())
-      on conflict (fever_account_id, fever_item_id)
+      on conflict (user_id, fever_account_id, fever_item_id)
       do update set
-        user_id = excluded.user_id,
         fever_feed_id = excluded.fever_feed_id,
         local_feed_id = excluded.local_feed_id,
         local_article_id = excluded.local_article_id,

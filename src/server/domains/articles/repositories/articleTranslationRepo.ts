@@ -131,9 +131,8 @@ export async function upsertTranslationSession(
         updated_at
       )
       values ($1, $2, $3, $4, $5, $6, $7, $8, now(), null, now(), now())
-      on conflict (article_id) do update
+      on conflict (user_id, article_id) do update
       set
-        user_id = excluded.user_id,
         source_html_hash = $3,
         status = $4,
         total_segments = $5,
@@ -282,9 +281,8 @@ export async function upsertTranslationSegment(
         now(),
         now()
       )
-      on conflict (session_id, segment_index) do update
+      on conflict (user_id, session_id, segment_index) do update
       set
-        user_id = excluded.user_id,
         source_text = $4,
         translated_text = $5,
         status = $6,

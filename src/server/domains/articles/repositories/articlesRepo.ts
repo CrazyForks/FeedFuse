@@ -358,7 +358,7 @@ export async function insertArticleMediaAttachments(
         position
       )
       values ${tuples.join(', ')}
-      on conflict (article_id, url) do nothing
+      on conflict (user_id, article_id, url) do nothing
     `,
     values,
   );

@@ -74,7 +74,7 @@ export async function upsertFeedFaviconCache(
         next_retry_at
       )
       values ($1, $2, 'ready', $3, $4, $5, $6, $7, null, null)
-      on conflict (feed_id) do update
+      on conflict (user_id, feed_id) do update
       set
         fetch_status = 'ready',
         source_url = excluded.source_url,
@@ -123,7 +123,7 @@ export async function upsertFeedFaviconFailure(
         next_retry_at
       )
       values ($1, $2, 'failed', null, null, null, null, null, $3, $4)
-      on conflict (feed_id) do update
+      on conflict (user_id, feed_id) do update
       set
         fetch_status = 'failed',
         source_url = null,

@@ -217,7 +217,6 @@ export async function upsertAiSummarySession(
       )
       on conflict (id) do update
       set
-        user_id = excluded.user_id,
         article_id = excluded.article_id,
         source_text_hash = excluded.source_text_hash,
         status = excluded.status,
@@ -234,6 +233,7 @@ export async function upsertAiSummarySession(
           else null
         end,
         updated_at = now()
+      where article_ai_summary_sessions.user_id = excluded.user_id
       returning ${sessionSelectSql()}
     `,
     [

@@ -239,6 +239,27 @@ export async function getFeedById(
   return rows[0] ?? null;
 }
 
+export async function listFeedsByIds(
+  db: DbClient,
+  ids: string[],
+  userId?: string,
+): Promise<FeedRow[]> {
+  if (ids.length === 0) return [];
+
+  const { rows } = await db.query<FeedRow>(
+    `
+      select
+        ${feedRowSelectSql},
+        false as "isPodcast"
+      from feeds
+      where user_id = $1
+        and id = any($2::bigint[])
+    `,
+    [normalizeUserId(userId), ids],
+  );
+  return rows;
+}
+
 export async function getFeedRefreshDispatchRow(
   db: DbClient,
   id: string,

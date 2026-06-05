@@ -99,9 +99,9 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const authSession = await requireApiSession();
+  if (authSession && 'response' in authSession) {
+    return authSession.response;
   }
 
   try {
@@ -116,17 +116,25 @@ export async function GET(
     const articleId = paramsParsed.data.id;
     const pool = getPool();
 
-    const article = await getArticleById(pool, articleId);
+    const article = await getArticleById(pool, articleId, authSession.userId);
     if (!article) return fail(new NotFoundError('Article not found'));
 
-    const session = await getTranslationSessionByArticleId(pool, articleId);
-    if (!session) {
+    const translationSession = await getTranslationSessionByArticleId(
+      pool,
+      articleId,
+      authSession.userId,
+    );
+    if (!translationSession) {
       return ok({ session: null, segments: [] });
     }
 
-    const segments = await listTranslationSegmentsBySessionId(pool, session.id);
+    const segments = await listTranslationSegmentsBySessionId(
+      pool,
+      translationSession.id,
+      translationSession.userId,
+    );
     return ok({
-      session: buildSessionSnapshot(session),
+      session: buildSessionSnapshot(translationSession),
       segments: segments.map((segment) => ({
         id: segment.id,
         segmentIndex: segment.segmentIndex,
@@ -148,9 +156,9 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -167,11 +175,11 @@ export async function POST(
     const bodyParsed = bodySchema.safeParse(await request.json().catch(() => ({})));
     const force = bodyParsed.success ? Boolean(bodyParsed.data.force) : false;
 
-    const article = await getArticleById(pool, articleId);
+    const article = await getArticleById(pool, articleId, session.userId);
     if (!article) return fail(new NotFoundError('Article not found'));
 
     // 播客文章不进入正文翻译链路。
-    const mediaAttachments = await listArticleMediaAttachments(pool, articleId);
+    const mediaAttachments = await listArticleMediaAttachments(pool, articleId, session.userId);
     if (mediaAttachments.length > 0) {
       return ok({ enqueued: false, reason: 'podcast_article' });
     }
@@ -189,9 +197,9 @@ export async function POST(
     }
 
     const [aiApiKey, translationApiKey, uiSettings] = await Promise.all([
-      getAiApiKey(pool),
-      getTranslationApiKey(pool),
-      getUiSettings(pool),
+      getAiApiKey(pool, session.userId),
+      getTranslationApiKey(pool, session.userId),
+      getUiSettings(pool, session.userId),
     ]);
     const normalizedSettings = normalizePersistedSettings(uiSettings);
     const translationConfig = resolveTranslationConfig({
@@ -212,7 +220,11 @@ export async function POST(
       translationApiKey,
     });
 
-    const feedBodyTranslateEnabled = await getFeedBodyTranslateEnabled(pool, article.feedId);
+    const feedBodyTranslateEnabled = await getFeedBodyTranslateEnabled(
+      pool,
+      article.feedId,
+      session.userId,
+    );
     if (!force && feedBodyTranslateEnabled !== true) {
       return ok({ enqueued: false, reason: 'body_translate_disabled' });
     }
@@ -224,21 +236,25 @@ export async function POST(
       return ok({ enqueued: false, reason: 'already_translated' });
     }
 
-    const fullTextOnOpenEnabled = await getFeedFullTextOnOpenEnabled(pool, article.feedId);
+    const fullTextOnOpenEnabled = await getFeedFullTextOnOpenEnabled(
+      pool,
+      article.feedId,
+      session.userId,
+    );
     if (isFulltextPending(article, fullTextOnOpenEnabled)) {
       return ok({ enqueued: false, reason: 'fulltext_pending' });
     }
 
     const sourceHtml = getArticleHtmlSource(article);
     const sourceHtmlHash = hashSourceHtml(sourceHtml);
-    const existingSession = await getTranslationSessionByArticleId(pool, articleId);
+    const existingSession = await getTranslationSessionByArticleId(pool, articleId, session.userId);
 
     if (
       existingSession &&
       existingSession.status === 'running' &&
       existingSession.sourceHtmlHash === sourceHtmlHash
     ) {
-      const taskRows = await getArticleTasksByArticleId(pool, articleId);
+      const taskRows = await getArticleTasksByArticleId(pool, articleId, session.userId);
       const aiTranslateTask = taskRows.find((task) => task.type === 'ai_translate');
       if (isAiTranslateTaskActive(aiTranslateTask)) {
         return ok({
@@ -251,11 +267,12 @@ export async function POST(
 
     const segments = extractImmersiveSegments(sourceHtml);
     if (existingSession) {
-      await deleteTranslationSegmentsBySessionId(pool, existingSession.id);
-      await deleteTranslationEventsBySessionId(pool, existingSession.id);
+      await deleteTranslationSegmentsBySessionId(pool, existingSession.id, session.userId);
+      await deleteTranslationEventsBySessionId(pool, existingSession.id, session.userId);
     }
 
-    const session = await upsertTranslationSession(pool, {
+    const translationSession = await upsertTranslationSession(pool, {
+      userId: session.userId,
       articleId,
       sourceHtmlHash,
       status: 'running',
@@ -267,7 +284,8 @@ export async function POST(
 
     for (const segment of segments) {
       await upsertTranslationSegment(pool, {
-        sessionId: session.id,
+        userId: session.userId,
+        sessionId: translationSession.id,
         segmentIndex: segment.segmentIndex,
         sourceText: segment.text,
         translatedText: null,
@@ -280,29 +298,35 @@ export async function POST(
 
     const enqueueResult = await enqueueWithResult(
       JOB_AI_TRANSLATE,
-      { articleId, translationConfigFingerprint },
-      getQueueSendOptions(JOB_AI_TRANSLATE, { articleId, force }),
+      { userId: session.userId, articleId, translationConfigFingerprint },
+      getQueueSendOptions(JOB_AI_TRANSLATE, {
+        userId: session.userId,
+        articleId,
+        force,
+      }),
     );
     if (enqueueResult.status !== 'enqueued') {
       return ok({ enqueued: false, reason: 'already_enqueued' });
     }
 
     await upsertTaskQueued(pool, {
+      userId: session.userId,
       articleId,
       type: 'ai_translate',
       jobId: enqueueResult.jobId,
     });
 
     await writeUserOperationStartedLog(pool, {
+      userId: session.userId,
       actionKey: 'article.aiTranslate.generate',
       source: 'app/api/articles/[id]/ai-translate',
       context: {
         articleId,
-        sessionId: session.id,
+        sessionId: translationSession.id,
         jobId: enqueueResult.jobId,
       },
     });
-    return ok({ enqueued: true, jobId: enqueueResult.jobId, sessionId: session.id });
+    return ok({ enqueued: true, jobId: enqueueResult.jobId, sessionId: translationSession.id });
   } catch (err) {
     return fail(err);
   }

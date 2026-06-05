@@ -8,6 +8,17 @@
 - `pnpm type-check`
 - 与改动相关的测试
 
+纯文档、`.superwork` 规格或命令说明修改，可以不跑 `pnpm` 命令，但至少要核对：
+
+- 引用的文件路径真实存在
+- 命令名和脚本名与 `package.json` 一致
+- 技能名、目录职责和代码事实一致
+
+## 单测命令约定
+
+- 跑单个或少量测试文件时，优先使用 `pnpm test:unit -- <path>`
+- 改动范围不清、跨多个层或跨多个消费方时，再退回整套 `pnpm test:unit`
+
 ## 按改动范围追加
 
 ### 前端
@@ -27,6 +38,13 @@
 - 改 `src/worker/**`
 - 先跑对应 `src/test/worker/**/*.test.ts`
 - 如果任务依赖 `src/server/domains/**/services/**` 或 `src/server/infra/queue/**`，补跑相关服务或队列测试
+
+### Shared
+
+- 改 `src/lib/**`、`src/utils/**`、`src/types/**`、`src/data/**`、`src/mock/**`
+- 先跑对应 `src/test/lib/**`、`src/test/utils/**`、`src/test/data/**` 和相关消费测试
+- 改 `src/lib/api/**` 时，额外确认 `src/test/store/**` 或相关 feature 测试
+- 改 `src/lib/ui/designSystem.ts` 时，额外确认 `src/test/app/theme-token-usage.contract.test.ts` 与相关 UI 合约测试
 
 ### 数据库
 

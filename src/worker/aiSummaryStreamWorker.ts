@@ -56,6 +56,7 @@ interface AiSummaryStreamWorkerDeps {
 
 export interface RunAiSummaryStreamWorkerInput {
   pool: Pool;
+  userId?: string | null;
   articleId: string;
   sessionId?: string | null;
   jobId: string | null;
@@ -122,6 +123,7 @@ function pickSummarySourceText(input: {
 
 async function ensureSummarySession(input: {
   pool: Pool;
+  userId?: string | null;
   articleId: string;
   sessionId: string | null;
   jobId: string | null;
@@ -131,12 +133,17 @@ async function ensureSummarySession(input: {
   const { pool, articleId, sessionId, jobId, sourceTextHash, deps } = input;
 
   if (sessionId) {
-    const session = await deps.getAiSummarySessionById(pool, sessionId);
+    const session = await deps.getAiSummarySessionById(
+      pool,
+      sessionId,
+      input.userId ?? undefined,
+    );
     if (!session || session.articleId !== articleId) {
       throw new Error('AI summary session not found');
     }
 
     return deps.upsertAiSummarySession(pool, {
+      userId: input.userId ?? session.userId,
       sessionId: session.id,
       articleId,
       sourceTextHash,
@@ -152,7 +159,11 @@ async function ensureSummarySession(input: {
     });
   }
 
-  const activeSession = await deps.getActiveAiSummarySessionByArticleId(pool, articleId);
+  const activeSession = await deps.getActiveAiSummarySessionByArticleId(
+    pool,
+    articleId,
+    input.userId ?? undefined,
+  );
   if (
     activeSession &&
     activeSession.supersededBySessionId === null &&
@@ -160,6 +171,7 @@ async function ensureSummarySession(input: {
     (activeSession.status === 'queued' || activeSession.status === 'running')
   ) {
     return deps.upsertAiSummarySession(pool, {
+      userId: input.userId ?? undefined,
       sessionId: activeSession.id,
       articleId,
       sourceTextHash,
@@ -176,6 +188,7 @@ async function ensureSummarySession(input: {
   }
 
   return deps.upsertAiSummarySession(pool, {
+    userId: input.userId ?? undefined,
     articleId,
     sourceTextHash,
     status: 'running',
@@ -209,6 +222,7 @@ export async function runAiSummaryStreamWorker(
 
   await deps.runArticleTaskWithStatus({
     pool: input.pool,
+    userId: input.userId,
     articleId: input.articleId,
     type: 'ai_summary',
     jobId: input.jobId,
@@ -226,13 +240,14 @@ export async function runAiSummaryStreamWorker(
       let draftText = '';
 
       try {
-        const article = await deps.getArticleById(input.pool, input.articleId);
+        const article = await deps.getArticleById(input.pool, input.articleId, input.userId ?? undefined);
         if (!article) return;
         if (!input.sessionId && article.aiSummary?.trim()) return;
 
         const fullTextOnOpenEnabled = await deps.getFeedFullTextOnOpenEnabled(
           input.pool,
           article.feedId,
+          article.userId,
         );
         if (isFulltextPending(article, fullTextOnOpenEnabled)) {
           throw new Error('Fulltext pending');
@@ -242,8 +257,8 @@ export async function runAiSummaryStreamWorker(
           initialFingerprint: input.sharedConfigFingerprint ?? null,
           loadCurrentFingerprint: async () => {
             const [uiSettings, currentAiApiKey] = await Promise.all([
-              deps.getUiSettings(input.pool),
-              deps.getAiApiKey(input.pool),
+              deps.getUiSettings(input.pool, article.userId),
+              deps.getAiApiKey(input.pool, article.userId),
             ]);
             return resolveAiConfigFingerprints({
               settings: uiSettings,
@@ -254,8 +269,8 @@ export async function runAiSummaryStreamWorker(
         });
 
         const [aiApiKey, uiSettings] = await Promise.all([
-          deps.getAiApiKey(input.pool),
-          deps.getUiSettings(input.pool),
+          deps.getAiApiKey(input.pool, article.userId),
+          deps.getUiSettings(input.pool, article.userId),
         ]);
         const normalizedSettings = normalizePersistedSettings(uiSettings);
         if (!aiApiKey.trim()) throw new Error('Missing AI API key');
@@ -265,6 +280,7 @@ export async function runAiSummaryStreamWorker(
         const sourceTextHash = sha256(sourceText);
         const session = await ensureSummarySession({
           pool: input.pool,
+          userId: article.userId,
           articleId: input.articleId,
           sessionId: input.sessionId ?? null,
           jobId: input.jobId,
@@ -285,6 +301,7 @@ export async function runAiSummaryStreamWorker(
 
         draftText = session.draftText ?? '';
         await deps.insertAiSummaryEvent(input.pool, {
+          userId: article.userId,
           sessionId: session.id,
           eventType: 'session.started',
           payload: {
@@ -305,15 +322,18 @@ export async function runAiSummaryStreamWorker(
           draftText += deltaText;
 
           await deps.updateAiSummarySessionDraft(input.pool, {
+            userId: article.userId,
             sessionId: session.id,
             draftText,
           });
           await deps.insertAiSummaryEvent(input.pool, {
+            userId: article.userId,
             sessionId: session.id,
             eventType: 'summary.delta',
             payload: { deltaText },
           });
           await deps.insertAiSummaryEvent(input.pool, {
+            userId: article.userId,
             sessionId: session.id,
             eventType: 'summary.snapshot',
             payload: { draftText },
@@ -327,11 +347,13 @@ export async function runAiSummaryStreamWorker(
 
         await ensureSharedConfigCurrent();
         await deps.completeAiSummarySession(input.pool, {
+          userId: article.userId,
           sessionId: session.id,
           finalText,
           model,
         });
         await deps.insertAiSummaryEvent(input.pool, {
+          userId: article.userId,
           sessionId: session.id,
           eventType: 'session.completed',
           payload: {
@@ -341,6 +363,7 @@ export async function runAiSummaryStreamWorker(
           },
         });
         await deps.setArticleAiSummary(input.pool, input.articleId, {
+          userId: article.userId,
           aiSummary: finalText,
           aiSummaryModel: model,
         });
@@ -350,7 +373,11 @@ export async function runAiSummaryStreamWorker(
           let failureDraftText = draftText;
           if (!failureDraftText) {
             try {
-              const existingSession = await deps.getAiSummarySessionById(input.pool, sessionIdForFailure);
+              const existingSession = await deps.getAiSummarySessionById(
+                input.pool,
+                sessionIdForFailure,
+                input.userId ?? undefined,
+              );
               failureDraftText = existingSession?.draftText ?? '';
             } catch {
               // Keep best-effort fallback draft text.
@@ -359,6 +386,7 @@ export async function runAiSummaryStreamWorker(
 
           try {
             await deps.failAiSummarySession(input.pool, {
+              userId: input.userId ?? undefined,
               sessionId: sessionIdForFailure,
               draftText: failureDraftText,
               errorCode: mapped.errorCode,
@@ -366,6 +394,7 @@ export async function runAiSummaryStreamWorker(
               rawErrorMessage: mapped.rawErrorMessage,
             });
             await deps.insertAiSummaryEvent(input.pool, {
+              userId: input.userId ?? undefined,
               sessionId: sessionIdForFailure,
               eventType: 'session.failed',
               payload: {

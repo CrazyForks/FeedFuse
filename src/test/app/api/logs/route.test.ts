@@ -55,6 +55,7 @@ describe('/api/logs', () => {
       keyword: 'summary',
       page: 2,
       pageSize: 20,
+      userId: '1',
     });
     expect(json.ok).toBe(true);
     expect(json.data.items[0].context).toEqual({ status: 429, durationMs: 812 });
@@ -82,7 +83,7 @@ describe('/api/logs', () => {
     const res = await mod.DELETE(new Request('http://localhost/api/logs', { method: 'DELETE' }));
     const json = await res.json();
 
-    expect(clearSystemLogsMock).toHaveBeenCalledWith(pool);
+    expect(clearSystemLogsMock).toHaveBeenCalledWith(pool, { userId: '1' });
     expect(json.ok).toBe(true);
     expect(json.data).toEqual({ deletedCount: 42 });
   });

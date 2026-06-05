@@ -38,10 +38,10 @@ describe('/api/opml/export', () => {
     const mod = await import('../../../../../app/api/opml/export/route');
     const res = await mod.GET();
 
-    expect(exportOpmlMock).toHaveBeenCalledWith(pool);
+    expect(exportOpmlMock).toHaveBeenCalledWith(pool, '1');
     expect(writeUserOperationSucceededLogMock).toHaveBeenCalledWith(
       pool,
-      expect.objectContaining({ actionKey: 'opml.export' }),
+      expect.objectContaining({ userId: '1', actionKey: 'opml.export' }),
     );
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('application/xml');

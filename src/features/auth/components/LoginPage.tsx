@@ -5,12 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ApiError, login } from '@/lib/api/apiClient';
+import { useAuthStore } from '@/store/authStore';
 
 export default function LoginPage() {
+  const usernameLabelId = 'login-username-label';
   const passwordLabelId = 'login-password-label';
+  const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isPending, startTransition] = useTransition();
+  const setCurrentUser = useAuthStore((state) => state.setCurrentUser);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -19,7 +23,10 @@ export default function LoginPage() {
     startTransition(() => {
       void (async () => {
         try {
-          await login({ password });
+          const result = await login({ username, password });
+          if (result.user) {
+            setCurrentUser(result.user);
+          }
           window.location.assign('/');
         } catch (err) {
           if (err instanceof ApiError) {
@@ -55,6 +62,20 @@ export default function LoginPage() {
             </div>
 
             <form className="space-y-5" onSubmit={handleSubmit}>
+              <div className="space-y-2">
+                <Label id={usernameLabelId}>用户名</Label>
+                <Input
+                  id="login-username"
+                  type="text"
+                  autoComplete="username"
+                  aria-labelledby={usernameLabelId}
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  placeholder="输入用户名"
+                  aria-invalid={errorMessage ? 'true' : 'false'}
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label id={passwordLabelId}>密码</Label>
                 <Input

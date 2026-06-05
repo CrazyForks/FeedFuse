@@ -69,12 +69,13 @@ describe('/api/opml/import', () => {
 
     expect(res.status).toBe(200);
     expect(importOpmlMock).toHaveBeenCalledWith(pool, {
+      userId: '1',
       content: VALID_OPML,
       fileName: 'feeds.opml',
     });
     expect(writeUserOperationSucceededLogMock).toHaveBeenCalledWith(
       pool,
-      expect.objectContaining({ actionKey: 'opml.import' }),
+      expect.objectContaining({ userId: '1', actionKey: 'opml.import' }),
     );
     expect(await res.json()).toMatchObject({
       ok: true,

@@ -13,6 +13,7 @@ const ACTIVE_FEVER_ARTICLE_SQL = `
     select 1
     from fever_item_mappings fim
     where fim.local_article_id = articles.id
+      and fim.user_id = articles.user_id
       and fim.is_active = false
   )
   and not exists (
@@ -24,6 +25,9 @@ const ACTIVE_FEVER_ARTICLE_SQL = `
     left join fever_accounts fa
       on fa.id = ffm.fever_account_id
     where fim.local_article_id = articles.id
+      and fim.user_id = articles.user_id
+      and ffm.user_id = articles.user_id
+      and fa.user_id = articles.user_id
       and (
         ffm.is_active = false
         or coalesce(fa.enabled, true) = false
@@ -66,17 +70,18 @@ function serializeCursorPublishedAt(value: unknown): string {
 
 export function buildArticleFilter(input: {
   view: string;
+  userId?: string;
   cursor?: string | null;
   limit?: number;
   unreadOnly?: boolean;
   includeFiltered?: boolean;
 }): { whereSql: string; params: unknown[]; limit: number } {
-  const whereParts: string[] = [];
-  const params: unknown[] = [];
-  let paramIndex = 1;
+  const whereParts: string[] = ['articles.user_id = $1'];
+  const params: unknown[] = [input.userId ?? '1'];
+  let paramIndex = 2;
 
   if (input.view === AI_DIGEST_VIEW_ID) {
-    whereParts.push("feed_id in (select id from feeds where kind = 'ai_digest')");
+    whereParts.push("feed_id in (select id from feeds where user_id = $1 and kind = 'ai_digest')");
   } else if (input.view === 'unread') {
     whereParts.push('is_read = false');
   } else if (input.view === 'starred') {
@@ -87,7 +92,7 @@ export function buildArticleFilter(input: {
   }
 
   if (isRssSmartView(input.view)) {
-    whereParts.push("feed_id in (select id from feeds where kind = 'rss')");
+    whereParts.push("feed_id in (select id from feeds where user_id = $1 and kind = 'rss')");
   }
 
   if (input.unreadOnly) {
@@ -286,6 +291,7 @@ async function queryArticleRows(
     cursor?: string | null;
     unreadOnly?: boolean;
     includeFiltered?: boolean;
+    userId?: string;
   },
 ): Promise<ArticleQueryRow[]> {
   const { whereSql, params, limit } = buildArticleFilter(input);
@@ -331,6 +337,7 @@ async function queryArticleRows(
         coalesce(articles.published_at, 'epoch'::timestamptz) as "sortPublishedAt"
       from articles
       inner join feeds on feeds.id = articles.feed_id
+        and feeds.user_id = articles.user_id
       left join lateral (
         select
           id,
@@ -345,6 +352,7 @@ async function queryArticleRows(
           updated_at
         from article_ai_summary_sessions
         where article_id = articles.id
+          and user_id = articles.user_id
           and superseded_by_session_id is null
         order by
           case when status in ('queued', 'running') then 0 else 1 end,
@@ -364,12 +372,13 @@ async function queryArticleRows(
 
 async function queryArticleTotalCount(
   pool: Pool,
-  input: { view: string; unreadOnly?: boolean; includeFiltered?: boolean },
+  input: { view: string; unreadOnly?: boolean; includeFiltered?: boolean; userId?: string },
 ): Promise<number> {
   const { whereSql, params } = buildArticleFilter({
     view: input.view,
     unreadOnly: input.unreadOnly,
     includeFiltered: input.includeFiltered,
+    userId: input.userId,
   });
 
   const { rows } = await pool.query<{ totalCount: number }>(
@@ -392,11 +401,13 @@ export async function getReaderSnapshot(
     cursor?: string | null;
     unreadOnly?: boolean;
     includeFiltered?: boolean;
+    userId?: string;
   },
 ): Promise<ReaderSnapshot> {
+  const userId = input.userId ?? '1';
   const [categories, feeds] = await Promise.all([
-    listCategories(pool),
-    listFeeds(pool),
+    listCategories(pool, userId),
+    listFeeds(pool, userId),
   ]);
 
   const { rows: unreadRows } = await pool.query<{
@@ -405,11 +416,12 @@ export async function getReaderSnapshot(
   }>(`
     select feed_id as "feedId", count(*)::int as "unreadCount"
     from articles
-    where is_read = false
+    where user_id = $1
+      and is_read = false
       and filter_status = any('{passed,error}'::text[])
       and ${ACTIVE_FEVER_ARTICLE_SQL}
     group by feed_id
-  `);
+  `, [userId]);
 
   const unreadByFeedId = new Map<string, number>();
   for (const row of unreadRows) {
@@ -432,12 +444,14 @@ export async function getReaderSnapshot(
       cursor: input.cursor,
       unreadOnly: input.unreadOnly,
       includeFiltered: input.includeFiltered,
+      userId,
     }),
     // The header count must reflect the full filtered result set, not the current page window.
     queryArticleTotalCount(pool, {
       view: input.view,
       unreadOnly: input.unreadOnly,
       includeFiltered: input.includeFiltered,
+      userId,
     }),
   ]);
   const nextCursor =

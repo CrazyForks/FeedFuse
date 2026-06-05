@@ -10,16 +10,17 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST() {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
     const run = await initializeFeedRefreshRun(getPool(), {
       scope: 'all',
+      userId: session.userId,
     });
-    const payload = { force: true, runId: run.id };
+    const payload = { force: true, runId: run.id, userId: session.userId };
     const result = await enqueueWithResult(
       JOB_REFRESH_ALL,
       payload,

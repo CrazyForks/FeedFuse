@@ -42,9 +42,9 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -57,10 +57,10 @@ export async function GET(
     }
 
     const pool = getPool();
-    const article = await getArticleById(pool, paramsParsed.data.id);
+    const article = await getArticleById(pool, paramsParsed.data.id, session.userId);
     if (!article) return fail(new NotFoundError('Article not found'));
 
-    const rows = await getArticleTasksByArticleId(pool, paramsParsed.data.id);
+    const rows = await getArticleTasksByArticleId(pool, paramsParsed.data.id, session.userId);
     const byType = new Map(rows.map((row) => [row.type, row]));
 
     const fulltext = byType.get('fulltext');

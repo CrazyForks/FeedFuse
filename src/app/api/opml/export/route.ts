@@ -8,15 +8,16 @@ import {
 import { exportOpml } from '@/server/domains/settings/services/opmlService';
 
 export async function GET() {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
     const pool = getPool();
-    const result = await exportOpml(pool);
+    const result = await exportOpml(pool, session.userId);
     await writeUserOperationSucceededLog(pool, {
+      userId: session.userId,
       actionKey: 'opml.export',
       source: 'app/api/opml/export',
       context: { fileName: result.fileName },
@@ -31,6 +32,7 @@ export async function GET() {
     });
   } catch (error) {
     await writeUserOperationFailedLog(getPool(), {
+      userId: session.userId,
       actionKey: 'opml.export',
       source: 'app/api/opml/export',
       err: error,

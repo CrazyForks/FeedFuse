@@ -22,6 +22,7 @@ import {
   runImmediateFailure,
   runImmediateSuccess,
 } from '../features/notifications/userOperationNotifier';
+import { AUTH_ANONYMOUS_STORAGE_USER_ID, getCurrentStorageUserId } from './authStore';
 
 const READER_SELECTION_VIEW_PARAM = 'view';
 const READER_SELECTION_ARTICLE_PARAM = 'article';
@@ -95,7 +96,13 @@ function readUnreadOnlyByViewFromStorage(): Record<string, boolean> {
   if (typeof window === 'undefined') return {};
 
   try {
-    const raw = window.localStorage.getItem(READER_UNREAD_ONLY_BY_VIEW_STORAGE_KEY);
+    const userId = getCurrentStorageUserId();
+    const raw =
+      window.localStorage.getItem(resolveUnreadOnlyStorageKey()) ??
+      // 默认管理员继承旧单用户缓存；其他用户必须使用自己的命名空间。
+      (userId === AUTH_ANONYMOUS_STORAGE_USER_ID || userId === '1'
+        ? window.localStorage.getItem(READER_UNREAD_ONLY_BY_VIEW_STORAGE_KEY)
+        : null);
     if (!raw) return {};
 
     const parsed: unknown = JSON.parse(raw);
@@ -117,12 +124,16 @@ function persistUnreadOnlyByViewToStorage(unreadOnlyByView: Record<string, boole
 
   try {
     window.localStorage.setItem(
-      READER_UNREAD_ONLY_BY_VIEW_STORAGE_KEY,
+      resolveUnreadOnlyStorageKey(),
       JSON.stringify(unreadOnlyByView),
     );
   } catch {
     // 忽略隐私模式或受限浏览环境中的存储写入失败。
   }
+}
+
+function resolveUnreadOnlyStorageKey(): string {
+  return `${READER_UNREAD_ONLY_BY_VIEW_STORAGE_KEY}:${getCurrentStorageUserId()}`;
 }
 
 function resolveUnreadOnlyForView(
@@ -163,6 +174,7 @@ interface AppState {
     articleHistory?: ReaderSelectionHistoryMode;
   }) => Promise<void>;
   toggleShowUnreadOnly: () => void;
+  rehydrateUserScopedLocalState: () => void;
   toggleShowFilteredForFeed: (feedId: string) => void;
   refreshArticle: (
     articleId: string,
@@ -697,6 +709,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Reload the current snapshot so pagination and server-side unread filtering stay in sync.
     void get().loadSnapshot({ view });
   },
+  rehydrateUserScopedLocalState: () =>
+    set((state) => {
+      const unreadOnlyByView = readUnreadOnlyByViewFromStorage();
+      return {
+        unreadOnlyByView,
+        showUnreadOnly: resolveUnreadOnlyForView(state.selectedView, unreadOnlyByView),
+      };
+    }),
   toggleShowFilteredForFeed: (feedId) =>
     set((state) => ({
       showFilteredByFeedId: {

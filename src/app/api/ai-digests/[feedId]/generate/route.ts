@@ -37,9 +37,9 @@ export async function POST(
   _request: Request,
   context: { params: Promise<{ feedId: string }> },
 ) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -51,8 +51,8 @@ export async function POST(
 
     const pool = getPool();
     const [aiApiKey, uiSettings] = await Promise.all([
-      getAiApiKey(pool),
-      getUiSettings(pool),
+      getAiApiKey(pool, session.userId),
+      getUiSettings(pool, session.userId),
     ]);
     if (!aiApiKey.trim()) {
       return ok({ enqueued: false, reason: 'missing_api_key' });
@@ -64,15 +64,20 @@ export async function POST(
     });
 
     const feedId = parsedParams.data.feedId;
-    const config = await getAiDigestConfigByFeedId(pool, feedId);
+    const config = await getAiDigestConfigByFeedId(pool, feedId, session.userId);
     if (!config) return fail(new NotFoundError('AI digest config not found'));
 
     const windowStartAt = config.lastWindowEndAt;
     const windowEndAt = new Date().toISOString();
 
-    const existing = await getAiDigestRunByFeedIdAndWindowStartAt(pool, { feedId, windowStartAt });
+    const existing = await getAiDigestRunByFeedIdAndWindowStartAt(pool, {
+      feedId,
+      windowStartAt,
+      userId: session.userId,
+    });
     if (existing && (existing.status === 'queued' || existing.status === 'running')) {
       await writeUserOperationStartedLog(pool, {
+        userId: session.userId,
         actionKey: 'aiDigest.generate',
         source: 'app/api/ai-digests/[feedId]/generate',
         context: { feedId, runId: existing.id },
@@ -82,6 +87,7 @@ export async function POST(
 
     const created =
       (existing && existing.status === 'failed') ? existing : await createAiDigestRun(pool, {
+        userId: session.userId,
         feedId,
         windowStartAt,
         windowEndAt,
@@ -89,9 +95,14 @@ export async function POST(
       });
 
     if (!created) {
-      const again = await getAiDigestRunByFeedIdAndWindowStartAt(pool, { feedId, windowStartAt });
+      const again = await getAiDigestRunByFeedIdAndWindowStartAt(pool, {
+        feedId,
+        windowStartAt,
+        userId: session.userId,
+      });
       if (again && (again.status === 'queued' || again.status === 'running')) {
         await writeUserOperationStartedLog(pool, {
+          userId: session.userId,
           actionKey: 'aiDigest.generate',
           source: 'app/api/ai-digests/[feedId]/generate',
           context: { feedId, runId: again.id },
@@ -102,6 +113,7 @@ export async function POST(
       // allow manual retry for failed
       if (again.status !== 'failed') {
         await writeUserOperationStartedLog(pool, {
+          userId: session.userId,
           actionKey: 'aiDigest.generate',
           source: 'app/api/ai-digests/[feedId]/generate',
           context: { feedId, runId: again.id },
@@ -112,13 +124,17 @@ export async function POST(
 
     const runId = created
       ? created.id
-      : (await getAiDigestRunByFeedIdAndWindowStartAt(pool, { feedId, windowStartAt }))!.id;
+      : (await getAiDigestRunByFeedIdAndWindowStartAt(pool, {
+          feedId,
+          windowStartAt,
+          userId: session.userId,
+        }))!.id;
 
-    const payload = { runId, sharedConfigFingerprint };
+    const payload = { userId: session.userId, runId, sharedConfigFingerprint };
     const enqueueResult = await enqueueWithResult(
       JOB_AI_DIGEST_GENERATE,
       payload,
-      getQueueSendOptions(JOB_AI_DIGEST_GENERATE, { runId }),
+      getQueueSendOptions(JOB_AI_DIGEST_GENERATE, payload),
     );
     if (enqueueResult.status !== 'enqueued') {
       return ok({ enqueued: false, reason: 'already_running', runId });
@@ -129,8 +145,10 @@ export async function POST(
       status: 'queued',
       errorCode: null,
       errorMessage: null,
+      userId: session.userId,
     });
     await writeUserOperationStartedLog(pool, {
+      userId: session.userId,
       actionKey: 'aiDigest.generate',
       source: 'app/api/ai-digests/[feedId]/generate',
       context: { feedId, runId },

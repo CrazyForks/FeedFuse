@@ -22,6 +22,7 @@ interface CreatedArticleForAutoAi {
 export async function enqueueAutoAiTriggersOnFetch(
   boss: Pick<PgBoss, 'send'>,
   input: {
+    userId?: string | null;
     feed: FeedAutoAiTriggerFlags;
     created: CreatedArticleForAutoAi | null;
   },
@@ -32,8 +33,11 @@ export async function enqueueAutoAiTriggersOnFetch(
   if (feed.aiSummaryOnFetchEnabled === true && !created.aiSummary?.trim()) {
     await boss.send(
       JOB_AI_SUMMARIZE,
-      { articleId: created.id },
-      getQueueSendOptions(JOB_AI_SUMMARIZE, { articleId: created.id }),
+      { articleId: created.id, ...(input.userId ? { userId: input.userId } : {}) },
+      getQueueSendOptions(JOB_AI_SUMMARIZE, {
+        articleId: created.id,
+        ...(input.userId ? { userId: input.userId } : {}),
+      }),
     );
   }
 
@@ -53,8 +57,11 @@ export async function enqueueAutoAiTriggersOnFetch(
 
     await boss.send(
       JOB_AI_TRANSLATE,
-      { articleId: created.id },
-      getQueueSendOptions(JOB_AI_TRANSLATE, { articleId: created.id }),
+      { articleId: created.id, ...(input.userId ? { userId: input.userId } : {}) },
+      getQueueSendOptions(JOB_AI_TRANSLATE, {
+        articleId: created.id,
+        ...(input.userId ? { userId: input.userId } : {}),
+      }),
     );
   }
 }

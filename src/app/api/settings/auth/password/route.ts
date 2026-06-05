@@ -1,15 +1,14 @@
 import { z } from 'zod';
 import { getPool } from '@/server/infra/db/pool';
-import { AUTH_INITIAL_PASSWORD_SETUP_MESSAGE } from '@/server/domains/auth/services/shared';
 import {
   createSessionCookieHeader,
   requireApiSession,
-  verifyPasswordAgainstAuthConfig,
 } from '@/server/domains/auth/services/session';
-import { hashPassword } from '@/server/domains/auth/services/password';
+import { changeUserPassword, getUserById } from '@/server/domains/auth/repositories/usersRepo';
+import { hashPassword, verifyPassword } from '@/server/domains/auth/services/password';
 import { ok, fail } from '@/server/infra/http/apiResponse';
-import { ServiceUnavailableError, UnauthorizedError, ValidationError } from '@/server/infra/http/errors';
-import { updateAuthPassword } from '@/server/domains/settings/repositories/settingsRepo';
+import { ForbiddenError, UnauthorizedError, ValidationError } from '@/server/infra/http/errors';
+import { isInitialUser } from '@/server/domains/auth/userType';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -20,9 +19,9 @@ const changePasswordBodySchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if ('response' in session) {
+    return session.response;
   }
 
   try {
@@ -41,23 +40,30 @@ export async function POST(request: Request) {
       });
     }
 
-    const currentPasswordResult = await verifyPasswordAgainstAuthConfig(parsed.data.currentPassword);
-    if (!currentPasswordResult.ok) {
-      if (currentPasswordResult.reason === 'missing_initial_password') {
-        throw new ServiceUnavailableError(AUTH_INITIAL_PASSWORD_SETUP_MESSAGE);
-      }
-
+    const pool = getPool();
+    const user = await getUserById(pool, session.userId);
+    if (!user || !isInitialUser(user)) {
+      throw new ForbiddenError('仅初始用户本人可以修改该密码');
+    }
+    if (!verifyPassword(parsed.data.currentPassword, user.passwordHash)) {
       throw new UnauthorizedError('当前密码错误，请重试');
     }
 
     const nextPasswordHash = hashPassword(parsed.data.nextPassword);
-    const authSettings = await updateAuthPassword(getPool(), nextPasswordHash);
+    const updated = await changeUserPassword(pool, {
+      userId: user.id,
+      passwordHash: nextPasswordHash,
+    });
 
     return ok(
       { updated: true },
       {
         headers: {
-          'set-cookie': await createSessionCookieHeader(authSettings.authSessionSecret),
+          'set-cookie': await createSessionCookieHeader({
+            userId: user.id,
+            role: user.role,
+            sessionVersion: updated?.sessionVersion ?? session.sessionVersion,
+          }),
         },
       },
     );

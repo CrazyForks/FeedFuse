@@ -1,4 +1,5 @@
 import type { Pool, PoolClient } from 'pg';
+import { normalizeUserId } from '@/server/domains/users/userScope';
 
 type DbClient = Pool | PoolClient;
 
@@ -7,6 +8,7 @@ export type FeedProvider = 'local_rss' | 'fever';
 
 export interface FeedRow {
   id: string;
+  userId: string;
   kind: FeedKind;
   provider: FeedProvider;
   title: string;
@@ -31,14 +33,42 @@ export interface FeedRow {
   isPodcast: boolean;
 }
 
+const feedRowSelectSql = `
+        id,
+        user_id::text as "userId",
+        kind,
+        provider,
+        title,
+        url,
+        site_url as "siteUrl",
+        icon_url as "iconUrl",
+        enabled,
+        full_text_on_open_enabled as "fullTextOnOpenEnabled",
+        full_text_on_fetch_enabled as "fullTextOnFetchEnabled",
+        ai_summary_on_open_enabled as "aiSummaryOnOpenEnabled",
+        ai_summary_on_fetch_enabled as "aiSummaryOnFetchEnabled",
+        body_translate_on_fetch_enabled as "bodyTranslateOnFetchEnabled",
+        body_translate_on_open_enabled as "bodyTranslateOnOpenEnabled",
+        title_translate_enabled as "titleTranslateEnabled",
+        body_translate_enabled as "bodyTranslateEnabled",
+        article_list_display_mode as "articleListDisplayMode",
+        category_id as "categoryId",
+        fetch_interval_minutes as "fetchIntervalMinutes",
+        last_fetch_status as "lastFetchStatus",
+        last_fetch_error as "lastFetchError",
+        last_fetch_raw_error as "lastFetchRawError"
+`;
+
 export interface FeedRefreshDispatchRow {
   id: string;
+  userId: string;
   kind: FeedKind;
   provider: FeedProvider;
   enabled: boolean;
 }
 
-export async function listFeeds(db: DbClient): Promise<FeedRow[]> {
+export async function listFeeds(db: DbClient, userId?: string): Promise<FeedRow[]> {
+  const scopedUserId = normalizeUserId(userId);
   const { rows } = await db.query<FeedRow>(`
     -- 返回 provider，供上层区分本地源和 Fever 托管源。
     select
@@ -69,23 +99,28 @@ export async function listFeeds(db: DbClient): Promise<FeedRow[]> {
         from articles
         join article_media_attachments on article_media_attachments.article_id = articles.id
         where articles.feed_id = feeds.id
+          and articles.user_id = feeds.user_id
+          and article_media_attachments.user_id = feeds.user_id
         limit 1
       ) as "isPodcast"
     from feeds
-    where (
+    where feeds.user_id = $1
+      and (
       feeds.provider <> 'fever'
       or exists (
         select 1
         from fever_feed_mappings ffm
         join fever_accounts fa on fa.id = ffm.fever_account_id
         where ffm.local_feed_id = feeds.id
+          and ffm.user_id = feeds.user_id
+          and fa.user_id = feeds.user_id
           and ffm.is_active = true
           -- 账号停用后，关联的 Fever 投影源也必须从左栏隐藏。
           and fa.enabled = true
       )
     )
     order by created_at asc, id asc
-  `);
+  `, [scopedUserId]);
   return rows;
 }
 
@@ -109,11 +144,14 @@ export async function createFeed(
     articleListDisplayMode?: 'card' | 'list';
     categoryId?: string | null;
     fetchIntervalMinutes?: number;
+    userId?: string;
   },
 ): Promise<FeedRow> {
+  const scopedUserId = normalizeUserId(input.userId);
   const { rows } = await db.query<FeedRow>(
     `
       insert into feeds(
+        user_id,
         title,
         url,
         provider,
@@ -132,29 +170,13 @@ export async function createFeed(
         category_id,
         fetch_interval_minutes
       )
-      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       returning
-        id,
-        kind,
-        provider,
-        title,
-        url,
-        site_url as "siteUrl",
-        icon_url as "iconUrl",
-        enabled,
-        full_text_on_open_enabled as "fullTextOnOpenEnabled",
-        full_text_on_fetch_enabled as "fullTextOnFetchEnabled",
-        ai_summary_on_open_enabled as "aiSummaryOnOpenEnabled",
-        ai_summary_on_fetch_enabled as "aiSummaryOnFetchEnabled",
-        body_translate_on_fetch_enabled as "bodyTranslateOnFetchEnabled",
-        body_translate_on_open_enabled as "bodyTranslateOnOpenEnabled",
-        title_translate_enabled as "titleTranslateEnabled",
-        body_translate_enabled as "bodyTranslateEnabled",
-        article_list_display_mode as "articleListDisplayMode",
-        category_id as "categoryId",
-        fetch_interval_minutes as "fetchIntervalMinutes"
+        ${feedRowSelectSql},
+        false as "isPodcast"
     `,
     [
+      scopedUserId,
       input.title,
       input.url,
       input.provider ?? 'local_rss',
@@ -180,38 +202,19 @@ export async function createFeed(
 export async function getFeedByUrl(
   db: DbClient,
   url: string,
+  userId?: string,
 ): Promise<FeedRow | null> {
   const { rows } = await db.query<FeedRow>(
     `
       select
-        id,
-        kind,
-        provider,
-        title,
-        url,
-        site_url as "siteUrl",
-        icon_url as "iconUrl",
-        enabled,
-        full_text_on_open_enabled as "fullTextOnOpenEnabled",
-        full_text_on_fetch_enabled as "fullTextOnFetchEnabled",
-        ai_summary_on_open_enabled as "aiSummaryOnOpenEnabled",
-        ai_summary_on_fetch_enabled as "aiSummaryOnFetchEnabled",
-        body_translate_on_fetch_enabled as "bodyTranslateOnFetchEnabled",
-        body_translate_on_open_enabled as "bodyTranslateOnOpenEnabled",
-        title_translate_enabled as "titleTranslateEnabled",
-        body_translate_enabled as "bodyTranslateEnabled",
-        article_list_display_mode as "articleListDisplayMode",
-        category_id as "categoryId",
-        fetch_interval_minutes as "fetchIntervalMinutes",
-        last_fetch_status as "lastFetchStatus",
-        last_fetch_error as "lastFetchError",
-        last_fetch_raw_error as "lastFetchRawError",
+        ${feedRowSelectSql},
         false as "isPodcast"
       from feeds
-      where url = $1
+      where user_id = $1
+        and url = $2
       limit 1
     `,
-    [url],
+    [normalizeUserId(userId), url],
   );
   return rows[0] ?? null;
 }
@@ -219,58 +222,63 @@ export async function getFeedByUrl(
 export async function getFeedById(
   db: DbClient,
   id: string,
+  userId?: string,
 ): Promise<FeedRow | null> {
   const { rows } = await db.query<FeedRow>(
     `
       select
-        id,
-        kind,
-        provider,
-        title,
-        url,
-        site_url as "siteUrl",
-        icon_url as "iconUrl",
-        enabled,
-        full_text_on_open_enabled as "fullTextOnOpenEnabled",
-        full_text_on_fetch_enabled as "fullTextOnFetchEnabled",
-        ai_summary_on_open_enabled as "aiSummaryOnOpenEnabled",
-        ai_summary_on_fetch_enabled as "aiSummaryOnFetchEnabled",
-        body_translate_on_fetch_enabled as "bodyTranslateOnFetchEnabled",
-        body_translate_on_open_enabled as "bodyTranslateOnOpenEnabled",
-        title_translate_enabled as "titleTranslateEnabled",
-        body_translate_enabled as "bodyTranslateEnabled",
-        article_list_display_mode as "articleListDisplayMode",
-        category_id as "categoryId",
-        fetch_interval_minutes as "fetchIntervalMinutes",
-        last_fetch_status as "lastFetchStatus",
-        last_fetch_error as "lastFetchError",
-        last_fetch_raw_error as "lastFetchRawError",
+        ${feedRowSelectSql},
         false as "isPodcast"
       from feeds
       where id = $1
+        and user_id = $2
       limit 1
     `,
-    [id],
+    [id, normalizeUserId(userId)],
   );
   return rows[0] ?? null;
+}
+
+export async function listFeedsByIds(
+  db: DbClient,
+  ids: string[],
+  userId?: string,
+): Promise<FeedRow[]> {
+  if (ids.length === 0) return [];
+
+  const { rows } = await db.query<FeedRow>(
+    `
+      select
+        ${feedRowSelectSql},
+        false as "isPodcast"
+      from feeds
+      where user_id = $1
+        and id = any($2::bigint[])
+    `,
+    [normalizeUserId(userId), ids],
+  );
+  return rows;
 }
 
 export async function getFeedRefreshDispatchRow(
   db: DbClient,
   id: string,
+  userId?: string,
 ): Promise<FeedRefreshDispatchRow | null> {
   const { rows } = await db.query<FeedRefreshDispatchRow>(
     `
       select
         id,
+        user_id as "userId",
         kind,
         provider,
         enabled
       from feeds
       where id = $1
+        and user_id = $2
       limit 1
     `,
-    [id],
+    [id, normalizeUserId(userId)],
   );
   return rows[0] ?? null;
 }
@@ -295,8 +303,10 @@ export async function updateFeed(
     articleListDisplayMode?: 'card' | 'list';
     categoryId?: string | null;
     fetchIntervalMinutes?: number;
+    userId?: string;
   },
 ): Promise<FeedRow | null> {
+  const scopedUserId = normalizeUserId(input.userId);
   const fields: string[] = [];
   const values: Array<string | boolean | number | null> = [];
   let paramIndex = 1;
@@ -369,46 +379,35 @@ export async function updateFeed(
 
   fields.push('updated_at = now()');
   values.push(id);
+  values.push(scopedUserId);
 
   const { rows } = await db.query<FeedRow>(
     `
       update feeds
       set ${fields.join(', ')}
       where id = $${paramIndex}
+        and user_id = $${paramIndex + 1}
       returning
-        id,
-        kind,
-        provider,
-        title,
-        url,
-        site_url as "siteUrl",
-        icon_url as "iconUrl",
-        enabled,
-        full_text_on_open_enabled as "fullTextOnOpenEnabled",
-        full_text_on_fetch_enabled as "fullTextOnFetchEnabled",
-        ai_summary_on_open_enabled as "aiSummaryOnOpenEnabled",
-        ai_summary_on_fetch_enabled as "aiSummaryOnFetchEnabled",
-        body_translate_on_fetch_enabled as "bodyTranslateOnFetchEnabled",
-        body_translate_on_open_enabled as "bodyTranslateOnOpenEnabled",
-        title_translate_enabled as "titleTranslateEnabled",
-        body_translate_enabled as "bodyTranslateEnabled",
-        article_list_display_mode as "articleListDisplayMode",
-        category_id as "categoryId",
-        fetch_interval_minutes as "fetchIntervalMinutes"
+        ${feedRowSelectSql},
+        false as "isPodcast"
     `,
     values,
   );
   return rows[0] ?? null;
 }
 
-export async function deleteFeed(db: DbClient, id: string): Promise<boolean> {
-  const res = await db.query('delete from feeds where id = $1', [id]);
+export async function deleteFeed(db: DbClient, id: string, userId?: string): Promise<boolean> {
+  const res = await db.query('delete from feeds where id = $1 and user_id = $2', [
+    id,
+    normalizeUserId(userId),
+  ]);
   return (res.rowCount ?? 0) > 0;
 }
 
 export async function getFeedCategoryAssignment(
   db: DbClient,
   id: string,
+  userId?: string,
 ): Promise<{ id: string; categoryId: string | null; siteUrl: string | null } | null> {
   const { rows } = await db.query<{ id: string; categoryId: string | null; siteUrl: string | null }>(
     `
@@ -418,9 +417,10 @@ export async function getFeedCategoryAssignment(
         site_url as "siteUrl"
       from feeds
       where id = $1
+        and user_id = $2
       limit 1
     `,
-    [id],
+    [id, normalizeUserId(userId)],
   );
   return rows[0] ?? null;
 }
@@ -428,6 +428,7 @@ export async function getFeedCategoryAssignment(
 export async function getFeedFaviconTarget(
   db: DbClient,
   id: string,
+  userId?: string,
 ): Promise<{ id: string; kind: FeedKind; siteUrl: string | null; iconUrl: string | null } | null> {
   const { rows } = await db.query<{
     id: string;
@@ -443,9 +444,10 @@ export async function getFeedFaviconTarget(
         icon_url as "iconUrl"
       from feeds
       where id = $1
+        and user_id = $2
       limit 1
     `,
-    [id],
+    [id, normalizeUserId(userId)],
   );
 
   return rows[0] ?? null;
@@ -454,14 +456,16 @@ export async function getFeedFaviconTarget(
 export async function countFeedsByCategoryId(
   db: DbClient,
   categoryId: string,
+  userId?: string,
 ): Promise<number> {
   const { rows } = await db.query<{ count: number }>(
     `
       select count(*)::int as count
       from feeds
       where category_id = $1
+        and user_id = $2
     `,
-    [categoryId],
+    [categoryId, normalizeUserId(userId)],
   );
   return rows[0]?.count ?? 0;
 }
@@ -469,15 +473,17 @@ export async function countFeedsByCategoryId(
 export async function getFeedFullTextOnOpenEnabled(
   db: DbClient,
   id: string,
+  userId?: string,
 ): Promise<boolean | null> {
   const { rows } = await db.query<{ fullTextOnOpenEnabled: boolean }>(
     `
       select full_text_on_open_enabled as "fullTextOnOpenEnabled"
       from feeds
       where id = $1
+        and user_id = $2
       limit 1
     `,
-    [id],
+    [id, normalizeUserId(userId)],
   );
   return typeof rows[0]?.fullTextOnOpenEnabled === 'boolean'
     ? rows[0].fullTextOnOpenEnabled
@@ -487,15 +493,17 @@ export async function getFeedFullTextOnOpenEnabled(
 export async function getFeedBodyTranslateEnabled(
   db: DbClient,
   id: string,
+  userId?: string,
 ): Promise<boolean | null> {
   const { rows } = await db.query<{ bodyTranslateEnabled: boolean }>(
     `
       select body_translate_enabled as "bodyTranslateEnabled"
       from feeds
       where id = $1
+        and user_id = $2
       limit 1
     `,
-    [id],
+    [id, normalizeUserId(userId)],
   );
   return typeof rows[0]?.bodyTranslateEnabled === 'boolean'
     ? rows[0].bodyTranslateEnabled
@@ -504,6 +512,7 @@ export async function getFeedBodyTranslateEnabled(
 
 export interface FeedFetchRow {
   id: string;
+  userId: string;
   url: string;
   enabled: boolean;
   fullTextOnFetchEnabled: boolean;
@@ -516,11 +525,13 @@ export interface FeedFetchRow {
   lastFetchedAt: string | null;
 }
 
-export async function listEnabledFeedsForFetch(db: DbClient): Promise<FeedFetchRow[]> {
+export async function listEnabledFeedsForFetch(db: DbClient, userId?: string): Promise<FeedFetchRow[]> {
+  const scopedUserId = normalizeUserId(userId);
   const { rows } = await db.query<FeedFetchRow>(`
     -- 仅让本地 RSS 进入抓取队列，Fever 源走独立同步链路。
     select
       id,
+      user_id as "userId",
       url,
       enabled,
       full_text_on_fetch_enabled as "fullTextOnFetchEnabled",
@@ -532,20 +543,25 @@ export async function listEnabledFeedsForFetch(db: DbClient): Promise<FeedFetchR
       fetch_interval_minutes as "fetchIntervalMinutes",
       last_fetched_at as "lastFetchedAt"
     from feeds
-    where enabled = true and kind = 'rss' and provider = 'local_rss'
+    where enabled = true
+      and kind = 'rss'
+      and provider = 'local_rss'
+      and user_id = $1
     order by created_at asc, id asc
-  `);
+  `, [scopedUserId]);
   return rows;
 }
 
 export async function getFeedForFetch(
   db: DbClient,
   id: string,
+  userId?: string,
 ): Promise<FeedFetchRow | null> {
   const { rows } = await db.query<FeedFetchRow>(
     `
       select
         id,
+        user_id as "userId",
         url,
         enabled,
         full_text_on_fetch_enabled as "fullTextOnFetchEnabled",
@@ -557,10 +573,13 @@ export async function getFeedForFetch(
       fetch_interval_minutes as "fetchIntervalMinutes",
       last_fetched_at as "lastFetchedAt"
       from feeds
-      where id = $1 and kind = 'rss' and provider = 'local_rss'
+      where id = $1
+        and user_id = $2
+        and kind = 'rss'
+        and provider = 'local_rss'
       limit 1
     `,
-    [id],
+    [id, normalizeUserId(userId)],
   );
   return rows[0] ?? null;
 }
@@ -574,6 +593,7 @@ export async function recordFeedFetchResult(
     lastModified?: string | null;
     error?: string | null;
     rawError?: string | null;
+    userId?: string;
   },
 ): Promise<void> {
   await db.query(
@@ -588,6 +608,7 @@ export async function recordFeedFetchResult(
         last_fetch_raw_error = $6,
         updated_at = now()
       where id = $1
+        and user_id = $7
     `,
     [
       id,
@@ -596,6 +617,7 @@ export async function recordFeedFetchResult(
       input.status,
       input.error ?? null,
       input.rawError ?? null,
+      normalizeUserId(input.userId),
     ],
   );
 }
@@ -603,6 +625,7 @@ export async function recordFeedFetchResult(
 export async function updateAllFeedsFetchIntervalMinutes(
   db: DbClient,
   minutes: number,
+  userId?: string,
 ): Promise<{ updatedCount: number }> {
   const res = await db.query(
     `
@@ -611,8 +634,9 @@ export async function updateAllFeedsFetchIntervalMinutes(
         fetch_interval_minutes = $1,
         updated_at = now()
       where kind = 'rss'
+        and user_id = $2
     `,
-    [minutes],
+    [minutes, normalizeUserId(userId)],
   );
 
   return { updatedCount: res.rowCount ?? 0 };
@@ -620,46 +644,29 @@ export async function updateAllFeedsFetchIntervalMinutes(
 
 export async function createAiDigestFeed(
   db: DbClient,
-  input: { title: string; categoryId: string | null },
+  input: { title: string; categoryId: string | null; userId?: string },
 ): Promise<FeedRow> {
+  const scopedUserId = normalizeUserId(input.userId);
   // Use one sequence-derived id for both PK and deterministic ai_digest URL suffix.
   const { rows } = await db.query<FeedRow>(
     `
       with next_feed as (
         select nextval(pg_get_serial_sequence('feeds', 'id'))::bigint as id
       )
-      insert into feeds(id, kind, title, url, category_id)
+      insert into feeds(id, user_id, kind, title, url, category_id)
       select
         next_feed.id,
-        'ai_digest',
         $1,
+        'ai_digest',
+        $2,
         'http://localhost/__feedfuse_ai_digest__/' || next_feed.id::text,
-        $2
+        $3
       from next_feed
       returning
-        id,
-        kind,
-        provider,
-        title,
-        url,
-        site_url as "siteUrl",
-        icon_url as "iconUrl",
-        enabled,
-        full_text_on_open_enabled as "fullTextOnOpenEnabled",
-        full_text_on_fetch_enabled as "fullTextOnFetchEnabled",
-        ai_summary_on_open_enabled as "aiSummaryOnOpenEnabled",
-        ai_summary_on_fetch_enabled as "aiSummaryOnFetchEnabled",
-        body_translate_on_fetch_enabled as "bodyTranslateOnFetchEnabled",
-        body_translate_on_open_enabled as "bodyTranslateOnOpenEnabled",
-        title_translate_enabled as "titleTranslateEnabled",
-        body_translate_enabled as "bodyTranslateEnabled",
-        article_list_display_mode as "articleListDisplayMode",
-        category_id as "categoryId",
-        fetch_interval_minutes as "fetchIntervalMinutes",
-        last_fetch_status as "lastFetchStatus",
-        last_fetch_error as "lastFetchError"
+        ${feedRowSelectSql},
+        false as "isPodcast"
     `,
-    [input.title, input.categoryId],
+    [scopedUserId, input.title, input.categoryId],
   );
   return rows[0];
 }

@@ -121,6 +121,98 @@ describe('aiSummaryStreamWorker', () => {
     expect(failSessionMock).not.toHaveBeenCalled();
   });
 
+  it('keeps session userId when resuming an existing non-admin session', async () => {
+    const upsertAiSummarySessionMock = vi.fn().mockResolvedValue({
+      id: 'session-1',
+      articleId: 'article-1',
+      sourceTextHash: 'hash-1',
+      status: 'running',
+      draftText: '',
+      finalText: null,
+      model: null,
+      jobId: 'job-1',
+      errorCode: null,
+      errorMessage: null,
+      rawErrorMessage: null,
+      supersededBySessionId: null,
+      startedAt: '2026-03-09T00:00:00.000Z',
+      finishedAt: null,
+      createdAt: '2026-03-09T00:00:00.000Z',
+      updatedAt: '2026-03-09T00:00:00.000Z',
+    } as never);
+
+    const mod = await import('../../worker/aiSummaryStreamWorker');
+
+    await mod.runAiSummaryStreamWorker({
+      pool: {} as never,
+      articleId: 'article-1',
+      sessionId: 'session-1',
+      jobId: 'job-1',
+      userId: '2',
+      deps: {
+        getArticleById: async () =>
+          ({
+            id: 'article-1',
+            userId: '2',
+            feedId: 'feed-1',
+            contentHtml: '<p>hello</p>',
+            contentFullHtml: null,
+            contentFullError: null,
+            summary: null,
+            aiSummary: null,
+          }) as never,
+        getAiSummarySessionById: async () =>
+          ({
+            id: 'session-1',
+            userId: '2',
+            articleId: 'article-1',
+            sourceTextHash: 'hash-1',
+            status: 'queued',
+            draftText: '',
+            finalText: null,
+            model: null,
+            jobId: 'job-1',
+            errorCode: null,
+            errorMessage: null,
+            rawErrorMessage: null,
+            supersededBySessionId: null,
+            startedAt: '2026-03-09T00:00:00.000Z',
+            finishedAt: null,
+            createdAt: '2026-03-09T00:00:00.000Z',
+            updatedAt: '2026-03-09T00:00:00.000Z',
+          }) as never,
+        getActiveAiSummarySessionByArticleId: async () => null,
+        upsertAiSummarySession: upsertAiSummarySessionMock,
+        getAiApiKey: async () => 'sk-test',
+        getUiSettings: async () =>
+          ({
+            ai: {
+              model: 'gpt-4o-mini',
+              apiBaseUrl: 'https://ai.example.com/v1',
+            },
+          }) as never,
+        getFeedFullTextOnOpenEnabled: async () => false,
+        runArticleTaskWithStatus: async ({ fn }) => fn(),
+        streamSummarizeText: async function* () {
+          yield 'TL;DR';
+        },
+        updateAiSummarySessionDraft: vi.fn().mockResolvedValue(undefined),
+        insertAiSummaryEvent: vi.fn().mockResolvedValue(undefined),
+        completeAiSummarySession: vi.fn().mockResolvedValue(undefined),
+        failAiSummarySession: vi.fn().mockResolvedValue(undefined),
+        setArticleAiSummary: vi.fn().mockResolvedValue(undefined),
+      },
+    });
+
+    expect(upsertAiSummarySessionMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        userId: '2',
+        sessionId: 'session-1',
+      }),
+    );
+  });
+
   it('treats stored verification page fulltext as pending when auto fulltext is enabled', async () => {
     const insertEventMock = vi.fn().mockResolvedValue(undefined);
     const failSessionMock = vi.fn().mockResolvedValue(undefined);

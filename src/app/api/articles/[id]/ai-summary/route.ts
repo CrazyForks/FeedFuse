@@ -129,9 +129,9 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const authSession = await requireApiSession();
+  if (authSession && 'response' in authSession) {
+    return authSession.response;
   }
 
   try {
@@ -145,11 +145,15 @@ export async function GET(
 
     const articleId = paramsParsed.data.id;
     const pool = getPool();
-    const article = await getArticleById(pool, articleId);
+    const article = await getArticleById(pool, articleId, authSession.userId);
     if (!article) return fail(new NotFoundError('Article not found'));
 
-    const session = await getActiveAiSummarySessionByArticleId(pool, articleId);
-    return ok({ session: buildSessionSnapshot(session) });
+    const summarySession = await getActiveAiSummarySessionByArticleId(
+      pool,
+      articleId,
+      authSession.userId,
+    );
+    return ok({ session: buildSessionSnapshot(summarySession) });
   } catch (err) {
     return fail(err);
   }
@@ -159,9 +163,9 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const authSession = await requireApiSession();
+  if (authSession && 'response' in authSession) {
+    return authSession.response;
   }
 
   try {
@@ -178,11 +182,11 @@ export async function POST(
     const bodyParsed = bodySchema.safeParse(await request.json().catch(() => ({})));
     const force = bodyParsed.success ? Boolean(bodyParsed.data.force) : false;
 
-    const article = await getArticleById(pool, articleId);
+    const article = await getArticleById(pool, articleId, authSession.userId);
     if (!article) return fail(new NotFoundError('Article not found'));
 
     // 播客文章不进入 AI 摘要链路，避免对节目内容做文本化处理。
-    const mediaAttachments = await listArticleMediaAttachments(pool, articleId);
+    const mediaAttachments = await listArticleMediaAttachments(pool, articleId, authSession.userId);
     if (mediaAttachments.length > 0) {
       return ok({ enqueued: false, reason: 'podcast_article' });
     }
@@ -190,8 +194,8 @@ export async function POST(
     const usableFulltextHtml = getUsableFulltextHtml(article);
 
     const [aiApiKey, uiSettings] = await Promise.all([
-      getAiApiKey(pool),
-      getUiSettings(pool),
+      getAiApiKey(pool, authSession.userId),
+      getUiSettings(pool, authSession.userId),
     ]);
     if (!aiApiKey.trim()) {
       return ok({ enqueued: false, reason: 'missing_api_key' });
@@ -210,11 +214,11 @@ export async function POST(
       translationApiKey: '',
     });
 
-    const existingSession = await getActiveAiSummarySessionByArticleId(pool, articleId);
+    const existingSession = await getActiveAiSummarySessionByArticleId(pool, articleId, authSession.userId);
     let staleExistingSessionIdToSupersede: string | null = null;
     if (existingSession?.status === 'queued' || existingSession?.status === 'running') {
       const nowMs = Date.now();
-      const taskRows = await getArticleTasksByArticleId(pool, articleId);
+      const taskRows = await getArticleTasksByArticleId(pool, articleId, authSession.userId);
       const aiSummaryTask = taskRows.find((task) => task.type === 'ai_summary');
       if (isAiSummaryTaskActive(aiSummaryTask, nowMs)) {
         return ok({
@@ -232,7 +236,11 @@ export async function POST(
       return ok({ enqueued: false, reason: 'already_summarized' });
     }
 
-    const fullTextOnOpenEnabled = await getFeedFullTextOnOpenEnabled(pool, article.feedId);
+    const fullTextOnOpenEnabled = await getFeedFullTextOnOpenEnabled(
+      pool,
+      article.feedId,
+      authSession.userId,
+    );
     if (isFulltextPending(article, fullTextOnOpenEnabled)) {
       return ok({ enqueued: false, reason: 'fulltext_pending' });
     }
@@ -244,7 +252,8 @@ export async function POST(
     });
     const sourceTextHash = sha256(sourceText);
 
-    const session = await upsertAiSummarySession(pool, {
+    const summarySession = await upsertAiSummarySession(pool, {
+      userId: authSession.userId,
       articleId,
       sourceTextHash,
       status: 'queued',
@@ -260,32 +269,37 @@ export async function POST(
 
     if (
       existingSession &&
-      existingSession.id !== session.id &&
+      existingSession.id !== summarySession.id &&
       (force || staleExistingSessionIdToSupersede === existingSession.id)
     ) {
       await markAiSummarySessionSuperseded(pool, {
+        userId: authSession.userId,
         sessionId: existingSession.id,
-        supersededBySessionId: session.id,
+        supersededBySessionId: summarySession.id,
       });
     }
 
     const enqueueResult = await enqueueWithResult(
       JOB_AI_SUMMARIZE,
-      { articleId, sessionId: session.id, sharedConfigFingerprint },
-      getQueueSendOptions(JOB_AI_SUMMARIZE, { articleId }),
+      { userId: authSession.userId, articleId, sessionId: summarySession.id, sharedConfigFingerprint },
+      getQueueSendOptions(JOB_AI_SUMMARIZE, {
+        userId: authSession.userId,
+        articleId,
+      }),
     );
     if (enqueueResult.status !== 'enqueued') {
-      return ok({ enqueued: false, reason: 'already_enqueued', sessionId: session.id });
+      return ok({ enqueued: false, reason: 'already_enqueued', sessionId: summarySession.id });
     }
 
     await upsertAiSummarySession(pool, {
-      sessionId: session.id,
+      userId: authSession.userId,
+      sessionId: summarySession.id,
       articleId,
       sourceTextHash,
       status: 'queued',
-      draftText: session.draftText,
-      finalText: session.finalText,
-      model: session.model,
+      draftText: summarySession.draftText,
+      finalText: summarySession.finalText,
+      model: summarySession.model,
       jobId: enqueueResult.jobId,
       errorCode: null,
       errorMessage: null,
@@ -294,21 +308,23 @@ export async function POST(
     });
 
     await upsertTaskQueued(pool, {
+      userId: authSession.userId,
       articleId,
       type: 'ai_summary',
       jobId: enqueueResult.jobId,
     });
 
     await writeUserOperationStartedLog(pool, {
+      userId: authSession.userId,
       actionKey: 'article.aiSummary.generate',
       source: 'app/api/articles/[id]/ai-summary',
       context: {
         articleId,
-        sessionId: session.id,
+        sessionId: summarySession.id,
         jobId: enqueueResult.jobId,
       },
     });
-    return ok({ enqueued: true, jobId: enqueueResult.jobId, sessionId: session.id });
+    return ok({ enqueued: true, jobId: enqueueResult.jobId, sessionId: summarySession.id });
   } catch (err) {
     return fail(err);
   }

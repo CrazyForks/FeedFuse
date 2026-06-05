@@ -51,6 +51,7 @@ describe('runAiDigestTick', () => {
     listDueAiDigestConfigFeedIdsMock.mockResolvedValue(['feed-1']);
     getAiDigestConfigByFeedIdMock.mockResolvedValue({
       feedId: 'feed-1',
+      userId: '1',
       lastWindowEndAt: '2026-03-14T00:00:00.000Z',
     });
     getAiDigestRunByFeedIdAndWindowStartAtMock.mockResolvedValue(null);
@@ -63,9 +64,21 @@ describe('runAiDigestTick', () => {
     const pool = { query: vi.fn() };
 
     const { runAiDigestTick } = await import('../../worker/aiDigestTick');
-    await runAiDigestTick({ boss: boss as never, pool: pool as never, now: new Date('2026-03-14T00:01:00.000Z') });
+    await runAiDigestTick({
+      boss: boss as never,
+      pool: pool as never,
+      now: new Date('2026-03-14T00:01:00.000Z'),
+      userId: '1',
+    });
 
     expect(boss.send).toHaveBeenCalledTimes(1);
-    expect(updateAiDigestRunMock).toHaveBeenCalledWith(pool, 'run-1', { jobId: 'job-1' });
+    expect(createAiDigestRunMock).toHaveBeenCalledWith(
+      pool,
+      expect.objectContaining({ feedId: 'feed-1', userId: '1' }),
+    );
+    expect(updateAiDigestRunMock).toHaveBeenCalledWith(pool, 'run-1', {
+      userId: '1',
+      jobId: 'job-1',
+    });
   });
 });

@@ -29,6 +29,7 @@ describe('feverAutoSync worker', () => {
       [
         {
           id: 'due-1',
+          userId: '1',
           baseUrl: 'https://reader.example.com',
           username: 'demo',
           apiKey: 'secret',
@@ -42,6 +43,7 @@ describe('feverAutoSync worker', () => {
         },
         {
           id: 'skip-1',
+          userId: '1',
           baseUrl: 'https://reader.example.com',
           username: 'demo',
           apiKey: 'secret',
@@ -64,6 +66,7 @@ describe('feverAutoSync worker', () => {
     listEnabledFeverAccountsForAutoSyncMock.mockResolvedValue([
       {
         id: 'due-1',
+        userId: '1',
         baseUrl: 'https://reader.example.com',
         username: 'demo',
         apiKey: 'secret',
@@ -77,6 +80,7 @@ describe('feverAutoSync worker', () => {
       },
       {
         id: 'skip-1',
+        userId: '1',
         baseUrl: 'https://reader.example.com',
         username: 'demo',
         apiKey: 'secret',
@@ -95,12 +99,14 @@ describe('feverAutoSync worker', () => {
     const now = new Date('2026-05-23T10:00:00.000Z');
     const pool = {} as never;
 
-    const result = await runFeverAutoSyncWorker({ pool, now });
+    const result = await runFeverAutoSyncWorker({ pool, now, userId: '1' });
 
     expect(result).toEqual({ enqueued: 1 });
+    expect(listEnabledFeverAccountsForAutoSyncMock).toHaveBeenCalledWith(pool, '1');
     expect(enqueueWithResultMock).toHaveBeenCalledTimes(1);
     expect(markFeverAccountSyncAttemptedMock).toHaveBeenCalledWith(pool, {
       accountId: 'due-1',
+      userId: '1',
       attemptedAt: now.toISOString(),
     });
   });
@@ -109,6 +115,7 @@ describe('feverAutoSync worker', () => {
     listEnabledFeverAccountsForAutoSyncMock.mockResolvedValue([
       {
         id: 'disabled-1',
+        userId: '1',
         baseUrl: 'https://reader.example.com',
         username: 'demo',
         apiKey: 'secret',

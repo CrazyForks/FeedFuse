@@ -34,6 +34,12 @@ const patchBodySchema = z
     path: ['body'],
   });
 
+// 兼容 0034_multi_user 迁移前后的分类名唯一索引。
+const categoryNameUniqueConstraints = new Set([
+  'categories_user_name_unique',
+  'categories_name_unique',
+]);
+
 function zodIssuesToFields(error: z.ZodError): Record<string, string> {
   const fields: Record<string, string> = {};
   for (const issue of error.issues) {
@@ -45,22 +51,33 @@ function zodIssuesToFields(error: z.ZodError): Record<string, string> {
 
 function isUniqueViolation(
   err: unknown,
-  constraint: string,
+  constraints: ReadonlySet<string>,
 ): err is { code: string; constraint?: string } {
   return (
     typeof err === 'object' &&
     err !== null &&
     'code' in err &&
     (err as { code?: unknown }).code === '23505' &&
-    (!('constraint' in err) || (err as { constraint?: unknown }).constraint === constraint)
+    (
+      !('constraint' in err) ||
+      (
+        typeof (err as { constraint?: unknown }).constraint === 'string' &&
+        constraints.has((err as { constraint: string }).constraint)
+      )
+    )
   );
 }
 
 const patchOperationSource = 'app/api/categories/[id]';
 const deleteOperationSource = 'app/api/categories/[id]';
 
-async function writeCategoryUpdateFailure(err: unknown, context?: Record<string, unknown>) {
+async function writeCategoryUpdateFailure(
+  err: unknown,
+  userId?: string,
+  context?: Record<string, unknown>,
+) {
   await writeUserOperationFailedLog(getPool(), {
+    userId,
     actionKey: 'category.update',
     source: patchOperationSource,
     err,
@@ -68,8 +85,13 @@ async function writeCategoryUpdateFailure(err: unknown, context?: Record<string,
   });
 }
 
-async function writeCategoryDeleteFailure(err: unknown, context?: Record<string, unknown>) {
+async function writeCategoryDeleteFailure(
+  err: unknown,
+  userId?: string,
+  context?: Record<string, unknown>,
+) {
   await writeUserOperationFailedLog(getPool(), {
+    userId,
     actionKey: 'category.delete',
     source: deleteOperationSource,
     err,
@@ -81,9 +103,9 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -91,7 +113,7 @@ export async function PATCH(
     const paramsParsed = paramsSchema.safeParse(params);
     if (!paramsParsed.success) {
       const error = new ValidationError('Invalid route params', zodIssuesToFields(paramsParsed.error));
-      await writeCategoryUpdateFailure(error);
+      await writeCategoryUpdateFailure(error, session.userId);
       return fail(error);
     }
 
@@ -99,30 +121,34 @@ export async function PATCH(
     const bodyParsed = patchBodySchema.safeParse(json);
     if (!bodyParsed.success) {
       const error = new ValidationError('Invalid request body', zodIssuesToFields(bodyParsed.error));
-      await writeCategoryUpdateFailure(error, { categoryId: paramsParsed.data.id });
+      await writeCategoryUpdateFailure(error, session.userId, { categoryId: paramsParsed.data.id });
       return fail(error);
     }
 
     const pool = getPool();
-    const updated = await updateCategory(pool, paramsParsed.data.id, bodyParsed.data);
+    const updated = await updateCategory(pool, paramsParsed.data.id, {
+      ...bodyParsed.data,
+      userId: session.userId,
+    });
     if (!updated) {
       const error = new NotFoundError('Category not found');
-      await writeCategoryUpdateFailure(error, { categoryId: paramsParsed.data.id });
+      await writeCategoryUpdateFailure(error, session.userId, { categoryId: paramsParsed.data.id });
       return fail(error);
     }
     await writeUserOperationSucceededLog(pool, {
+      userId: session.userId,
       actionKey: 'category.update',
       source: patchOperationSource,
       context: { categoryId: updated.id },
     });
     return ok(updated);
   } catch (err) {
-    if (isUniqueViolation(err, 'categories_name_unique')) {
+    if (isUniqueViolation(err, categoryNameUniqueConstraints)) {
       const error = new ConflictError('Category already exists', { name: 'duplicate' });
-      await writeCategoryUpdateFailure(error);
+      await writeCategoryUpdateFailure(error, session.userId);
       return fail(error);
     }
-    await writeCategoryUpdateFailure(err);
+    await writeCategoryUpdateFailure(err, session.userId);
     return fail(err);
   }
 }
@@ -131,9 +157,9 @@ export async function DELETE(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -141,18 +167,19 @@ export async function DELETE(
     const paramsParsed = paramsSchema.safeParse(params);
     if (!paramsParsed.success) {
       const error = new ValidationError('Invalid route params', zodIssuesToFields(paramsParsed.error));
-      await writeCategoryDeleteFailure(error);
+      await writeCategoryDeleteFailure(error, session.userId);
       return fail(error);
     }
 
     const pool = getPool();
-    const deleted = await deleteCategory(pool, paramsParsed.data.id);
+    const deleted = await deleteCategory(pool, paramsParsed.data.id, session.userId);
     if (!deleted) {
       const error = new NotFoundError('Category not found');
-      await writeCategoryDeleteFailure(error, { categoryId: paramsParsed.data.id });
+      await writeCategoryDeleteFailure(error, session.userId, { categoryId: paramsParsed.data.id });
       return fail(error);
     }
     await writeUserOperationSucceededLog(pool, {
+      userId: session.userId,
       actionKey: 'category.delete',
       source: deleteOperationSource,
       context: { categoryId: paramsParsed.data.id },
@@ -160,7 +187,7 @@ export async function DELETE(
 
     return ok({ deleted: true });
   } catch (err) {
-    await writeCategoryDeleteFailure(err);
+    await writeCategoryDeleteFailure(err, session.userId);
     return fail(err);
   }
 }

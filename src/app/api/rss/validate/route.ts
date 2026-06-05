@@ -89,9 +89,9 @@ function normalizeHttpUrl(value: unknown): string | null {
 }
 
 export async function GET(request: Request) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   const urlParam = new URL(request.url).searchParams.get('url') ?? '';

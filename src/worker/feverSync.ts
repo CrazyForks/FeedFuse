@@ -167,16 +167,24 @@ function resolveHighestKnownItemId(syncState: Awaited<ReturnType<typeof getFever
 export async function runFeverSyncWorker(input: {
   pool: Pool;
   boss: Pick<PgBoss, 'send'>;
-  data: { accountId: string; runId?: string | null; feedIds?: string[] };
+  data: { userId?: string | null; accountId: string; runId?: string | null; feedIds?: string[] };
   deps?: Partial<FeverSyncDeps>;
 }) {
   const deps = { ...defaultDeps, ...(input.deps ?? {}) };
-  const client = await createClientForAccount(input.pool, input.data.accountId);
+  const client = await createClientForAccount(
+    input.pool,
+    input.data.accountId,
+    input.data.userId ?? undefined,
+  );
   const now = new Date();
   const appSettings = await deps.getAppSettings(input.pool);
-  const uiSettings = normalizePersistedSettings(await deps.getUiSettings(input.pool));
+  const uiSettings = normalizePersistedSettings(await deps.getUiSettings(input.pool, input.data.userId ?? undefined));
   const parsedFeedCache = new Map<string, ParsedFeed | null>();
-  const syncState = await getFeverSyncStateByAccountId(input.pool, input.data.accountId);
+  const syncState = await getFeverSyncStateByAccountId(
+    input.pool,
+    input.data.accountId,
+    input.data.userId,
+  );
   // Fever 增量同步不会自然收敛历史漂移，因此定期回退到账号级全量校正。
   const runFullSync = shouldRunFullSync(syncState?.lastFullSyncAt, now);
   const sinceItemId = runFullSync ? null : syncState?.lastIncrementalItemId ?? null;
@@ -185,6 +193,7 @@ export async function runFeverSyncWorker(input: {
   try {
     const result = await syncFeverAccount(input.pool, {
       accountId: input.data.accountId,
+      userId: input.data.userId ?? undefined,
       client,
       sinceItemId,
       maxItemId,
@@ -226,13 +235,14 @@ export async function runFeverSyncWorker(input: {
         const filterJob = toArticleFilterJobData(feed, uiSettings.rss.articleFilter);
         await input.boss.send(
           JOB_ARTICLE_FILTER,
-          { ...filterJob, articleId },
-          getQueueSendOptions(JOB_ARTICLE_FILTER, { articleId }),
+          { ...filterJob, userId: feed.userId, articleId },
+          getQueueSendOptions(JOB_ARTICLE_FILTER, { userId: feed.userId, articleId }),
         );
       },
     });
     const latestRemoteItemId = resolveLatestRemoteItemId(result.items);
     await upsertFeverSyncState(input.pool, {
+      userId: input.data.userId,
       accountId: input.data.accountId,
       lastIncrementalItemId: latestRemoteItemId ?? sinceItemId,
       lastIncrementalSyncedAt: now.toISOString(),
@@ -241,6 +251,7 @@ export async function runFeverSyncWorker(input: {
     });
   } catch (error) {
     await upsertFeverSyncState(input.pool, {
+      userId: input.data.userId,
       accountId: input.data.accountId,
       lastError: error instanceof Error && error.message.trim()
         ? error.message

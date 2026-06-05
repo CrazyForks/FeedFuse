@@ -2,6 +2,7 @@ import { isFeedDue } from '@/worker/rssScheduler';
 
 export interface RefreshAllFeedRow {
   id: string;
+  userId?: string;
   fetchIntervalMinutes: number;
   lastFetchedAt: string | null;
 }
@@ -23,9 +24,10 @@ export function selectFeedsForRefreshAll(
 
 export function buildFeedFetchJobData(
   feedId: string,
-  input: { force: boolean; runId?: string },
-): { feedId: string; force?: true; runId?: string } {
+  input: { userId?: string; force: boolean; runId?: string },
+): { userId?: string; feedId: string; force?: true; runId?: string } {
   return {
+    ...(input.userId ? { userId: input.userId } : {}),
     feedId,
     ...(input.force ? { force: true } : {}),
     ...(input.runId ? { runId: input.runId } : {}),

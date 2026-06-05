@@ -67,20 +67,22 @@ function normalizeCategoryName(name: string | null | undefined): string | null {
 async function resolveFeverFeedCategoryId(
   pool: Pool,
   remoteFeed: FeverFeed,
+  userId?: string | null,
 ): Promise<string | null> {
   const normalizedCategoryName = normalizeCategoryName(remoteFeed.groupName);
   if (!normalizedCategoryName) {
     return null;
   }
 
-  const existing = await findCategoryByNormalizedName(pool, normalizedCategoryName);
+  const existing = await findCategoryByNormalizedName(pool, normalizedCategoryName, userId ?? undefined);
   if (existing) {
     return existing.id;
   }
 
   // Fever 分组需要落成本地分类，保持左栏与上游目录结构一致。
-  const position = await getNextCategoryPosition(pool);
+  const position = await getNextCategoryPosition(pool, userId ?? undefined);
   const created = await createCategory(pool, {
+    userId: userId ?? undefined,
     name: normalizedCategoryName,
     position,
   });
@@ -91,11 +93,12 @@ async function ensureProjectedFeed(
   pool: Pool,
   remoteFeed: FeverFeed,
   existingLocalFeedId: string | null,
+  userId?: string | null,
 ): Promise<FeedRow> {
-  const resolvedCategoryId = await resolveFeverFeedCategoryId(pool, remoteFeed);
+  const resolvedCategoryId = await resolveFeverFeedCategoryId(pool, remoteFeed, userId);
   const resolvedSiteUrl = resolveFeverFeedSiteUrl(remoteFeed);
   const existing = existingLocalFeedId
-    ? await getFeedById(pool, existingLocalFeedId)
+    ? await getFeedById(pool, existingLocalFeedId, userId ?? undefined)
     : null;
   if (existing) {
     const nextIconUrl = resolvedSiteUrl ? buildFeedFaviconPath(existing.id) : null;
@@ -112,6 +115,7 @@ async function ensureProjectedFeed(
 
     // Fever 投影视图需要补齐本地分类、可抓取的 siteUrl 和内部 favicon 路由。
     return (await updateFeed(pool, existing.id, {
+      userId: userId ?? undefined,
       title: remoteFeed.title || remoteFeed.url,
       url: remoteFeed.url,
       categoryId: resolvedCategoryId,
@@ -121,6 +125,7 @@ async function ensureProjectedFeed(
   }
 
   const created = await createFeed(pool, {
+    userId: userId ?? undefined,
     title: remoteFeed.title || remoteFeed.url,
     url: remoteFeed.url,
     provider: 'fever',
@@ -137,6 +142,7 @@ async function ensureProjectedFeed(
   // 统一走内部 favicon 路由，让 Fever 源复用现有缓存与抓取流程。
   return (
     await updateFeed(pool, created.id, {
+      userId: userId ?? undefined,
       iconUrl: buildFeedFaviconPath(created.id),
     })
   ) ?? {
@@ -148,6 +154,7 @@ async function ensureProjectedFeed(
 export async function projectFeverItem(
   pool: Pool,
   input: {
+    userId?: string | null;
     accountId: string;
     localFeed: FeedRow;
     remoteItem: FeverItem;
@@ -159,6 +166,7 @@ export async function projectFeverItem(
   const projectedArticle = input.projectedArticle;
   const isPodcastSource = projectedArticle?.isPodcastSource ?? false;
   const created = await insertArticleIgnoreDuplicate(pool, {
+    userId: input.userId ?? input.localFeed.userId,
     feedId: input.localFeed.id,
     dedupeKey,
     title: projectedArticle?.title || input.remoteItem.title || '(untitled)',
@@ -177,12 +185,18 @@ export async function projectFeverItem(
   });
 
   if (created && projectedArticle?.mediaAttachments.length) {
-    await insertArticleMediaAttachments(pool, created.id, projectedArticle.mediaAttachments);
+    await insertArticleMediaAttachments(
+      pool,
+      created.id,
+      projectedArticle.mediaAttachments,
+      input.userId ?? input.localFeed.userId,
+    );
   }
 
   // 重复同步命中去重时复用现有 article，而不是把正常幂等路径当成错误。
   const existing = created
     ?? await getArticleByFeedAndDedupeKey(pool, {
+      userId: input.userId ?? input.localFeed.userId,
       feedId: input.localFeed.id,
       dedupeKey,
     });
@@ -191,9 +205,10 @@ export async function projectFeverItem(
     throw new Error(`Failed to project Fever item ${input.remoteItem.id}`);
   }
 
-  await setArticleRead(pool, articleId, input.remoteItem.isRead);
-  await setArticleStarred(pool, articleId, input.remoteItem.isSaved);
+  await setArticleRead(pool, articleId, input.remoteItem.isRead, input.userId ?? input.localFeed.userId);
+  await setArticleStarred(pool, articleId, input.remoteItem.isSaved, input.userId ?? input.localFeed.userId);
   await upsertFeverItemMapping(pool, {
+    userId: input.userId ?? input.localFeed.userId,
     accountId: input.accountId,
     feverItemId: input.remoteItem.id,
     feverFeedId: input.remoteItem.feedId,
@@ -213,15 +228,19 @@ export async function projectFeverItem(
 
 export async function reconcileFeverItems(
   pool: Pool,
-  input: { accountId: string; seenRemoteItemIds: string[] },
+  input: { userId?: string | null; accountId: string; seenRemoteItemIds: string[] },
 ): Promise<void> {
-  await markMissingFeverItemMappingsInactive(pool, input);
+  await markMissingFeverItemMappingsInactive(pool, {
+    ...input,
+    userId: input.userId ?? undefined,
+  });
 }
 
 export async function syncFeverAccount(
   pool: Pool,
   input: {
     accountId: string;
+    userId?: string | null;
     client: FeverClient;
     sinceItemId?: string | null;
     maxItemId?: string | null;
@@ -250,6 +269,7 @@ export async function syncFeverAccount(
     for (const remoteFeed of feeds) {
       remoteFeedById.set(remoteFeed.id, remoteFeed);
       const existingMapping = await getFeverFeedMappingByRemoteFeedId(pool, {
+        userId: input.userId ?? undefined,
         accountId: input.accountId,
         feverFeedId: remoteFeed.id,
       });
@@ -257,6 +277,7 @@ export async function syncFeverAccount(
         pool,
         remoteFeed,
         existingMapping?.localFeedId ?? null,
+        input.userId,
       );
       if (!existingMapping) {
         createdFeeds += 1;
@@ -266,6 +287,7 @@ export async function syncFeverAccount(
       processedRemoteFeedIds.push(remoteFeed.id);
 
       await upsertFeverFeedMapping(pool, {
+        userId: input.userId ?? localFeed.userId,
         accountId: input.accountId,
         feverFeedId: remoteFeed.id,
         localFeedId: localFeed.id,
@@ -288,6 +310,7 @@ export async function syncFeverAccount(
           ? await input.resolveArticleProjection({ remoteFeed, localFeed, remoteItem })
           : null;
       const result = await projectFeverItem(pool, {
+        userId: input.userId ?? localFeed.userId,
         accountId: input.accountId,
         localFeed,
         remoteItem,
@@ -300,12 +323,14 @@ export async function syncFeverAccount(
     }
 
     await markMissingFeverFeedMappingsInactive(pool, {
+      userId: input.userId ?? undefined,
       accountId: input.accountId,
       seenRemoteFeedIds: processedRemoteFeedIds,
     });
     if (input.reconcileMissingItems && input.hasFullItemSnapshot !== false) {
       // 只有明确走全量校正时，items 响应才能参与失效判定。
       await reconcileFeverItems(pool, {
+        userId: input.userId ?? undefined,
         accountId: input.accountId,
         seenRemoteItemIds: items.map((item) => item.id),
       });
@@ -313,6 +338,7 @@ export async function syncFeverAccount(
 
     await updateFeverAccountSyncState(pool, {
       accountId: input.accountId,
+      userId: input.userId ?? undefined,
       syncedAt: new Date().toISOString(),
       lastError: null,
     });
@@ -325,6 +351,7 @@ export async function syncFeverAccount(
     // 同步失败也要写回账号状态，否则设置页只能看到“开始同步”而没有终态。
     await updateFeverAccountSyncState(pool, {
       accountId: input.accountId,
+      userId: input.userId ?? undefined,
       lastError,
     });
     throw err;

@@ -25,6 +25,7 @@ describe('articleFilterWorker', () => {
       pool,
       boss,
       job: {
+        userId: '1',
         articleId: 'a1',
         articleFilter: {
           keyword: { enabled: true, keywords: ['Sponsored'] },
@@ -41,6 +42,7 @@ describe('articleFilterWorker', () => {
       deps: {
         getArticleById: vi.fn().mockResolvedValue({
           id: 'a1',
+          userId: '1',
           title: 'Sponsored post',
           summary: 'Weekly roundup',
           titleZh: null,
@@ -56,7 +58,7 @@ describe('articleFilterWorker', () => {
       },
     });
 
-    expect(setArticleFilterPending).toHaveBeenCalledWith(pool, 'a1');
+    expect(setArticleFilterPending).toHaveBeenCalledWith(pool, 'a1', '1');
     expect(evaluateArticleDuplicate).not.toHaveBeenCalled();
     expect(setArticleFilterResult).toHaveBeenCalledWith(
       pool,
@@ -100,6 +102,7 @@ describe('articleFilterWorker', () => {
       pool,
       boss,
       job: {
+        userId: '1',
         articleId: 'a1',
         articleFilter: {
           keyword: { enabled: true, keywords: ['Sponsored'] },
@@ -116,6 +119,7 @@ describe('articleFilterWorker', () => {
       deps: {
         getArticleById: vi.fn().mockResolvedValue({
           id: 'a1',
+          userId: '1',
           title: 'Weekly roundup',
           summary: 'General summary',
           titleZh: null,
@@ -167,6 +171,7 @@ describe('articleFilterWorker', () => {
     });
     const articleAfterFetch = {
       id: 'a1',
+      userId: '1',
       title: 'Weekly roundup',
       summary: 'General summary',
       titleZh: null,
@@ -182,6 +187,7 @@ describe('articleFilterWorker', () => {
       .fn()
       .mockResolvedValueOnce({
         id: 'a1',
+        userId: '1',
         title: 'Weekly roundup',
         summary: 'General summary',
         titleZh: null,
@@ -207,6 +213,7 @@ describe('articleFilterWorker', () => {
       pool,
       boss,
       job: {
+        userId: '1',
         articleId: 'a1',
         articleFilter: {
           keyword: { enabled: true, keywords: ['Sponsored'] },
@@ -233,7 +240,7 @@ describe('articleFilterWorker', () => {
       },
     });
 
-    expect(fetchFulltextAndStore).toHaveBeenCalledWith(pool, 'a1');
+    expect(fetchFulltextAndStore).toHaveBeenCalledWith(pool, 'a1', '1');
     expect(setArticleFilterResult).toHaveBeenLastCalledWith(
       pool,
       'a1',
@@ -246,11 +253,11 @@ describe('articleFilterWorker', () => {
     );
     expect(enqueueAutoAiTriggersOnFetch).toHaveBeenCalledWith(
       boss,
-      expect.objectContaining({ created: articleAfterFetch }),
+      expect.objectContaining({ userId: '1', created: articleAfterFetch }),
     );
     expect(boss.send).toHaveBeenCalledWith(
       'ai.translate_title_zh',
-      { articleId: 'a1' },
+      { userId: '1', articleId: 'a1' },
       expect.any(Object),
     );
   });
@@ -272,6 +279,7 @@ describe('articleFilterWorker', () => {
       pool,
       boss: { send: vi.fn().mockResolvedValue('job-1') },
       job: {
+        userId: '1',
         articleId: 'a1',
         articleFilter: {
           keyword: { enabled: true, keywords: ['Sponsored'] },
@@ -288,6 +296,7 @@ describe('articleFilterWorker', () => {
       deps: {
         getArticleById: vi.fn().mockResolvedValue({
           id: 'a1',
+          userId: '1',
           title: 'Weekly roundup',
           summary: 'General summary',
           titleZh: null,
@@ -331,6 +340,7 @@ describe('articleFilterWorker', () => {
       pool,
       boss,
       job: {
+        userId: '1',
         articleId: 'a1',
         articleFilter: {
           keyword: { enabled: false, keywords: [] },
@@ -347,6 +357,7 @@ describe('articleFilterWorker', () => {
       deps: {
         getArticleById: vi.fn().mockResolvedValue({
           id: 'a1',
+          userId: '1',
           title: 'Weekly roundup',
           summary: 'General summary',
           titleZh: null,

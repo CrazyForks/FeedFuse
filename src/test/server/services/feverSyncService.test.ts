@@ -21,6 +21,7 @@ const updateFeverAccountSyncStateMock = vi.hoisted(() => vi.fn());
 function buildLocalFeed() {
   return {
     id: '10',
+    userId: '1',
     kind: 'rss' as const,
     provider: 'fever' as const,
     title: 'Feed',
@@ -505,8 +506,8 @@ describe('feverSyncService', () => {
         link: 'https://example.com/post',
       }),
     );
-    expect(setArticleReadMock).toHaveBeenCalledWith(expect.anything(), 'article-1', true);
-    expect(setArticleStarredMock).toHaveBeenCalledWith(expect.anything(), 'article-1', false);
+    expect(setArticleReadMock).toHaveBeenCalledWith(expect.anything(), 'article-1', true, '1');
+    expect(setArticleStarredMock).toHaveBeenCalledWith(expect.anything(), 'article-1', false, '1');
   });
 
   it('passes normalized ISO createdAt into article and mapping writes', async () => {
@@ -568,11 +569,11 @@ describe('feverSyncService', () => {
 
     expect(getArticleByFeedAndDedupeKeyMock).toHaveBeenCalledWith(
       expect.anything(),
-      { feedId: '10', dedupeKey: 'fever:1:remote-1' },
+      { userId: '1', feedId: '10', dedupeKey: 'fever:1:remote-1' },
     );
     expect(result).toEqual({ articleId: 'article-existing', created: false });
-    expect(setArticleReadMock).toHaveBeenCalledWith(expect.anything(), 'article-existing', true);
-    expect(setArticleStarredMock).toHaveBeenCalledWith(expect.anything(), 'article-existing', false);
+    expect(setArticleReadMock).toHaveBeenCalledWith(expect.anything(), 'article-existing', true, '1');
+    expect(setArticleStarredMock).toHaveBeenCalledWith(expect.anything(), 'article-existing', false, '1');
   });
 
   it('keeps new fever articles pending and calls onCreated for downstream filter pipeline', async () => {

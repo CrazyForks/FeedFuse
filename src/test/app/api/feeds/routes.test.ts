@@ -464,7 +464,7 @@ describe('/api/feeds', () => {
   it('POST returns conflict on duplicate url', async () => {
     createFeedWithCategoryResolutionMock.mockRejectedValue({
       code: '23505',
-      constraint: 'feeds_url_unique',
+      constraint: 'feeds_user_url_unique',
     });
 
     const mod = await import('../../../../app/api/feeds/route');
@@ -903,7 +903,7 @@ describe('/api/feeds', () => {
   it('PATCH returns conflict on duplicate url', async () => {
     updateFeedWithCategoryResolutionMock.mockRejectedValue({
       code: '23505',
-      constraint: 'feeds_url_unique',
+      constraint: 'feeds_user_url_unique',
     });
 
     const mod = await import('../../../../app/api/feeds/[id]/route');
@@ -980,8 +980,8 @@ describe('/api/feeds', () => {
     expect(json.ok).toBe(true);
     expect(enqueueWithResultMock).toHaveBeenCalledWith(
       'feed.fetch',
-      { feedId, force: true, runId: 'run-1' },
-      getQueueSendOptions('feed.fetch', { feedId, force: true, runId: 'run-1' }),
+      { userId: '1', feedId, force: true, runId: 'run-1' },
+      getQueueSendOptions('feed.fetch', { userId: '1', feedId, force: true, runId: 'run-1' }),
     );
     expect(json.data.runId).toBe('run-1');
   });
@@ -1022,17 +1022,18 @@ describe('/api/feeds', () => {
     expect(json.ok).toBe(true);
     expect(initializeFeedRefreshRunMock).toHaveBeenCalledWith(pool, {
       scope: 'single',
+      userId: '1',
       feedId,
       targetFeedIds: [feedId, '1002'],
     });
     expect(enqueueWithResultMock).toHaveBeenCalledWith(
       'fever.sync',
-      { accountId: 'account-1', runId: 'run-1', feedIds: [feedId, '1002'] },
-      getQueueSendOptions('fever.sync', { accountId: 'account-1', runId: 'run-1', feedIds: [feedId, '1002'] }),
+      { userId: '1', accountId: 'account-1', runId: 'run-1', feedIds: [feedId, '1002'] },
+      getQueueSendOptions('fever.sync', { userId: '1', accountId: 'account-1', runId: 'run-1', feedIds: [feedId, '1002'] }),
     );
     expect(markFeverAccountSyncAttemptedMock).toHaveBeenCalledWith(
       pool,
-      expect.objectContaining({ accountId: 'account-1' }),
+      expect.objectContaining({ userId: '1', accountId: 'account-1' }),
     );
     expect(json.data.runId).toBe('run-1');
   });
@@ -1074,17 +1075,20 @@ describe('/api/feeds', () => {
     expect(json.data).toEqual({ enqueued: false, runId: 'run-1' });
     expect(initializeFeedRefreshRunMock).toHaveBeenCalledWith(pool, {
       scope: 'single',
+      userId: '1',
       feedId,
       targetFeedIds: [feedId, '1002'],
     });
     expect(completeFeedRefreshRunItemMock).toHaveBeenNthCalledWith(1, pool, {
       runId: 'run-1',
+      userId: '1',
       feedId,
       status: 'failed',
       errorMessage: 'Fever 同步任务已在队列中',
     });
     expect(completeFeedRefreshRunItemMock).toHaveBeenNthCalledWith(2, pool, {
       runId: 'run-1',
+      userId: '1',
       feedId: '1002',
       status: 'failed',
       errorMessage: 'Fever 同步任务已在队列中',
@@ -1140,8 +1144,8 @@ describe('/api/feeds', () => {
     expect(json.ok).toBe(true);
     expect(enqueueWithResultMock).toHaveBeenCalledWith(
       JOB_REFRESH_ALL,
-      { force: true, runId: 'run-1' },
-      getQueueSendOptions(JOB_REFRESH_ALL, { force: true, runId: 'run-1' }),
+      { userId: '1', force: true, runId: 'run-1' },
+      getQueueSendOptions(JOB_REFRESH_ALL, { userId: '1', force: true, runId: 'run-1' }),
     );
     expect(json.data.runId).toBe('run-1');
   });

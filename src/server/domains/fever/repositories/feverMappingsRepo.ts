@@ -1,4 +1,5 @@
 import type { Pool, PoolClient } from 'pg';
+import { normalizeUserId } from '@/server/domains/users/userScope';
 
 type DbClient = Pool | PoolClient;
 
@@ -38,6 +39,7 @@ export interface FeverUnreadItemMappingRow {
 export async function hasAnyFeverItemMappingByLocalArticleId(
   db: DbClient,
   localArticleId: string,
+  userId?: string,
 ): Promise<boolean> {
   const { rows } = await db.query<{ exists: boolean }>(
     `
@@ -45,9 +47,10 @@ export async function hasAnyFeverItemMappingByLocalArticleId(
         select 1
         from fever_item_mappings
         where local_article_id = $1
+          and user_id = $2
       ) as "exists"
     `,
-    [localArticleId],
+    [localArticleId, normalizeUserId(userId)],
   );
   return rows[0]?.exists ?? false;
 }
@@ -62,11 +65,14 @@ export async function upsertFeverFeedMapping(
     remoteUrl: string;
     remoteGroupName: string | null;
     remoteFaviconUrl?: string | null;
+    userId?: string;
   },
 ): Promise<void> {
+  const userId = normalizeUserId(input.userId);
   await db.query(
     `
       insert into fever_feed_mappings(
+        user_id,
         fever_account_id,
         fever_feed_id,
         local_feed_id,
@@ -77,8 +83,8 @@ export async function upsertFeverFeedMapping(
         is_active,
         last_seen_at
       )
-      values ($1, $2, $3, $4, $5, $6, $7, true, now())
-      on conflict (fever_account_id, fever_feed_id)
+      values ($1, $2, $3, $4, $5, $6, $7, $8, true, now())
+      on conflict (user_id, fever_account_id, fever_feed_id)
       do update set
         local_feed_id = excluded.local_feed_id,
         remote_group_name = excluded.remote_group_name,
@@ -89,6 +95,7 @@ export async function upsertFeverFeedMapping(
         last_seen_at = now()
     `,
     [
+      userId,
       input.accountId,
       input.feverFeedId,
       input.localFeedId,
@@ -102,7 +109,7 @@ export async function upsertFeverFeedMapping(
 
 export async function getFeverFeedMappingByRemoteFeedId(
   db: DbClient,
-  input: { accountId: string; feverFeedId: string },
+  input: { accountId: string; feverFeedId: string; userId?: string },
 ): Promise<FeverFeedMappingRow | null> {
   const { rows } = await db.query<FeverFeedMappingRow>(
     `
@@ -116,11 +123,12 @@ export async function getFeverFeedMappingByRemoteFeedId(
         remote_favicon_url as "remoteFaviconUrl",
         is_active as "isActive"
       from fever_feed_mappings
-      where fever_account_id = $1
-        and fever_feed_id = $2
+      where user_id = $1
+        and fever_account_id = $2
+        and fever_feed_id = $3
       limit 1
     `,
-    [input.accountId, input.feverFeedId],
+    [normalizeUserId(input.userId), input.accountId, input.feverFeedId],
   );
   return rows[0] ?? null;
 }
@@ -128,6 +136,7 @@ export async function getFeverFeedMappingByRemoteFeedId(
 export async function getFeverAccountByLocalFeedId(
   db: DbClient,
   localFeedId: string,
+  userId?: string,
 ): Promise<FeverAccountFeedRow | null> {
   const { rows } = await db.query<FeverAccountFeedRow>(
     `
@@ -137,11 +146,13 @@ export async function getFeverAccountByLocalFeedId(
       from fever_feed_mappings
       join fever_accounts fa on fa.id = fever_feed_mappings.fever_account_id
       where fever_feed_mappings.local_feed_id = $1
+        and fever_feed_mappings.user_id = $2
+        and fa.user_id = $2
         and is_active = true
         and fa.enabled = true
       limit 1
     `,
-    [localFeedId],
+    [localFeedId, normalizeUserId(userId)],
   );
   return rows[0] ?? null;
 }
@@ -149,15 +160,17 @@ export async function getFeverAccountByLocalFeedId(
 export async function listLocalFeedIdsByFeverAccountId(
   db: DbClient,
   accountId: string,
+  userId?: string,
 ): Promise<string[]> {
   const { rows } = await db.query<{ localFeedId: string }>(
     `
       select distinct local_feed_id as "localFeedId"
       from fever_feed_mappings
       where fever_account_id = $1
+        and user_id = $2
       order by local_feed_id asc
     `,
-    [accountId],
+    [accountId, normalizeUserId(userId)],
   );
   return rows.map((row) => row.localFeedId);
 }
@@ -165,23 +178,25 @@ export async function listLocalFeedIdsByFeverAccountId(
 export async function listActiveLocalFeedIdsByFeverAccountId(
   db: DbClient,
   accountId: string,
+  userId?: string,
 ): Promise<string[]> {
   const { rows } = await db.query<{ localFeedId: string }>(
     `
       select distinct local_feed_id as "localFeedId"
       from fever_feed_mappings
       where fever_account_id = $1
+        and user_id = $2
         and is_active = true
       order by local_feed_id asc
     `,
-    [accountId],
+    [accountId, normalizeUserId(userId)],
   );
   return rows.map((row) => row.localFeedId);
 }
 
 export async function markMissingFeverFeedMappingsInactive(
   db: DbClient,
-  input: { accountId: string; seenRemoteFeedIds: string[] },
+  input: { accountId: string; seenRemoteFeedIds: string[]; userId?: string },
 ): Promise<void> {
   await db.query(
     `
@@ -190,9 +205,10 @@ export async function markMissingFeverFeedMappingsInactive(
         is_active = false,
         last_seen_at = now()
       where fever_account_id = $1
-        and not (fever_feed_id = any($2::text[]))
+        and user_id = $2
+        and not (fever_feed_id = any($3::text[]))
     `,
-    [input.accountId, input.seenRemoteFeedIds],
+    [input.accountId, normalizeUserId(input.userId), input.seenRemoteFeedIds],
   );
 }
 
@@ -207,11 +223,14 @@ export async function upsertFeverItemMapping(
     remoteIsRead: boolean;
     remoteIsSaved: boolean;
     remoteCreatedAt?: string | null;
+    userId?: string;
   },
 ): Promise<void> {
+  const userId = normalizeUserId(input.userId);
   await db.query(
     `
       insert into fever_item_mappings(
+        user_id,
         fever_account_id,
         fever_item_id,
         fever_feed_id,
@@ -223,8 +242,8 @@ export async function upsertFeverItemMapping(
         is_active,
         last_seen_at
       )
-      values ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, true, now())
-      on conflict (fever_account_id, fever_item_id)
+      values ($1, $2, $3, $4, $5, $6, $7, $8, $9::timestamptz, true, now())
+      on conflict (user_id, fever_account_id, fever_item_id)
       do update set
         fever_feed_id = excluded.fever_feed_id,
         local_feed_id = excluded.local_feed_id,
@@ -236,6 +255,7 @@ export async function upsertFeverItemMapping(
         last_seen_at = now()
     `,
     [
+      userId,
       input.accountId,
       input.feverItemId,
       input.feverFeedId,
@@ -251,6 +271,7 @@ export async function upsertFeverItemMapping(
 export async function getFeverItemMappingByLocalArticleId(
   db: DbClient,
   localArticleId: string,
+  userId?: string,
 ): Promise<FeverItemMappingRow | null> {
   const { rows } = await db.query<FeverItemMappingRow>(
     `
@@ -270,23 +291,30 @@ export async function getFeverItemMappingByLocalArticleId(
       join fever_accounts fa
         on fa.id = fim.fever_account_id
       where fim.local_article_id = $1
+        and fim.user_id = $2
+        and ffm.user_id = $2
+        and fa.user_id = $2
         and fim.is_active = true
         and ffm.is_active = true
         and fa.enabled = true
       limit 1
     `,
-    [localArticleId],
+    [localArticleId, normalizeUserId(userId)],
   );
   return rows[0] ?? null;
 }
 
 export async function listUnreadActiveFeverItemMappings(
   db: DbClient,
-  input: { feedId?: string },
+  input: { feedId?: string; userId?: string },
 ): Promise<FeverUnreadItemMappingRow[]> {
-  const values: string[] = [];
+  const values: string[] = [normalizeUserId(input.userId)];
   const whereParts = [
     'articles.id = fever_item_mappings.local_article_id',
+    'articles.user_id = $1',
+    'fever_item_mappings.user_id = $1',
+    'ffm.user_id = $1',
+    'fa.user_id = $1',
     'fever_item_mappings.is_active = true',
     'ffm.is_active = true',
     'fa.enabled = true',
@@ -320,11 +348,13 @@ export async function listUnreadActiveFeverItemMappings(
 
 export async function listAllFeverMappedArticleIds(
   db: DbClient,
-  input: { feedId?: string },
+  input: { feedId?: string; userId?: string },
 ): Promise<string[]> {
-  const values: string[] = [];
+  const values: string[] = [normalizeUserId(input.userId)];
   const whereParts = [
     'articles.id = fever_item_mappings.local_article_id',
+    'articles.user_id = $1',
+    'fever_item_mappings.user_id = $1',
   ];
 
   if (input.feedId) {
@@ -346,7 +376,7 @@ export async function listAllFeverMappedArticleIds(
 
 export async function markMissingFeverItemMappingsInactive(
   db: DbClient,
-  input: { accountId: string; seenRemoteItemIds: string[] },
+  input: { accountId: string; seenRemoteItemIds: string[]; userId?: string },
 ): Promise<void> {
   await db.query(
     `
@@ -355,8 +385,9 @@ export async function markMissingFeverItemMappingsInactive(
         is_active = false,
         last_seen_at = now()
       where fever_account_id = $1
-        and not (fever_item_id = any($2::text[]))
+        and user_id = $2
+        and not (fever_item_id = any($3::text[]))
     `,
-    [input.accountId, input.seenRemoteItemIds],
+    [input.accountId, normalizeUserId(input.userId), input.seenRemoteItemIds],
   );
 }

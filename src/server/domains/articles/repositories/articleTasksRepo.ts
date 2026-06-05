@@ -1,10 +1,12 @@
 import type { Pool } from 'pg';
+import { normalizeUserId } from '@/server/domains/users/userScope';
 
 export type ArticleTaskType = 'fulltext' | 'ai_summary' | 'ai_translate';
 export type ArticleTaskStatus = 'queued' | 'running' | 'succeeded' | 'failed';
 
 export interface ArticleTaskRow {
   id: string;
+  userId: string;
   articleId: string;
   type: ArticleTaskType;
   status: ArticleTaskStatus;
@@ -23,11 +25,14 @@ export interface ArticleTaskRow {
 export async function getArticleTasksByArticleId(
   pool: Pool,
   articleId: string,
+  userId?: string | null,
 ): Promise<ArticleTaskRow[]> {
+  const scopedUserId = normalizeUserId(userId);
   const { rows } = await pool.query<ArticleTaskRow>(
     `
       select
         id,
+        user_id::text as "userId",
         article_id as "articleId",
         type,
         status,
@@ -42,9 +47,9 @@ export async function getArticleTasksByArticleId(
         created_at as "createdAt",
         updated_at as "updatedAt"
       from article_tasks
-      where article_id = $1
+      where article_id = $1 and user_id = $2
     `,
-    [articleId],
+    [articleId, scopedUserId],
   );
   return rows;
 }
@@ -52,6 +57,7 @@ export async function getArticleTasksByArticleId(
 async function upsertBase(
   pool: Pool,
   input: {
+    userId?: string | null;
     articleId: string;
     type: ArticleTaskType;
     status: ArticleTaskStatus;
@@ -66,6 +72,7 @@ async function upsertBase(
     clearError?: boolean;
   },
 ): Promise<void> {
+  const scopedUserId = normalizeUserId(input.userId);
   const requestedAtSql =
     input.requestedAt === 'now'
       ? 'now()'
@@ -98,6 +105,7 @@ async function upsertBase(
   await pool.query(
     `
       insert into article_tasks (
+        user_id,
         article_id,
         type,
         status,
@@ -112,29 +120,39 @@ async function upsertBase(
         created_at,
         updated_at
       )
-      values ($1, $2, $3, $4, now(), null, null, 0, null, null, null, now(), now())
-      on conflict (article_id, type) do update
+      values ($1, $2, $3, $4, $5, now(), null, null, 0, null, null, null, now(), now())
+      on conflict (user_id, article_id, type) do update
       set
-        status = $3,
-        job_id = coalesce($4, article_tasks.job_id),
+        status = $4,
+        job_id = coalesce($5, article_tasks.job_id),
         requested_at = ${requestedAtSql},
         started_at = ${startedAtSql},
         finished_at = ${finishedAtSql},
         attempts = ${attemptsSql},
-        error_code = $5,
-        error_message = $6,
-        raw_error_message = $7,
+        error_code = $6,
+        error_message = $7,
+        raw_error_message = $8,
         updated_at = now()
     `,
-    [input.articleId, input.type, input.status, input.jobId, errorCode, errorMessage, rawErrorMessage],
+    [
+      scopedUserId,
+      input.articleId,
+      input.type,
+      input.status,
+      input.jobId,
+      errorCode,
+      errorMessage,
+      rawErrorMessage,
+    ],
   );
 }
 
 export async function upsertTaskQueued(
   pool: Pool,
-  input: { articleId: string; type: ArticleTaskType; jobId: string | null },
+  input: { userId?: string | null; articleId: string; type: ArticleTaskType; jobId: string | null },
 ): Promise<void> {
   await upsertBase(pool, {
+    userId: input.userId,
     articleId: input.articleId,
     type: input.type,
     status: 'queued',
@@ -149,9 +167,10 @@ export async function upsertTaskQueued(
 
 export async function upsertTaskRunning(
   pool: Pool,
-  input: { articleId: string; type: ArticleTaskType; jobId: string | null },
+  input: { userId?: string | null; articleId: string; type: ArticleTaskType; jobId: string | null },
 ): Promise<void> {
   await upsertBase(pool, {
+    userId: input.userId,
     articleId: input.articleId,
     type: input.type,
     status: 'running',
@@ -166,9 +185,10 @@ export async function upsertTaskRunning(
 
 export async function upsertTaskSucceeded(
   pool: Pool,
-  input: { articleId: string; type: ArticleTaskType; jobId: string | null },
+  input: { userId?: string | null; articleId: string; type: ArticleTaskType; jobId: string | null },
 ): Promise<void> {
   await upsertBase(pool, {
+    userId: input.userId,
     articleId: input.articleId,
     type: input.type,
     status: 'succeeded',
@@ -184,6 +204,7 @@ export async function upsertTaskSucceeded(
 export async function upsertTaskFailed(
   pool: Pool,
   input: {
+    userId?: string | null;
     articleId: string;
     type: ArticleTaskType;
     jobId: string | null;
@@ -193,6 +214,7 @@ export async function upsertTaskFailed(
   },
 ): Promise<void> {
   await upsertBase(pool, {
+    userId: input.userId,
     articleId: input.articleId,
     type: input.type,
     status: 'failed',

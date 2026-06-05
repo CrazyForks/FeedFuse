@@ -1,4 +1,5 @@
 import type { Pool, PoolClient } from 'pg';
+import { normalizeUserId } from '@/server/domains/users/userScope';
 
 type DbClient = Pool | PoolClient;
 
@@ -17,84 +18,105 @@ export interface AuthSettingsRow {
   authSessionSecret: string;
 }
 
-export async function getUiSettings(pool: DbClient): Promise<unknown> {
+export async function getUiSettings(pool: DbClient, userId?: string): Promise<unknown> {
   const { rows } = await pool.query<{ uiSettings: unknown }>(`
     select ui_settings as "uiSettings"
-    from app_settings
-    where id = 1
-  `);
+    from user_settings
+    where user_id = $1
+  `, [normalizeUserId(userId)]);
   return rows[0]?.uiSettings ?? {};
 }
 
-export async function updateUiSettings(pool: DbClient, uiSettings: unknown): Promise<unknown> {
+export async function updateUiSettings(
+  pool: DbClient,
+  userIdOrSettings: string | unknown,
+  maybeUiSettings?: unknown,
+): Promise<unknown> {
+  const userId = typeof userIdOrSettings === 'string' ? userIdOrSettings : normalizeUserId();
+  const uiSettings = typeof userIdOrSettings === 'string' ? maybeUiSettings : userIdOrSettings;
   const { rows } = await pool.query<{ uiSettings: unknown }>(
     `
-      update app_settings
-      set
-        ui_settings = $1,
+      insert into user_settings(user_id, ui_settings)
+      values ($1, $2)
+      on conflict (user_id)
+      do update set
+        ui_settings = excluded.ui_settings,
         updated_at = now()
-      where id = 1
       returning ui_settings as "uiSettings"
     `,
-    [uiSettings],
+    [userId, uiSettings],
   );
   return rows[0]?.uiSettings ?? uiSettings;
 }
 
-export async function getAiApiKey(pool: Pool): Promise<string> {
+export async function getAiApiKey(pool: DbClient, userId?: string): Promise<string> {
   const { rows } = await pool.query<{ aiApiKey: string }>(`
     select ai_api_key as "aiApiKey"
-    from app_settings
-    where id = 1
-  `);
+    from user_settings
+    where user_id = $1
+  `, [normalizeUserId(userId)]);
   return rows[0]?.aiApiKey ?? '';
 }
 
-export async function setAiApiKey(pool: Pool, apiKey: string): Promise<string> {
+export async function setAiApiKey(
+  pool: DbClient,
+  userIdOrApiKey: string,
+  maybeApiKey?: string,
+): Promise<string> {
+  const userId = typeof maybeApiKey === 'string' ? userIdOrApiKey : normalizeUserId();
+  const apiKey = maybeApiKey ?? userIdOrApiKey;
   const { rows } = await pool.query<{ aiApiKey: string }>(
     `
-      update app_settings
-      set
-        ai_api_key = $1,
+      insert into user_settings(user_id, ai_api_key)
+      values ($1, $2)
+      on conflict (user_id)
+      do update set
+        ai_api_key = excluded.ai_api_key,
         updated_at = now()
-      where id = 1
       returning ai_api_key as "aiApiKey"
     `,
-    [apiKey],
+    [userId, apiKey],
   );
   return rows[0]?.aiApiKey ?? apiKey;
 }
 
-export async function clearAiApiKey(pool: Pool): Promise<string> {
-  return setAiApiKey(pool, '');
+export async function clearAiApiKey(pool: DbClient, userId?: string): Promise<string> {
+  return setAiApiKey(pool, normalizeUserId(userId), '');
 }
 
-export async function getTranslationApiKey(pool: Pool): Promise<string> {
+export async function getTranslationApiKey(pool: DbClient, userId?: string): Promise<string> {
   const { rows } = await pool.query<{ translationApiKey: string }>(`
     select translation_api_key as "translationApiKey"
-    from app_settings
-    where id = 1
-  `);
+    from user_settings
+    where user_id = $1
+  `, [normalizeUserId(userId)]);
   return rows[0]?.translationApiKey ?? '';
 }
 
-export async function setTranslationApiKey(pool: Pool, apiKey: string): Promise<string> {
+export async function setTranslationApiKey(
+  pool: DbClient,
+  userIdOrApiKey: string,
+  maybeApiKey?: string,
+): Promise<string> {
+  const userId = typeof maybeApiKey === 'string' ? userIdOrApiKey : normalizeUserId();
+  const apiKey = maybeApiKey ?? userIdOrApiKey;
   const { rows } = await pool.query<{ translationApiKey: string }>(
     `
-      update app_settings
-      set
-        translation_api_key = $1,
+      insert into user_settings(user_id, translation_api_key)
+      values ($1, $2)
+      on conflict (user_id)
+      do update set
+        translation_api_key = excluded.translation_api_key,
         updated_at = now()
-      where id = 1
       returning translation_api_key as "translationApiKey"
     `,
-    [apiKey],
+    [userId, apiKey],
   );
   return rows[0]?.translationApiKey ?? apiKey;
 }
 
-export async function clearTranslationApiKey(pool: Pool): Promise<string> {
-  return setTranslationApiKey(pool, '');
+export async function clearTranslationApiKey(pool: DbClient, userId?: string): Promise<string> {
+  return setTranslationApiKey(pool, normalizeUserId(userId), '');
 }
 
 export async function getAuthSettings(pool: DbClient): Promise<AuthSettingsRow> {

@@ -29,7 +29,8 @@ describe('aiDigestRepo', () => {
     const sql = String(query.mock.calls[0]?.[0] ?? '');
     expect(sql).toContain('from articles');
     expect(sql).toContain('fetched_at');
-    expect(sql).toContain('any($1::bigint[])');
+    expect(sql).toContain('a.user_id = $1');
+    expect(sql).toContain('any($2::bigint[])');
     expect(sql).toContain('> $');
     expect(sql).toContain('<= $');
     expect(sql).toContain("filter_status = any('{passed,error}'::text[])");
@@ -51,6 +52,11 @@ describe('aiDigestRepo', () => {
     const joinedSql = query.mock.calls.map((call) => String(call[0])).join('\n');
     expect(joinedSql).toContain('delete from ai_digest_run_sources');
     expect(joinedSql).toContain('insert into ai_digest_run_sources');
+    expect(joinedSql).toContain('select $2, r.id, a.id');
+    expect(joinedSql).toContain('join ai_digest_runs r on r.id = $1::bigint');
+    expect(joinedSql).toContain('join articles a on a.id = source.source_article_id');
+    expect(joinedSql).toContain('r.user_id = $2');
+    expect(joinedSql).toContain('a.user_id = $2');
     expect(joinedSql).toContain('::bigint');
   });
 

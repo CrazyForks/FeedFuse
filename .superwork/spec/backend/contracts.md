@@ -24,6 +24,35 @@
 - 需要启动期迁移时，入口保持通过 `scripts/db/migrate.mjs`
 - 改变环境变量契约时，同步检查 `.env.example`、`docs/development.md`、部署文档
 
+## 多用户隔离契约
+
+- 单实例多用户默认强隔离；所有用户私有数据必须带 `user_id`，route -> service -> repository -> worker 全链路显式传递当前 `session.userId`。
+- 用户私有表的 `user_id` 必须由数据库外键引用 `users(id)`；非日志类私有数据使用 `on delete cascade`，`system_logs.user_id` 可为空并使用 `on delete set null` 保留系统级日志语义。
+- `requireApiSession()` 返回当前用户上下文 `{ userId, role, sessionVersion }`；route 不能再把鉴权结果当成简单布尔值使用。
+- 用户显式提交 `categoryId` 时，service / repository 在写入 `feeds`、`ai_digest` 等用户私有资源前，必须校验该分类存在且 `categories.user_id = session.userId`；不能只依赖前端下拉选项或全局 `category_id -> categories(id)` 外键。
+- `feeds.category_id` 的同用户归属必须有数据库层兜底；即使应用层漏校验，也要拒绝把某个用户的 feed / ai_digest 绑定到其他用户的分类。
+- session payload 必须包含 `userId`、`role`、`sessionVersion`、`iat`、`exp`；用户禁用、重置密码或修改密码时必须递增 `session_version` 使旧 session 失效。
+- 用户私有表的唯一约束必须按用户作用域设计，例如 `(user_id, lower(name))`、`(user_id, url)`；跨用户允许相同分类名、订阅 URL 或外部账号标识。
+- 用户私有关系表的唯一键、upsert 冲突键和数据库兜底也必须按用户作用域设计；`article_tasks`、`feed_refresh_run_items`、Fever 映射、AI digest sources、AI/翻译会话、favicon、媒体附件等表不能在冲突更新中重写 `user_id`，并且必须拒绝关联到其他用户的父资源。
+- `articles.duplicate_of_article_id` 也属于用户私有关联；迁移必须清理历史跨用户重复源引用，数据库层必须拒绝把文章指向其他用户的重复源文章。
+- `article_ai_summary_sessions.superseded_by_session_id` 也属于用户私有自引用；迁移必须清理历史跨用户 supersede 引用，数据库层必须拒绝把摘要会话指向其他用户的摘要会话。
+- AI digest 的 `selectedFeedIds` 只能保存当前用户自己的本地 RSS feed；不能保存其他用户、Fever 投影源或不存在的 feed id，即使生成 worker 后续会按用户过滤候选文章。
+- `app_settings` 只保留全局兼容配置；用户级 UI 设置、AI key、translation key 必须读写 `user_settings`。
+- 历史单用户数据迁移必须归属默认管理员，包括旧 `system_logs`；新系统级日志仍可使用 `user_id = null` 保留系统级语义。
+- 所有异步任务 payload、队列 singleton key、任务状态、系统日志和用户操作日志涉及用户私有数据时都必须携带 `userId`；定时任务没有会话上下文时必须按 active users fan-out。
+- AI 配置变更触发的运行态清理也属于用户私有异步状态；`cleanup` / cancel / fail 这类收尾逻辑必须按当前用户 `userId` 限定更新范围，并在写入 `article_ai_summary_events`、`article_translation_events` 等事件表时同步写入 `user_id`。
+- Fever、AI digest、feed refresh、全文抓取、文章过滤、摘要、翻译等 worker 在读取或写入数据前必须用 `userId` 校验资源归属。
+- 管理员才可创建用户、列表用户、重置密码、禁用或启用用户；普通用户只能读取自己的资料和修改自己的密码。
+- 删除用户属于更强权限操作：只有初始用户可删除其他用户，且初始用户自身永远不可删除；后端必须在 route/service 层显式校验，不能只依赖前端隐藏按钮。
+- 初始用户语义固定绑定 `users.id = '1'`；删除权限、初始密码 fallback、旧会话兼容分支都不能再依赖 `username === 'admin'` 这类可变字段。
+- 用户 DTO 必须稳定返回 `type = 'initial_admin' | 'admin' | 'member'`；其中 `initial_admin` 只由固定初始用户派生，前端展示和常规权限分支优先消费该字段。
+- `PATCH /api/users/[id]` 作为管理员用户资料编辑入口时，允许一次提交 `username`、`role`、`status` 组合更新；这类资料编辑保持管理员语义，不再承担普通用户自助改密入口。
+- `PATCH /api/users/[id]` 即使由其他 admin 调用，也必须拒绝修改初始用户；初始用户资料只能走本人会话入口修改，不能作为后台管理对象被代改。
+- `PATCH /api/users/me` 是当前登录用户自助编辑入口，允许一次提交 `username` 与可选的 `nextPassword`；用户名冲突继续返回 `用户名已存在`，纯用户名编辑不递增 `session_version`。
+- 当前用户通过 `PATCH /api/users/me` 修改密码时，后端直接基于已登录会话更新密码 hash，并在响应里同步下发新的 session cookie；只有涉及 `role`、`status` 或密码 hash 变更时才递增 `session_version` 使旧 session 失效，纯用户名编辑不强制登出当前会话。
+- `POST /api/users/me/password` 仅保留兼容用途；设置中心“当前账号”交互不再把用户名保存和密码保存拆成两个接口动作。
+- 兼容密码接口若继续保留，必须收束为“仅初始用户本人修改自己的密码”；其他 admin 不能借兼容入口修改初始用户或切换成初始用户会话。
+
 ## RSS 网络访问契约
 
 - `src/server/integrations/rss/ssrfGuard.ts` 是 RSS 外链安全判定的统一入口；`route.ts`、worker 和抓取流程不要各自散落一套网络地址规则。

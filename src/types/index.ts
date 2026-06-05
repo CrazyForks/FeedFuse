@@ -1,5 +1,6 @@
 export type FeedKind = 'rss' | 'ai_digest';
 export type FeedProvider = 'local_rss' | 'fever';
+export type UserType = 'initial_admin' | 'admin' | 'member';
 
 export interface Feed {
   id: string;
@@ -192,6 +193,7 @@ export interface LoggingSettings {
 
 export interface SystemLogItem {
   id: string;
+  userId: string | null;
   level: SystemLogLevel;
   category: SystemLogCategory;
   message: string;

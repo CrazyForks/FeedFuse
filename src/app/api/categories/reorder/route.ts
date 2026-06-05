@@ -35,8 +35,13 @@ function zodIssuesToFields(error: z.ZodError): Record<string, string> {
 
 const operationSource = 'app/api/categories/reorder';
 
-async function writeCategoryReorderFailure(err: unknown, context?: Record<string, unknown>) {
+async function writeCategoryReorderFailure(
+  err: unknown,
+  userId?: string,
+  context?: Record<string, unknown>,
+) {
   await writeUserOperationFailedLog(getPool(), {
+    userId,
     actionKey: 'category.reorder',
     source: operationSource,
     err,
@@ -45,9 +50,9 @@ async function writeCategoryReorderFailure(err: unknown, context?: Record<string
 }
 
 export async function PATCH(request: Request) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -55,7 +60,7 @@ export async function PATCH(request: Request) {
     const parsed = reorderBodySchema.safeParse(json);
     if (!parsed.success) {
       const error = new ValidationError('Invalid request body', zodIssuesToFields(parsed.error));
-      await writeCategoryReorderFailure(error);
+      await writeCategoryReorderFailure(error, session.userId);
       return fail(error);
     }
 
@@ -64,7 +69,7 @@ export async function PATCH(request: Request) {
 
     if (new Set(ids).size !== ids.length || new Set(positions).size !== positions.length) {
       const error = new ValidationError('Duplicate ids or positions', { items: 'duplicate' });
-      await writeCategoryReorderFailure(error);
+      await writeCategoryReorderFailure(error, session.userId);
       return fail(error);
     }
 
@@ -73,20 +78,21 @@ export async function PATCH(request: Request) {
       const error = new ValidationError('Positions must be contiguous from 0', {
         items: 'non_contiguous',
       });
-      await writeCategoryReorderFailure(error);
+      await writeCategoryReorderFailure(error, session.userId);
       return fail(error);
     }
 
     const pool = getPool();
-    const rows = await reorderCategories(pool, parsed.data.items);
+    const rows = await reorderCategories(pool, parsed.data.items, session.userId);
     await writeUserOperationSucceededLog(pool, {
+      userId: session.userId,
       actionKey: 'category.reorder',
       source: operationSource,
       context: { categoryCount: rows.length },
     });
     return ok(rows);
   } catch (error) {
-    await writeCategoryReorderFailure(error);
+    await writeCategoryReorderFailure(error, session.userId);
     return fail(error);
   }
 }

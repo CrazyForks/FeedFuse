@@ -12,6 +12,10 @@ import {
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+const feedCategoryForeignKeyConstraints = new Set([
+  'feeds_category_id_fkey',
+  'feeds_category_user_scope_fkey',
+]);
 
 const categoryInputShape = {
   categoryId: numericIdSchema.nullable().optional(),
@@ -46,10 +50,30 @@ function zodIssuesToFields(error: z.ZodError): Record<string, string> {
   return fields;
 }
 
+function isForeignKeyViolation(
+  err: unknown,
+  constraints: ReadonlySet<string>,
+): err is { code: string; constraint?: string } {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code?: unknown }).code === '23503' &&
+    (
+      !('constraint' in err) ||
+      (
+        typeof (err as { constraint?: unknown }).constraint === 'string' &&
+        constraints.has((err as { constraint: string }).constraint)
+      )
+    )
+  );
+}
+
 const operationSource = 'app/api/ai-digests';
 
-async function writeAiDigestCreateFailure(err: unknown) {
+async function writeAiDigestCreateFailure(err: unknown, userId?: string) {
   await writeUserOperationFailedLog(getPool(), {
+    userId,
     actionKey: 'aiDigest.create',
     source: operationSource,
     err,
@@ -57,9 +81,9 @@ async function writeAiDigestCreateFailure(err: unknown) {
 }
 
 export async function POST(request: Request) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -68,27 +92,36 @@ export async function POST(request: Request) {
       const error = new ValidationError('Invalid request body', {
         selectedCategoryIds: 'selectedCategoryIds is not allowed',
       });
-      await writeAiDigestCreateFailure(error);
+      await writeAiDigestCreateFailure(error, session.userId);
       return fail(error);
     }
 
     const parsed = bodySchema.safeParse(json);
     if (!parsed.success) {
       const error = new ValidationError('Invalid request body', zodIssuesToFields(parsed.error));
-      await writeAiDigestCreateFailure(error);
+      await writeAiDigestCreateFailure(error, session.userId);
       return fail(error);
     }
 
     const pool = getPool();
-    const created = await createAiDigestWithCategoryResolution(pool, parsed.data);
+    const created = await createAiDigestWithCategoryResolution(pool, {
+      ...parsed.data,
+      userId: session.userId,
+    });
     await writeUserOperationSucceededLog(pool, {
+      userId: session.userId,
       actionKey: 'aiDigest.create',
       source: operationSource,
       context: { feedId: created.id },
     });
     return ok({ ...created, unreadCount: 0 });
   } catch (err) {
-    await writeAiDigestCreateFailure(err);
+    if (isForeignKeyViolation(err, feedCategoryForeignKeyConstraints)) {
+      const error = new ValidationError('Invalid request body', { categoryId: 'not_found' });
+      await writeAiDigestCreateFailure(error, session.userId);
+      return fail(error);
+    }
+    await writeAiDigestCreateFailure(err, session.userId);
     return fail(err);
   }
 }

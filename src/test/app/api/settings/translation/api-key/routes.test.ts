@@ -83,10 +83,11 @@ describe('/api/settings/translation/api-key', () => {
     );
     const json = await res.json();
 
-    expect(setTranslationApiKeyMock).toHaveBeenCalledWith(pool, 'sk-translation-new');
+    expect(setTranslationApiKeyMock).toHaveBeenCalledWith(pool, '1', 'sk-translation-new');
     expect(cleanupAiRuntimeStateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         pool,
+        userId: '1',
         scopes: {
           summary: false,
           translation: true,

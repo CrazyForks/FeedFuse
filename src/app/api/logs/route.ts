@@ -35,9 +35,9 @@ function zodIssuesToFields(error: z.ZodError): Record<string, string> {
 }
 
 export async function GET(request: Request) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -49,7 +49,7 @@ export async function GET(request: Request) {
     }
 
     const pool = getPool();
-    const data = await getSystemLogs(pool, parsed.data);
+    const data = await getSystemLogs(pool, { ...parsed.data, userId: session.userId });
     return ok(data);
   } catch (err) {
     return fail(err);
@@ -57,14 +57,14 @@ export async function GET(request: Request) {
 }
 
 export async function DELETE() {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
     const pool = getPool();
-    const data = await clearSystemLogs(pool);
+    const data = await clearSystemLogs(pool, { userId: session.userId });
     return ok(data);
   } catch (err) {
     return fail(err);

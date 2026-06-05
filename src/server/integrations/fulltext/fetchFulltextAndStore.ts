@@ -36,20 +36,32 @@ function assertNotVerificationPage(input: {
   }
 }
 
-export async function fetchFulltextAndStore(pool: Pool, articleId: string): Promise<void> {
-  const article = await getArticleById(pool, articleId);
+export async function fetchFulltextAndStore(
+  pool: Pool,
+  articleId: string,
+  userId?: string | null,
+): Promise<void> {
+  const article = await getArticleById(pool, articleId, userId ?? undefined);
   if (!article) return;
 
   if (getUsableFulltextHtml(article)) return;
 
   const link = article.link?.trim() ?? '';
   if (!link) {
-    await setArticleFulltextError(pool, articleId, { error: 'Missing link', sourceUrl: null });
+    await setArticleFulltextError(pool, articleId, {
+      userId: article.userId,
+      error: 'Missing link',
+      sourceUrl: null,
+    });
     return;
   }
 
   if (!(await isSafeExternalUrl(link))) {
-    await setArticleFulltextError(pool, articleId, { error: 'Unsafe URL', sourceUrl: link });
+    await setArticleFulltextError(pool, articleId, {
+      userId: article.userId,
+      error: 'Unsafe URL',
+      sourceUrl: link,
+    });
     return;
   }
 
@@ -66,6 +78,7 @@ export async function fetchFulltextAndStore(pool: Pool, articleId: string): Prom
         source: 'server/fulltext/fetchFulltextAndStore',
         requestLabel: 'Fulltext fetch',
         context: {
+          userId: article.userId,
           articleId,
           articleLink: link,
         },
@@ -101,11 +114,13 @@ export async function fetchFulltextAndStore(pool: Pool, articleId: string): Prom
     assertNotVerificationPage({ html: sanitized, sourceUrl });
 
     await setArticleFulltext(pool, articleId, {
+      userId: article.userId,
       contentFullHtml: sanitized,
       sourceUrl,
     });
   } catch (err) {
     await setArticleFulltextError(pool, articleId, {
+      userId: article.userId,
       error: toShortErrorMessage(err),
       sourceUrl,
     });

@@ -14,7 +14,10 @@ describe('articleTranslationRepo', () => {
       rawErrorMessage: null,
     });
     expect(pool.query).toHaveBeenCalled();
-    expect(String(pool.query.mock.calls[0]?.[0] ?? '')).toContain('raw_error_message');
+    const sql = String(pool.query.mock.calls[0]?.[0] ?? '');
+    expect(sql).toContain('raw_error_message');
+    expect(sql).toContain('on conflict (user_id, article_id) do update');
+    expect(sql).not.toContain('user_id = excluded.user_id');
   });
 
   it('upsertSegment stores raw_error_message for failed segments', async () => {
@@ -32,8 +35,12 @@ describe('articleTranslationRepo', () => {
       rawErrorMessage: '429 rate limit',
     });
 
-    expect(String(pool.query.mock.calls[0]?.[0] ?? '')).toContain('raw_error_message');
+    const sql = String(pool.query.mock.calls[0]?.[0] ?? '');
+    expect(sql).toContain('raw_error_message');
+    expect(sql).toContain('on conflict (user_id, session_id, segment_index) do update');
+    expect(sql).not.toContain('user_id = excluded.user_id');
     expect(pool.query.mock.calls[0]?.[1]).toEqual([
+      '1',
       'session-1',
       1,
       'A',

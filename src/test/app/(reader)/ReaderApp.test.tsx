@@ -5,6 +5,7 @@ import ReaderApp from '../../../app/(reader)/ReaderApp';
 import { useAppStore } from '../../../store/appStore';
 import { defaultPersistedSettings } from '../../../features/settings/settingsSchema';
 import { useSettingsStore } from '../../../store/settingsStore';
+import { useAuthStore } from '../../../store/authStore';
 
 let documentVisibilityState: DocumentVisibilityState = 'visible';
 let snapshotRequests = 0;
@@ -41,12 +42,44 @@ describe('ReaderApp', () => {
     documentVisibilityState = 'visible';
     snapshotRequests = 0;
     refreshRequests = 0;
+    window.localStorage.clear();
+    useAuthStore.getState().clearCurrentUser();
+    useSettingsStore.setState({
+      persistedSettings: structuredClone(defaultPersistedSettings),
+      settings: {
+        theme: defaultPersistedSettings.general.theme,
+        fontSize: defaultPersistedSettings.general.fontSize,
+        fontFamily: defaultPersistedSettings.general.fontFamily,
+        lineHeight: defaultPersistedSettings.general.lineHeight,
+      },
+      draft: null,
+      validationErrors: {},
+    });
+    useAppStore.setState({
+      selectedView: 'all',
+      selectedArticleId: null,
+      showUnreadOnly: false,
+      unreadOnlyByView: {},
+      snapshotLoading: false,
+      articleListInitialLoading: false,
+      articleListLoadingMore: false,
+      articleListLoadMoreError: false,
+      articleListNextCursor: null,
+      articleListHasMore: false,
+      articleListTotalCount: 0,
+    });
     installVisibilityStateGetter();
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = getFetchCallUrl(input);
         const method = getFetchCallMethod(input, init);
+        if (url.includes('/api/auth/me')) {
+          return jsonResponse({
+            ok: false,
+            error: { code: 'unauthorized', message: '请先登录后再继续' },
+          });
+        }
         if (url.includes('/api/settings/ai/api-key')) {
           return jsonResponse({ ok: true, data: { hasApiKey: false } });
         }
@@ -173,6 +206,10 @@ describe('ReaderApp', () => {
         },
       },
     }));
+    window.localStorage.setItem(
+      'feedfuse.reader.unreadOnlyByView.v1:anonymous',
+      JSON.stringify({ 'feed-1': false }),
+    );
     useAppStore.setState({
       selectedView: 'all',
       showUnreadOnly: true,
@@ -191,6 +228,72 @@ describe('ReaderApp', () => {
       expect(useAppStore.getState().selectedView).toBe('feed-1');
       expect(useAppStore.getState().showUnreadOnly).toBe(false);
     });
+  });
+
+  it('loads the first snapshot after user-scoped reader state is rehydrated', async () => {
+    const snapshotUrls: string[] = [];
+
+    window.localStorage.setItem(
+      'feedfuse.reader.unreadOnlyByView.v1:2',
+      JSON.stringify({ all: false }),
+    );
+    useAppStore.setState({
+      selectedView: 'all',
+      showUnreadOnly: true,
+      unreadOnlyByView: { all: true },
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = getFetchCallUrl(input);
+        const method = getFetchCallMethod(input, init);
+        if (url.includes('/api/auth/me')) {
+          return jsonResponse({
+            ok: true,
+            data: {
+              id: '2',
+              username: 'member',
+              type: 'member',
+              role: 'member',
+              status: 'active',
+              sessionVersion: 1,
+            },
+          });
+        }
+        if (url.includes('/api/settings/ai/api-key')) {
+          return jsonResponse({ ok: true, data: { hasApiKey: false } });
+        }
+        if (url.includes('/api/settings/translation/api-key')) {
+          return jsonResponse({ ok: true, data: { hasApiKey: false } });
+        }
+        if (url.includes('/api/settings')) {
+          return jsonResponse({ ok: true, data: structuredClone(defaultPersistedSettings) });
+        }
+        if (url.includes('/api/reader/snapshot') && method === 'GET') {
+          snapshotUrls.push(url);
+          return jsonResponse({
+            ok: true,
+            data: {
+              categories: [],
+              feeds: [],
+              articles: { items: [], nextCursor: null },
+            },
+          });
+        }
+        throw new Error(`Unexpected fetch: ${method} ${url}`);
+      }),
+    );
+
+    await act(async () => {
+      render(<ReaderApp />);
+    });
+
+    await waitFor(() => {
+      expect(snapshotUrls).toHaveLength(1);
+    });
+    expect(snapshotUrls[0]).not.toContain('unreadOnly=true');
+    expect(useAppStore.getState().unreadOnlyByView).toEqual({ all: false });
   });
 
   it('limits automatic visible refreshes to once every five minutes', async () => {

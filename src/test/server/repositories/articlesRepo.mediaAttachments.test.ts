@@ -24,14 +24,16 @@ describe('articlesRepo (media attachments)', () => {
 
     const sql = String(query.mock.calls[0]?.[0] ?? '');
     expect(sql).toContain('insert into article_media_attachments');
-    expect(sql).toContain('on conflict (article_id, url) do nothing');
+    expect(sql).toContain('on conflict (user_id, article_id, url) do nothing');
     expect(query.mock.calls[0]?.[1]).toEqual([
+      '1',
       'article-1',
       'https://pod.example.com/1.mp3',
       'audio/mpeg',
       123,
       456,
       0,
+      '1',
       'article-1',
       'https://pod.example.com/1.mp4',
       'video/mp4',
@@ -70,6 +72,6 @@ describe('articlesRepo (media attachments)', () => {
       },
     ]);
     expect(String(query.mock.calls[0]?.[0] ?? '')).toContain('order by position asc, id asc');
-    expect(query.mock.calls[0]?.[1]).toEqual(['article-1']);
+    expect(query.mock.calls[0]?.[1]).toEqual(['article-1', '1']);
   });
 });

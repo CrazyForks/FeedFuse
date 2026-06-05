@@ -20,6 +20,7 @@ describe('systemLogsRepo', () => {
     expect(sql).toContain('insert into system_logs');
     expect(sql).toContain('context_json');
     expect(query.mock.calls[0]?.[1]).toEqual([
+      null,
       'error',
       'external_api',
       'AI summary request failed',
@@ -37,6 +38,7 @@ describe('systemLogsRepo', () => {
         rows: [
           {
             id: '128',
+            userId: '1',
             level: 'error',
             category: 'external_api',
             message: 'AI summary request failed',
@@ -72,6 +74,7 @@ describe('systemLogsRepo', () => {
     expect(result.items).toEqual([
       {
         id: '128',
+        userId: '1',
         level: 'error',
         category: 'external_api',
         message: 'AI summary request failed',
@@ -98,6 +101,30 @@ describe('systemLogsRepo', () => {
     expect(deletedCount).toBe(3);
   });
 
+  it('deletes expired logs within a specific user scope', async () => {
+    const query = vi.fn().mockResolvedValue({ rowCount: 2 });
+    const pool = { query } as unknown as Pool;
+    const mod = (await import('@/server/domains/settings/repositories/systemLogsRepo')) as typeof import('@/server/domains/settings/repositories/systemLogsRepo');
+
+    await mod.deleteExpiredSystemLogs(pool, { retentionDays: 14, userId: '2' });
+
+    const sql = String(query.mock.calls[0]?.[0] ?? '');
+    expect(sql).toContain('and user_id = $2');
+    expect(query.mock.calls[0]?.[1]).toEqual([14, '2']);
+  });
+
+  it('deletes expired logs in system scope when userId is null', async () => {
+    const query = vi.fn().mockResolvedValue({ rowCount: 1 });
+    const pool = { query } as unknown as Pool;
+    const mod = (await import('@/server/domains/settings/repositories/systemLogsRepo')) as typeof import('@/server/domains/settings/repositories/systemLogsRepo');
+
+    await mod.deleteExpiredSystemLogs(pool, { retentionDays: 7, userId: null });
+
+    const sql = String(query.mock.calls[0]?.[0] ?? '');
+    expect(sql).toContain('and user_id is null');
+    expect(query.mock.calls[0]?.[1]).toEqual([7]);
+  });
+
   it('deletes all logs without filters', async () => {
     const query = vi.fn().mockResolvedValue({ rowCount: 42 });
     const pool = { query } as unknown as Pool;
@@ -107,7 +134,7 @@ describe('systemLogsRepo', () => {
 
     const sql = String(query.mock.calls[0]?.[0] ?? '');
     expect(sql).toContain('delete from system_logs');
-    expect(query.mock.calls[0]?.[1]).toBeUndefined();
+    expect(query.mock.calls[0]?.[1]).toEqual([]);
     expect(deletedCount).toBe(42);
   });
 });

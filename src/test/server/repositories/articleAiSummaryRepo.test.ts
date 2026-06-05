@@ -108,7 +108,7 @@ describe('articleAiSummaryRepo', () => {
     expect(upsertSql).not.toContain('gen_random_uuid');
     expect(String(query.mock.calls[1]?.[0] ?? '')).toContain('insert into article_ai_summary_events');
     expect(String(query.mock.calls[2]?.[0] ?? '')).toContain('superseded_by_session_id is null');
-    expect(String(query.mock.calls[3]?.[0] ?? '')).toContain('event_id > $2');
+    expect(String(query.mock.calls[3]?.[0] ?? '')).toContain('event_id > $3');
   });
 
   it('failAiSummarySession stores raw_error_message', async () => {
@@ -152,6 +152,49 @@ describe('articleAiSummaryRepo', () => {
       'ai_rate_limited',
       '请求太频繁了，请稍后重试',
       '429 rate limit',
+      '1',
     ]);
+  });
+
+  it('does not reassign user_id when upserting an explicit summary session id', async () => {
+    const query = vi.fn().mockResolvedValue({
+      rows: [
+        {
+          id: 'session-1',
+          articleId: 'article-1',
+          sourceTextHash: 'hash-1',
+          status: 'running',
+          draftText: 'TL;DR',
+          finalText: null,
+          model: null,
+          jobId: 'job-1',
+          errorCode: null,
+          errorMessage: null,
+          rawErrorMessage: null,
+          supersededBySessionId: null,
+          startedAt: '2026-03-09T00:00:00.000Z',
+          finishedAt: null,
+          createdAt: '2026-03-09T00:00:00.000Z',
+          updatedAt: '2026-03-09T00:00:00.000Z',
+        },
+      ],
+    });
+    const pool = { query };
+    const mod = await import('@/server/domains/articles/repositories/articleAiSummaryRepo');
+
+    await mod.upsertAiSummarySession(pool as never, {
+      sessionId: 'session-1',
+      articleId: 'article-1',
+      sourceTextHash: 'hash-1',
+      status: 'running',
+      draftText: 'TL;DR',
+      jobId: 'job-1',
+      userId: '2',
+    });
+
+    const sql = String(query.mock.calls[0]?.[0] ?? '');
+    expect(sql).toContain('on conflict (id) do update');
+    expect(sql).toContain('where article_ai_summary_sessions.user_id = excluded.user_id');
+    expect(sql).not.toContain('set\n        user_id = excluded.user_id');
   });
 });

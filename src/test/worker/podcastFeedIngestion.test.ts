@@ -7,6 +7,7 @@ describe('podcast feed ingestion', () => {
       getPool: () => ({ query: vi.fn() }),
       getFeedForFetch: vi.fn().mockResolvedValue({
         id: 'feed-1',
+        userId: '1',
         url: 'https://pod.example.com/rss.xml',
         enabled: true,
         etag: null,
@@ -78,11 +79,13 @@ describe('podcast feed ingestion', () => {
           durationSeconds: 456,
         },
       ],
+      '1',
     );
     expect(boss.send).not.toHaveBeenCalled();
     expect(deps.insertArticleIgnoreDuplicate).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
+        userId: '1',
         filterStatus: 'passed',
         isFiltered: false,
         filteredBy: [],
@@ -97,6 +100,7 @@ describe('podcast feed ingestion', () => {
       getPool: () => ({ query: vi.fn() }),
       getFeedForFetch: vi.fn().mockResolvedValue({
         id: 'feed-1',
+        userId: '1',
         url: 'https://example.com/rss.xml',
         enabled: true,
         etag: null,
@@ -151,6 +155,56 @@ describe('podcast feed ingestion', () => {
 
     expect(result).toEqual({ inserted: 1, errorMessage: null });
     expect(deps.insertArticleMediaAttachments).not.toHaveBeenCalled();
-    expect(boss.send).toHaveBeenCalledTimes(1);
+    expect(boss.send).toHaveBeenCalledWith(
+      'article.filter',
+      expect.objectContaining({ userId: '1', articleId: 'article-1' }),
+      expect.any(Object),
+    );
+  });
+
+  it('records unsafe URL failures against the feed owner', async () => {
+    const boss = { send: vi.fn().mockResolvedValue('job-1') };
+    const deps = {
+      getPool: () => ({ query: vi.fn() }),
+      getFeedForFetch: vi.fn().mockResolvedValue({
+        id: 'feed-2',
+        userId: '2',
+        url: 'http://127.0.0.1/rss.xml',
+        enabled: true,
+        etag: null,
+        lastModified: null,
+        lastFetchedAt: null,
+        fetchIntervalMinutes: 30,
+        fullTextOnFetchEnabled: false,
+        aiSummaryOnFetchEnabled: false,
+        bodyTranslateOnFetchEnabled: false,
+        titleTranslateEnabled: false,
+      }),
+      isSafeExternalUrl: vi.fn().mockResolvedValue(false),
+      getAppSettings: vi.fn(),
+      getUiSettings: vi.fn(),
+      fetchFeedXml: vi.fn(),
+      parseFeed: vi.fn(),
+      sanitizeContent: vi.fn((html: string | null) => html),
+      insertArticleIgnoreDuplicate: vi.fn(),
+      insertArticleMediaAttachments: vi.fn(),
+      pruneFeedArticlesToLimit: vi.fn(),
+      recordFeedFetchResult: vi.fn().mockResolvedValue(undefined),
+      isFeedDue: vi.fn().mockReturnValue(true),
+    };
+
+    const { fetchAndIngestFeed } = await import('../../worker/index');
+    const result = await fetchAndIngestFeed(boss as never, 'feed-2', { deps });
+
+    expect(result.errorMessage).toBe('更新失败：订阅地址不安全');
+    expect(deps.recordFeedFetchResult).toHaveBeenCalledWith(
+      expect.anything(),
+      'feed-2',
+      expect.objectContaining({
+        userId: '2',
+        error: '更新失败：订阅地址不安全',
+        rawError: 'Unsafe URL',
+      }),
+    );
   });
 });

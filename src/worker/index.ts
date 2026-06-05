@@ -70,6 +70,8 @@ import { enqueueFeverRefreshAllTargets } from '@/worker/feverRefreshAll';
 import { runFeverSyncWorker } from '@/worker/feverSync';
 import { runArticleFilterWorker, type ArticleFilterJobData } from '@/worker/articleFilterWorker';
 import { runSystemLogCleanup } from '@/worker/systemLogCleanup';
+import { normalizeUserId } from '@/server/domains/users/userScope';
+import { listUsers } from '@/server/domains/auth/repositories/usersRepo';
 import {
   attachFeedRefreshRunItems,
   completeFeedRefreshRunItem,
@@ -80,6 +82,15 @@ import { listActiveLocalFeedIdsByFeverAccountId } from '@/server/domains/fever/r
 
 const DEFAULT_TRANSLATION_MODEL = 'gpt-4o-mini';
 const DEFAULT_TRANSLATION_API_BASE_URL = 'https://api.openai.com/v1';
+
+function readStringField(data: unknown, key: string): string | null {
+  return typeof data === 'object' &&
+    data !== null &&
+    key in data &&
+    typeof (data as Record<string, unknown>)[key] === 'string'
+    ? ((data as Record<string, string>)[key])
+    : null;
+}
 
 function sha256(value: string): string {
   return crypto.createHash('sha256').update(value).digest('hex');
@@ -98,6 +109,26 @@ function buildDedupeKey(input: {
   if (link) return `link:${link}`;
 
   return `hash:${sha256(`${input.title}|${input.publishedAt.toISOString()}|${input.link ?? ''}`)}`;
+}
+
+function getJobData(job: unknown): unknown {
+  return typeof job === 'object' && job !== null && 'data' in job
+    ? (job as { data?: unknown }).data
+    : null;
+}
+
+function readBooleanField(data: unknown, key: string): boolean | null {
+  return typeof data === 'object' &&
+    data !== null &&
+    key in data &&
+    typeof (data as Record<string, unknown>)[key] === 'boolean'
+    ? (data as Record<string, boolean>)[key]
+    : null;
+}
+
+async function listActiveWorkerUserIds(pool: ReturnType<typeof getPool>): Promise<string[]> {
+  const users = await listUsers(pool);
+  return users.filter((user) => user.status === 'active').map((user) => user.id);
 }
 
 type FeedFetchResult = {
@@ -139,19 +170,21 @@ const defaultFeedIngestionDeps: FeedIngestionDeps = {
 
 export async function enqueueRefreshAll(
   boss: PgBoss,
-  input?: { force?: boolean; runId?: string; now?: Date },
+  input?: { userId?: string; force?: boolean; runId?: string; now?: Date },
 ) {
   const pool = getPool();
-  const feeds = await listEnabledFeedsForFetch(pool);
+  const scopedUserId = normalizeUserId(input?.userId);
+  const feeds = await listEnabledFeedsForFetch(pool, scopedUserId);
   const now = input?.now ?? new Date();
   const force = Boolean(input?.force);
   const targetFeeds = selectFeedsForRefreshAll(feeds, now, { force });
   // 用户主动全量刷新时，要把 Fever 账号同步也并入同一轮 run 跟踪里。
-  const feverAccounts = force ? await listEnabledFeverAccounts(pool) : [];
+  const feverAccounts = force ? await listEnabledFeverAccounts(pool, scopedUserId) : [];
   const feverTargets = await Promise.all(
     feverAccounts.map(async (account) => ({
+      userId: account.userId,
       accountId: account.id,
-      feedIds: await listActiveLocalFeedIdsByFeverAccountId(pool, account.id),
+      feedIds: await listActiveLocalFeedIdsByFeverAccountId(pool, account.id, account.userId),
     })),
   );
   const targetFeverJobs = feverTargets.filter((target) => target.feedIds.length > 0);
@@ -163,6 +196,7 @@ export async function enqueueRefreshAll(
   if (input?.runId) {
     await attachFeedRefreshRunItems(pool, {
       runId: input.runId,
+      userId: scopedUserId,
       targetFeedIds: allTargetFeedIds,
     });
   }
@@ -170,7 +204,11 @@ export async function enqueueRefreshAll(
   await Promise.all(
     [
       ...targetFeeds.map((feed) => {
-        const payload = buildFeedFetchJobData(feed.id, { force, runId: input?.runId });
+        const payload = buildFeedFetchJobData(feed.id, {
+          userId: feed.userId,
+          force,
+          runId: input?.runId,
+        });
         return boss.send(JOB_FEED_FETCH, payload, getQueueSendOptions(JOB_FEED_FETCH, payload));
       }),
     ],
@@ -188,6 +226,7 @@ export async function enqueueRefreshAll(
       for (const feedId of target.feedIds) {
         await completeFeedRefreshRunItem(pool, {
           runId: input.runId,
+          userId: scopedUserId,
           feedId,
           status: 'failed',
           errorMessage: 'Fever 同步任务已在队列中',
@@ -201,11 +240,11 @@ export async function enqueueRefreshAll(
 export async function fetchAndIngestFeed(
   boss: PgBoss,
   feedId: string,
-  input?: { force?: boolean; deps?: Partial<FeedIngestionDeps> },
+  input?: { userId?: string; force?: boolean; deps?: Partial<FeedIngestionDeps> },
 ): Promise<FeedFetchResult> {
   const deps = { ...defaultFeedIngestionDeps, ...(input?.deps ?? {}) };
   const pool = deps.getPool();
-  const feed = await deps.getFeedForFetch(pool, feedId);
+  const feed = await deps.getFeedForFetch(pool, feedId, input?.userId);
   if (!feed) {
     return { inserted: 0, errorMessage: '订阅源不存在' };
   }
@@ -222,6 +261,7 @@ export async function fetchAndIngestFeed(
   if (!(await deps.isSafeExternalUrl(feed.url))) {
     const mapped = mapFeedFetchError('Unsafe URL');
     await deps.recordFeedFetchResult(pool, feedId, {
+      userId: feed.userId,
       status: null,
       error: mapped.errorMessage,
       rawError: mapped.rawErrorMessage,
@@ -230,7 +270,7 @@ export async function fetchAndIngestFeed(
   }
 
   const settings = await deps.getAppSettings(pool);
-  const uiSettings = normalizePersistedSettings(await deps.getUiSettings(pool));
+  const uiSettings = normalizePersistedSettings(await deps.getUiSettings(pool, feed.userId));
   const fetchedAt = new Date();
 
   let status: number | null = null;
@@ -265,6 +305,7 @@ export async function fetchAndIngestFeed(
     for (const item of parsed.items) {
       const baseUrl = item.link ?? parsed.link ?? feed.url;
       const created = await deps.insertArticleIgnoreDuplicate(pool, {
+        userId: feed.userId,
         feedId,
         dedupeKey: buildDedupeKey(item),
         title: item.title || '(untitled)',
@@ -285,7 +326,7 @@ export async function fetchAndIngestFeed(
       inserted += 1;
 
       if (item.mediaAttachments.length > 0) {
-        await deps.insertArticleMediaAttachments(pool, created.id, item.mediaAttachments);
+        await deps.insertArticleMediaAttachments(pool, created.id, item.mediaAttachments, feed.userId);
       }
 
       if (isPodcastSource) {
@@ -293,6 +334,7 @@ export async function fetchAndIngestFeed(
       }
 
       const filterJob: ArticleFilterJobData = {
+        userId: feed.userId,
         articleId: created.id,
         articleFilter: uiSettings.rss.articleFilter,
         feed: {
@@ -306,12 +348,20 @@ export async function fetchAndIngestFeed(
       await boss.send(
         JOB_ARTICLE_FILTER,
         filterJob,
-        getQueueSendOptions(JOB_ARTICLE_FILTER, { articleId: created.id }),
+        getQueueSendOptions(JOB_ARTICLE_FILTER, {
+          userId: feed.userId,
+          articleId: created.id,
+        }),
       );
     }
 
     if (inserted > 0) {
-      await deps.pruneFeedArticlesToLimit(pool, feedId, uiSettings.rss.maxStoredArticlesPerFeed);
+      await deps.pruneFeedArticlesToLimit(
+        pool,
+        feedId,
+        uiSettings.rss.maxStoredArticlesPerFeed,
+        feed.userId,
+      );
     }
 
     return { inserted, errorMessage: null };
@@ -322,6 +372,7 @@ export async function fetchAndIngestFeed(
     return { inserted: 0, errorMessage: mapped.errorMessage };
   } finally {
     await deps.recordFeedFetchResult(pool, feedId, {
+      userId: feed?.userId ?? input?.userId,
       status,
       etag,
       lastModified,
@@ -338,38 +389,22 @@ async function main() {
   await bootstrapQueues(boss);
 
   const refreshAllHandler = async (jobs: unknown[]) => {
-    const force = jobs.some((job) => {
-      const data =
-        typeof job === 'object' && job !== null && 'data' in job
-          ? (job as { data?: unknown }).data
-          : null;
-      if (typeof data !== 'object' || data === null) return false;
-      if (!('force' in data)) return false;
-      return (data as { force?: unknown }).force === true;
-    });
-    const runId = jobs.find((job) => {
-      const data =
-        typeof job === 'object' && job !== null && 'data' in job
-          ? (job as { data?: unknown }).data
-          : null;
-      return (
-        typeof data === 'object' &&
-        data !== null &&
-        'runId' in data &&
-        typeof (data as { runId?: unknown }).runId === 'string'
-      );
-    });
+    for (const job of jobs) {
+      const data = getJobData(job);
+      const force = readBooleanField(data, 'force') ?? false;
+      const runId = readStringField(data, 'runId') ?? undefined;
+      const userId = readStringField(data, 'userId');
 
-    await enqueueRefreshAll(boss, {
-      force,
-      runId:
-        typeof runId === 'object' &&
-        runId !== null &&
-        'data' in runId &&
-        typeof (runId as { data: { runId?: unknown } }).data.runId === 'string'
-          ? (runId as { data: { runId: string } }).data.runId
-          : undefined,
-    });
+      if (userId) {
+        await enqueueRefreshAll(boss, { userId, force, runId });
+        continue;
+      }
+
+      // 定时全量刷新没有会话上下文，必须按活跃用户逐个扫描。
+      for (const activeUserId of await listActiveWorkerUserIds(pool)) {
+        await enqueueRefreshAll(boss, { userId: activeUserId, force });
+      }
+    }
   };
 
   const feedFetchHandler = async (jobs: unknown[]) => {
@@ -380,12 +415,7 @@ async function main() {
           : null;
 
       const feedId =
-        typeof data === 'object' &&
-        data !== null &&
-        'feedId' in data &&
-        typeof (data as { feedId?: unknown }).feedId === 'string'
-          ? (data as { feedId: string }).feedId
-          : null;
+        readStringField(data, 'feedId');
 
       if (!feedId) throw new Error('Missing feedId');
 
@@ -397,22 +427,23 @@ async function main() {
           ? (data as { force: boolean }).force
           : false;
       const runId =
-        typeof data === 'object' &&
-        data !== null &&
-        'runId' in data &&
-        typeof (data as { runId?: unknown }).runId === 'string'
-          ? (data as { runId: string }).runId
-          : null;
+        readStringField(data, 'runId');
+      const userId = readStringField(data, 'userId');
 
       if (runId) {
-        await markFeedRefreshRunItemRunning(getPool(), { runId, feedId });
+        await markFeedRefreshRunItemRunning(getPool(), {
+          runId,
+          userId: userId ?? undefined,
+          feedId,
+        });
       }
 
-      const result = await fetchAndIngestFeed(boss, feedId, { force });
+      const result = await fetchAndIngestFeed(boss, feedId, { userId: userId ?? undefined, force });
 
       if (runId) {
         await completeFeedRefreshRunItem(getPool(), {
           runId,
+          userId: userId ?? undefined,
           feedId,
           status: result.errorMessage ? 'failed' : 'succeeded',
           errorMessage: result.errorMessage,
@@ -430,14 +461,10 @@ async function main() {
           : null;
 
       const articleId =
-        typeof data === 'object' &&
-        data !== null &&
-        'articleId' in data &&
-        typeof (data as { articleId?: unknown }).articleId === 'string'
-          ? (data as { articleId: string }).articleId
-          : null;
+        readStringField(data, 'articleId');
 
       if (!articleId) throw new Error('Missing articleId');
+      const userId = readStringField(data, 'userId');
 
       const jobId =
         typeof job === 'object' &&
@@ -450,12 +477,13 @@ async function main() {
 
       await runArticleTaskWithStatus({
         pool,
+        userId,
         articleId,
         type: 'fulltext',
         jobId,
         fn: async () => {
-          await fetchFulltextAndStore(pool, articleId);
-          const after = await getArticleById(pool, articleId);
+          await fetchFulltextAndStore(pool, articleId, userId);
+          const after = await getArticleById(pool, articleId, userId ?? undefined);
           if (after?.contentFullError) {
             throw new Error(after.contentFullError);
           }
@@ -480,6 +508,10 @@ async function main() {
         'articleId' in data && typeof (data as { articleId?: unknown }).articleId === 'string'
           ? (data as { articleId: string }).articleId
           : null;
+      const userId =
+        'userId' in data && typeof (data as { userId?: unknown }).userId === 'string'
+          ? (data as { userId: string }).userId
+          : null;
       const articleFilter =
         'articleFilter' in data && typeof (data as { articleFilter?: unknown }).articleFilter === 'object'
           ? (data as { articleFilter: ArticleFilterJobData['articleFilter'] }).articleFilter
@@ -496,10 +528,10 @@ async function main() {
       await runArticleFilterWorker({
         pool,
         boss,
-        job: { articleId, articleFilter, feed },
+        job: { articleId, articleFilter, feed, ...(userId ? { userId } : {}) },
         judgeAi: async ({ prompt, articleText }) => {
-          const uiSettings = normalizePersistedSettings(await getUiSettings(pool));
-          const apiKey = (await getAiApiKey(pool)).trim();
+          const uiSettings = normalizePersistedSettings(await getUiSettings(pool, userId ?? undefined));
+          const apiKey = (await getAiApiKey(pool, userId ?? undefined)).trim();
           if (!apiKey) {
             return { ok: false, matched: false, errorMessage: 'Missing AI API key' };
           }
@@ -527,29 +559,15 @@ async function main() {
           : null;
 
       const articleId =
-        typeof data === 'object' &&
-        data !== null &&
-        'articleId' in data &&
-        typeof (data as { articleId?: unknown }).articleId === 'string'
-          ? (data as { articleId: string }).articleId
-          : null;
+        readStringField(data, 'articleId');
 
       if (!articleId) throw new Error('Missing articleId');
+      const userId = readStringField(data, 'userId');
 
       const sessionId =
-        typeof data === 'object' &&
-        data !== null &&
-        'sessionId' in data &&
-        typeof (data as { sessionId?: unknown }).sessionId === 'string'
-          ? (data as { sessionId: string }).sessionId
-          : null;
+        readStringField(data, 'sessionId');
       const sharedConfigFingerprint =
-        typeof data === 'object' &&
-        data !== null &&
-        'sharedConfigFingerprint' in data &&
-        typeof (data as { sharedConfigFingerprint?: unknown }).sharedConfigFingerprint === 'string'
-          ? (data as { sharedConfigFingerprint: string }).sharedConfigFingerprint
-          : null;
+        readStringField(data, 'sharedConfigFingerprint');
 
       const jobId =
         typeof job === 'object' &&
@@ -562,6 +580,7 @@ async function main() {
 
       await runAiSummaryStreamWorker({
         pool,
+        userId,
         articleId,
         sessionId,
         jobId,
@@ -579,29 +598,15 @@ async function main() {
           : null;
 
       const articleId =
-        typeof data === 'object' &&
-        data !== null &&
-        'articleId' in data &&
-        typeof (data as { articleId?: unknown }).articleId === 'string'
-          ? (data as { articleId: string }).articleId
-          : null;
+        readStringField(data, 'articleId');
 
       if (!articleId) throw new Error('Missing articleId');
+      const userId = readStringField(data, 'userId');
 
       const sessionId =
-        typeof data === 'object' &&
-        data !== null &&
-        'sessionId' in data &&
-        typeof (data as { sessionId?: unknown }).sessionId === 'string'
-          ? (data as { sessionId: string }).sessionId
-          : null;
+        readStringField(data, 'sessionId');
       const translationConfigFingerprint =
-        typeof data === 'object' &&
-        data !== null &&
-        'translationConfigFingerprint' in data &&
-        typeof (data as { translationConfigFingerprint?: unknown }).translationConfigFingerprint === 'string'
-          ? (data as { translationConfigFingerprint: string }).translationConfigFingerprint
-          : null;
+        readStringField(data, 'translationConfigFingerprint');
 
       const hasSegmentIndex =
         typeof data === 'object' && data !== null && 'segmentIndex' in data;
@@ -630,6 +635,7 @@ async function main() {
 
       await runArticleTaskWithStatus({
         pool,
+        userId,
         articleId,
         type: 'ai_translate',
         jobId,
@@ -647,13 +653,17 @@ async function main() {
           },
         },
         fn: async () => {
+          const article = await getArticleById(pool, articleId, userId ?? undefined);
+          if (!article) return;
+
+          const scopedUserId = article.userId;
           const ensureTranslationConfigCurrent = createConfigFingerprintGuard({
             initialFingerprint: translationConfigFingerprint,
             loadCurrentFingerprint: async () => {
               const [uiSettings, aiApiKey, translationApiKey] = await Promise.all([
-                getUiSettings(pool),
-                getAiApiKey(pool),
-                getTranslationApiKey(pool),
+                getUiSettings(pool, scopedUserId),
+                getAiApiKey(pool, scopedUserId),
+                getTranslationApiKey(pool, scopedUserId),
               ]);
               return resolveAiConfigFingerprints({
                 settings: uiSettings,
@@ -663,13 +673,10 @@ async function main() {
             },
           });
 
-          const article = await getArticleById(pool, articleId);
-          if (!article) return;
-
-          const uiSettings = await getUiSettings(pool);
+          const uiSettings = await getUiSettings(pool, scopedUserId);
           const normalizedSettings = normalizePersistedSettings(uiSettings);
-          const aiApiKey = await getAiApiKey(pool);
-          const translationApiKey = await getTranslationApiKey(pool);
+          const aiApiKey = await getAiApiKey(pool, scopedUserId);
+          const translationApiKey = await getTranslationApiKey(pool, scopedUserId);
           await ensureTranslationConfigCurrent();
           const resolved = resolveTranslationConfig({
             settings: normalizedSettings,
@@ -684,6 +691,7 @@ async function main() {
 
           await runImmersiveTranslateSession({
             pool,
+            userId: scopedUserId,
             articleId,
             sessionId,
             segmentIndex,
@@ -729,16 +737,12 @@ async function main() {
           : null;
 
       const articleId =
-        typeof data === 'object' &&
-        data !== null &&
-        'articleId' in data &&
-        typeof (data as { articleId?: unknown }).articleId === 'string'
-          ? (data as { articleId: string }).articleId
-          : null;
+        readStringField(data, 'articleId');
 
       if (!articleId) throw new Error('Missing articleId');
+      const userId = readStringField(data, 'userId');
 
-      const article = await getArticleById(pool, articleId);
+      const article = await getArticleById(pool, articleId, userId ?? undefined);
       if (!article) continue;
       if (article.titleZh?.trim()) continue;
 
@@ -748,9 +752,9 @@ async function main() {
       const ensureTranslationConfigCurrent = createConfigFingerprintGuard({
         loadCurrentFingerprint: async () => {
           const [uiSettings, aiApiKey, translationApiKey] = await Promise.all([
-            getUiSettings(pool),
-            getAiApiKey(pool),
-            getTranslationApiKey(pool),
+            getUiSettings(pool, article.userId),
+            getAiApiKey(pool, article.userId),
+            getTranslationApiKey(pool, article.userId),
           ]);
           return resolveAiConfigFingerprints({
             settings: uiSettings,
@@ -760,10 +764,10 @@ async function main() {
         },
       });
 
-      const uiSettings = await getUiSettings(pool);
+      const uiSettings = await getUiSettings(pool, article.userId);
       const normalizedSettings = normalizePersistedSettings(uiSettings);
-      const aiApiKey = await getAiApiKey(pool);
-      const translationApiKey = await getTranslationApiKey(pool);
+      const aiApiKey = await getAiApiKey(pool, article.userId);
+      const translationApiKey = await getTranslationApiKey(pool, article.userId);
       await ensureTranslationConfigCurrent();
       const resolved = resolveTranslationConfig({
         settings: normalizedSettings,
@@ -789,12 +793,16 @@ async function main() {
         }
 
         await setArticleTitleTranslation(pool, articleId, {
+          userId: article.userId,
           titleZh: translatedTitle.trim(),
           titleTranslationModel: model,
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown title translation error';
-        const attempts = await recordArticleTitleTranslationFailure(pool, articleId, { error: message });
+        const attempts = await recordArticleTitleTranslationFailure(pool, articleId, {
+          userId: article.userId,
+          error: message,
+        });
         if (attempts < 3) {
           throw err instanceof Error ? err : new Error(message);
         }
@@ -803,18 +811,26 @@ async function main() {
   };
 
   const aiDigestTickHandler = async (jobs: unknown[]) => {
-    void jobs;
-    await runAiDigestTick({
-      pool: getPool(),
-      boss: {
-        // Wrap `PgBoss.send` to avoid overload variance issues in Next.js typecheck.
-        send: (name: string, data?: object | null, options?: unknown) =>
-          // pg-boss types differ between builds; keep options loosely typed.
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          boss.send(name, data, options as any),
-      },
-      now: new Date(),
-    });
+    for (const job of jobs) {
+      const data = getJobData(job);
+      const userId = readStringField(data, 'userId');
+      const userIds = userId ? [userId] : await listActiveWorkerUserIds(pool);
+
+      for (const activeUserId of userIds) {
+        await runAiDigestTick({
+          pool: getPool(),
+          boss: {
+            // Wrap `PgBoss.send` to avoid overload variance issues in Next.js typecheck.
+            send: (name: string, data?: object | null, options?: unknown) =>
+              // pg-boss types differ between builds; keep options loosely typed.
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              boss.send(name, data, options as any),
+          },
+          now: new Date(),
+          userId: activeUserId,
+        });
+      }
+    }
   };
 
   const aiDigestGenerateHandler = async (jobs: unknown[]) => {
@@ -826,19 +842,10 @@ async function main() {
           : null;
 
       const runId =
-        typeof data === 'object' &&
-        data !== null &&
-        'runId' in data &&
-        typeof (data as { runId?: unknown }).runId === 'string'
-          ? (data as { runId: string }).runId
-          : null;
+        readStringField(data, 'runId');
+      const userId = readStringField(data, 'userId');
       const sharedConfigFingerprint =
-        typeof data === 'object' &&
-        data !== null &&
-        'sharedConfigFingerprint' in data &&
-        typeof (data as { sharedConfigFingerprint?: unknown }).sharedConfigFingerprint === 'string'
-          ? (data as { sharedConfigFingerprint: string }).sharedConfigFingerprint
-          : null;
+        readStringField(data, 'sharedConfigFingerprint');
 
       if (!runId) throw new Error('Missing runId');
 
@@ -883,6 +890,7 @@ async function main() {
 
       await runAiDigestGenerate({
         pool,
+        userId,
         runId,
         jobId,
         isFinalAttempt,
@@ -898,12 +906,13 @@ async function main() {
   };
 
   const feverSyncHandler = async (jobs: unknown[]) => {
-    for (const job of jobs as Array<{ data?: { accountId?: string; runId?: string; feedIds?: string[] } }>) {
+    for (const job of jobs as Array<{ data?: { userId?: string; accountId?: string; runId?: string; feedIds?: string[] } }>) {
       const accountId = job.data?.accountId;
       if (!accountId) {
         continue;
       }
 
+      const userId = typeof job.data?.userId === 'string' ? job.data.userId : null;
       const runId = typeof job.data?.runId === 'string' ? job.data.runId : null;
       const feedIds = Array.isArray(job.data?.feedIds)
         ? job.data.feedIds.filter((feedId): feedId is string => typeof feedId === 'string')
@@ -911,7 +920,11 @@ async function main() {
 
       if (runId) {
         for (const feedId of feedIds) {
-          await markFeedRefreshRunItemRunning(getPool(), { runId, feedId });
+          await markFeedRefreshRunItemRunning(getPool(), {
+            runId,
+            userId: userId ?? undefined,
+            feedId,
+          });
         }
       }
 
@@ -919,13 +932,14 @@ async function main() {
         await runFeverSyncWorker({
           pool,
           boss,
-          data: { accountId, runId, feedIds },
+          data: { userId: userId ?? undefined, accountId, runId, feedIds },
         });
 
         if (runId) {
           for (const feedId of feedIds) {
             await completeFeedRefreshRunItem(getPool(), {
               runId,
+              userId: userId ?? undefined,
               feedId,
               status: 'succeeded',
               errorMessage: null,
@@ -939,6 +953,7 @@ async function main() {
           for (const feedId of feedIds) {
             await completeFeedRefreshRunItem(getPool(), {
               runId,
+              userId: userId ?? undefined,
               feedId,
               status: 'failed',
               errorMessage,
@@ -951,8 +966,14 @@ async function main() {
   };
 
   const feverAutoSyncHandler = async (jobs: unknown[]) => {
-    void jobs;
-    await runFeverAutoSyncWorker({ pool });
+    for (const job of jobs) {
+      const userId = readStringField(getJobData(job), 'userId');
+      const userIds = userId ? [userId] : await listActiveWorkerUserIds(pool);
+
+      for (const activeUserId of userIds) {
+        await runFeverAutoSyncWorker({ pool, userId: activeUserId });
+      }
+    }
   };
 
   await registerWorkers(boss, {

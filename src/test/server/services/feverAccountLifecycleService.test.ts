@@ -42,23 +42,23 @@ describe('feverAccountLifecycleService', () => {
     expect(deleted).toBe(true);
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining('select distinct local_feed_id as "localFeedId"'),
-      ['1'],
+      ['1', '1'],
     );
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining('delete from feeds where id = $1'),
-      ['10'],
+      ['10', '1'],
     );
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining('delete from feeds where id = $1'),
-      ['11'],
+      ['11', '1'],
     );
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining('delete from categories'),
-      ['cat-empty'],
+      ['cat-empty', '1'],
     );
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining('delete from fever_accounts'),
-      ['1'],
+      ['1', '1'],
     );
   });
 
@@ -77,11 +77,11 @@ describe('feverAccountLifecycleService', () => {
 
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining('from fever_feed_mappings'),
-      ['1'],
+      ['1', '1'],
     );
     expect(client.query).not.toHaveBeenCalledWith(
       expect.stringContaining('and is_active = true'),
-      ['1'],
+      ['1', '1'],
     );
   });
 });

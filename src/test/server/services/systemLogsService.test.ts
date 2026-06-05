@@ -64,7 +64,9 @@ describe('systemLogsService', () => {
     const mod = (await import('@/server/domains/settings/services/systemLogsService')) as typeof import('@/server/domains/settings/services/systemLogsService');
     const result = await mod.clearSystemLogs({} as never);
 
-    expect(deleteAllSystemLogsRepoMock).toHaveBeenCalledWith(expect.anything());
+    expect(deleteAllSystemLogsRepoMock).toHaveBeenCalledWith(expect.anything(), {
+      userId: undefined,
+    });
     expect(result).toEqual({ deletedCount: 12 });
   });
 });

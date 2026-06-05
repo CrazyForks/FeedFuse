@@ -25,14 +25,14 @@ function readApiKey(input: unknown): string {
 }
 
 export async function GET() {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
     const pool = getPool();
-    const apiKey = await getAiApiKey(pool);
+    const apiKey = await getAiApiKey(pool, session.userId);
     return ok({ hasApiKey: apiKey.trim().length > 0 });
   } catch (err) {
     return fail(err);
@@ -40,9 +40,9 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -54,11 +54,11 @@ export async function PUT(request: Request) {
 
     const pool = getPool();
     const [uiSettings, currentAiApiKey, translationApiKey] = await Promise.all([
-      getUiSettings(pool),
-      getAiApiKey(pool),
-      getTranslationApiKey(pool),
+      getUiSettings(pool, session.userId),
+      getAiApiKey(pool, session.userId),
+      getTranslationApiKey(pool, session.userId),
     ]);
-    await setAiApiKey(pool, apiKey);
+    await setAiApiKey(pool, session.userId, apiKey);
     const cleanupScopes = resolveAiCleanupScopesForInputs({
       previous: {
         settings: uiSettings,
@@ -74,6 +74,7 @@ export async function PUT(request: Request) {
     if (hasAiCleanupScopes(cleanupScopes)) {
       await cleanupAiRuntimeState({
         pool,
+        userId: session.userId,
         scopes: cleanupScopes,
       });
     }
@@ -84,19 +85,19 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE() {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
     const pool = getPool();
     const [uiSettings, currentAiApiKey, translationApiKey] = await Promise.all([
-      getUiSettings(pool),
-      getAiApiKey(pool),
-      getTranslationApiKey(pool),
+      getUiSettings(pool, session.userId),
+      getAiApiKey(pool, session.userId),
+      getTranslationApiKey(pool, session.userId),
     ]);
-    await clearAiApiKey(pool);
+    await clearAiApiKey(pool, session.userId);
     const cleanupScopes = resolveAiCleanupScopesForInputs({
       previous: {
         settings: uiSettings,
@@ -112,6 +113,7 @@ export async function DELETE() {
     if (hasAiCleanupScopes(cleanupScopes)) {
       await cleanupAiRuntimeState({
         pool,
+        userId: session.userId,
         scopes: cleanupScopes,
       });
     }

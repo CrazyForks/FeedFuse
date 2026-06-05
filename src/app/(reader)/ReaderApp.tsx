@@ -3,9 +3,11 @@
 import ReaderLayout from '../../features/reader/components/ReaderLayout';
 import { ToastHost } from '../../features/toast/components/ToastHost';
 import { useTheme } from '../../hooks';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../../store/appStore';
 import { useSettingsStore } from '../../store/settingsStore';
+import { getCurrentUser } from '../../lib/api/apiClient';
+import { useAuthStore } from '../../store/authStore';
 import type { ViewType } from '../../types';
 
 const AUTO_SNAPSHOT_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
@@ -19,15 +21,62 @@ export default function ReaderApp({ renderedAt, initialSelectedView }: ReaderApp
   useTheme();
   const selectedView = useAppStore((state) => state.selectedView);
   const loadSnapshot = useAppStore((state) => state.loadSnapshot);
+  const rehydrateUserScopedLocalState = useAppStore((state) => state.rehydrateUserScopedLocalState);
   const hydratePersistedSettings = useSettingsStore((state) => state.hydratePersistedSettings);
+  const setCurrentUser = useAuthStore((state) => state.setCurrentUser);
   const lastAutoSnapshotAtRef = useRef<number | null>(null);
+  const userScopedStateReadyRef = useRef(false);
+  const [userScopedStateReady, setUserScopedStateReady] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    userScopedStateReadyRef.current = false;
+
+    const hydrateCurrentUserLocalState = async () => {
+      await useSettingsStore.persist.rehydrate();
+      if (cancelled) return;
+
+      await hydratePersistedSettings();
+      if (cancelled) return;
+
+      // 远端设置确定后再计算阅读器本地状态，避免普通用户继承 anonymous 或旧全局缓存。
+      rehydrateUserScopedLocalState();
+      userScopedStateReadyRef.current = true;
+      setUserScopedStateReady(true);
+    };
+
+    void (async () => {
+      try {
+        const user = await getCurrentUser({ notifyOnError: false });
+        if (cancelled) return;
+        setCurrentUser(user);
+      } catch {
+        if (cancelled) return;
+        setCurrentUser(null);
+        await hydrateCurrentUserLocalState();
+        return;
+      }
+
+      await hydrateCurrentUserLocalState();
+    })();
+
+    return () => {
+      cancelled = true;
+      userScopedStateReadyRef.current = false;
+    };
+  }, [hydratePersistedSettings, rehydrateUserScopedLocalState, setCurrentUser]);
+
+  useEffect(() => {
+    if (!userScopedStateReady) return;
     void loadSnapshot({ view: selectedView });
-  }, [loadSnapshot, selectedView]);
+  }, [loadSnapshot, selectedView, userScopedStateReady]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
+      if (!userScopedStateReadyRef.current) {
+        return;
+      }
+
       if (document.visibilityState !== 'visible') {
         return;
       }
@@ -50,10 +99,6 @@ export default function ReaderApp({ renderedAt, initialSelectedView }: ReaderApp
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
-
-  useEffect(() => {
-    void hydratePersistedSettings();
-  }, [hydratePersistedSettings]);
 
   return (
     <>

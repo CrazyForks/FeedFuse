@@ -54,7 +54,10 @@ type AiDigestGenerateDeps = {
   sanitizeContent: typeof sanitizeContent;
   insertArticleIgnoreDuplicate: typeof insertArticleIgnoreDuplicate;
   pruneFeedArticlesToLimit: typeof pruneFeedArticlesToLimit;
-  queryArticleIdByDedupeKey: (pool: Pool, input: { feedId: string; dedupeKey: string }) => Promise<string | null>;
+  queryArticleIdByDedupeKey: (
+    pool: Pool,
+    input: { userId?: string | null; feedId: string; dedupeKey: string },
+  ) => Promise<string | null>;
   replaceAiDigestRunSources: typeof replaceAiDigestRunSources;
 };
 
@@ -78,10 +81,12 @@ const defaultDeps: AiDigestGenerateDeps = {
       `
         select id
         from articles
-        where feed_id = $1 and dedupe_key = $2
+        where user_id = $1
+          and feed_id = $2
+          and dedupe_key = $3
         limit 1
       `,
-      [input.feedId, input.dedupeKey],
+      [input.userId, input.feedId, input.dedupeKey],
     );
     return rows[0]?.id ?? null;
   },
@@ -363,6 +368,7 @@ function toComposeArticles(selected: AiDigestCandidateArticleRow[]): AiDigestCom
 
 export async function runAiDigestGenerate(input: {
   pool: Pool;
+  userId?: string | null;
   runId: string;
   jobId: string | null;
   isFinalAttempt: boolean;
@@ -373,7 +379,7 @@ export async function runAiDigestGenerate(input: {
   const deps = resolveDeps(input.deps);
   const now = input.now ?? new Date();
 
-  const run = await deps.getAiDigestRunById(input.pool, input.runId);
+  const run = await deps.getAiDigestRunById(input.pool, input.runId, input.userId ?? undefined);
   if (!run) {
     throw new Error('AI digest run not found');
   }
@@ -384,12 +390,14 @@ export async function runAiDigestGenerate(input: {
   }
 
   await deps.updateAiDigestRun(input.pool, run.id, {
+    userId: run.userId,
     status: 'running',
     jobId: input.jobId ?? run.jobId ?? null,
     errorCode: null,
     errorMessage: null,
   });
   await writeUserOperationStartedLog(input.pool, {
+    userId: run.userId,
     actionKey: 'aiDigest.generate',
     source: 'worker/aiDigestGenerate',
     context: {
@@ -404,8 +412,8 @@ export async function runAiDigestGenerate(input: {
       initialFingerprint: input.sharedConfigFingerprint ?? null,
       loadCurrentFingerprint: async () => {
         const [rawSettings, aiApiKey] = await Promise.all([
-          deps.getUiSettings(input.pool),
-          deps.getAiApiKey(input.pool),
+          deps.getUiSettings(input.pool, run.userId),
+          deps.getAiApiKey(input.pool, run.userId),
         ]);
         return resolveAiConfigFingerprints({
           settings: rawSettings,
@@ -424,6 +432,7 @@ export async function runAiDigestGenerate(input: {
     });
     if (status === 'succeeded') {
       await writeUserOperationSucceededLog(input.pool, {
+        userId: run.userId,
         actionKey: 'aiDigest.generate',
         source: 'worker/aiDigestGenerate',
         context: {
@@ -436,11 +445,13 @@ export async function runAiDigestGenerate(input: {
   } catch (err) {
     const mapped = mapDigestError(err);
     await deps.updateAiDigestRun(input.pool, run.id, {
+      userId: run.userId,
       status: 'failed',
       errorCode: mapped.errorCode,
       errorMessage: mapped.errorMessage,
     });
     await writeUserOperationFailedLog(input.pool, {
+      userId: run.userId,
       actionKey: 'aiDigest.generate',
       source: 'worker/aiDigestGenerate',
       err,
@@ -454,7 +465,12 @@ export async function runAiDigestGenerate(input: {
 
     // Important: avoid a permanently failed run blocking future windows.
     if (input.isFinalAttempt) {
-      await deps.updateAiDigestConfigLastWindowEndAt(input.pool, run.feedId, run.windowEndAt);
+      await deps.updateAiDigestConfigLastWindowEndAt(
+        input.pool,
+        run.feedId,
+        run.windowEndAt,
+        run.userId,
+      );
     }
 
     throw err instanceof Error ? err : new Error(safeErrorText(err));
@@ -468,12 +484,16 @@ async function executeAiDigestRun(input: {
   deps: AiDigestGenerateDeps;
   ensureSharedConfigCurrent: () => Promise<void>;
 }): Promise<'skipped_no_updates' | 'succeeded'> {
-  const config = await input.deps.getAiDigestConfigByFeedId(input.pool, input.run.feedId);
+  const config = await input.deps.getAiDigestConfigByFeedId(
+    input.pool,
+    input.run.feedId,
+    input.run.userId,
+  );
   if (!config) {
     throw new Error('AI digest config not found');
   }
 
-  const feeds = await input.deps.listFeeds(input.pool);
+  const feeds = await input.deps.listFeeds(input.pool, input.run.userId);
   const aiDigestFeed = feeds.find((feed) => feed.id === input.run.feedId) ?? null;
 
   const targetFeedIds = resolveTargetFeedIds({ config, feeds });
@@ -482,9 +502,11 @@ async function executeAiDigestRun(input: {
     windowStartAt: input.run.windowStartAt,
     windowEndAt: input.run.windowEndAt,
     limit: MAX_CANDIDATES,
+    userId: input.run.userId,
   });
 
   await input.deps.updateAiDigestRun(input.pool, input.run.id, {
+    userId: input.run.userId,
     candidateTotal: candidates.length,
   });
 
@@ -492,19 +514,24 @@ async function executeAiDigestRun(input: {
     await input.deps.updateAiDigestRun(
       input.pool,
       input.run.id,
-      createSkippedNoUpdatesPatch(null),
+      { ...createSkippedNoUpdatesPatch(null), userId: input.run.userId },
     );
-    await input.deps.updateAiDigestConfigLastWindowEndAt(input.pool, input.run.feedId, input.run.windowEndAt);
+    await input.deps.updateAiDigestConfigLastWindowEndAt(
+      input.pool,
+      input.run.feedId,
+      input.run.windowEndAt,
+      input.run.userId,
+    );
     return 'skipped_no_updates';
   }
 
-  const aiApiKey = await input.deps.getAiApiKey(input.pool);
+  const aiApiKey = await input.deps.getAiApiKey(input.pool, input.run.userId);
   if (!aiApiKey.trim()) {
     throw new Error('Missing AI API key');
   }
   await input.ensureSharedConfigCurrent();
 
-  const rawSettings = await input.deps.getUiSettings(input.pool);
+  const rawSettings = await input.deps.getUiSettings(input.pool, input.run.userId);
   const settings = normalizePersistedSettings(rawSettings);
   const model = settings.ai.model.trim() || DEFAULT_DIGEST_MODEL;
   const apiBaseUrl = settings.ai.apiBaseUrl.trim() || DEFAULT_DIGEST_API_BASE_URL;
@@ -525,9 +552,14 @@ async function executeAiDigestRun(input: {
     await input.deps.updateAiDigestRun(
       input.pool,
       input.run.id,
-      createSkippedNoUpdatesPatch(model),
+      { ...createSkippedNoUpdatesPatch(model), userId: input.run.userId },
     );
-    await input.deps.updateAiDigestConfigLastWindowEndAt(input.pool, input.run.feedId, input.run.windowEndAt);
+    await input.deps.updateAiDigestConfigLastWindowEndAt(
+      input.pool,
+      input.run.feedId,
+      input.run.windowEndAt,
+      input.run.userId,
+    );
     return 'skipped_no_updates';
   }
 
@@ -549,6 +581,7 @@ async function executeAiDigestRun(input: {
 
   const dedupeKey = `ai_digest_run:${input.run.id}`;
   const created = await input.deps.insertArticleIgnoreDuplicate(input.pool, {
+    userId: input.run.userId,
     feedId: input.run.feedId,
     dedupeKey,
     title,
@@ -562,7 +595,13 @@ async function executeAiDigestRun(input: {
   });
 
   const articleId =
-    created?.id ?? input.run.articleId ?? (await input.deps.queryArticleIdByDedupeKey(input.pool, { feedId: input.run.feedId, dedupeKey }));
+    created?.id ??
+    input.run.articleId ??
+    (await input.deps.queryArticleIdByDedupeKey(input.pool, {
+      userId: input.run.userId,
+      feedId: input.run.feedId,
+      dedupeKey,
+    }));
   if (!articleId) {
     throw new Error('Failed to persist AI digest article');
   }
@@ -572,10 +611,12 @@ async function executeAiDigestRun(input: {
       input.pool,
       input.run.feedId,
       maxStoredArticlesPerFeed,
+      input.run.userId,
     );
   }
 
   await input.deps.replaceAiDigestRunSources(input.pool, {
+    userId: input.run.userId,
     runId: input.run.id,
     sources: clusteredSelected.map((candidate, index) => ({
       sourceArticleId: candidate.id,
@@ -584,6 +625,7 @@ async function executeAiDigestRun(input: {
   });
 
   await input.deps.updateAiDigestRun(input.pool, input.run.id, {
+    userId: input.run.userId,
     status: 'succeeded',
     selectedCount: clusteredSelected.length,
     articleId,
@@ -592,6 +634,11 @@ async function executeAiDigestRun(input: {
     errorMessage: null,
   });
 
-  await input.deps.updateAiDigestConfigLastWindowEndAt(input.pool, input.run.feedId, input.run.windowEndAt);
+  await input.deps.updateAiDigestConfigLastWindowEndAt(
+    input.pool,
+    input.run.feedId,
+    input.run.windowEndAt,
+    input.run.userId,
+  );
   return 'succeeded';
 }

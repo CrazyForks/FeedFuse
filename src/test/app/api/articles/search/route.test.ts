@@ -41,6 +41,7 @@ describe('/api/articles/search', () => {
     expect(json.ok).toBe(true);
     expect(json.data.items).toHaveLength(1);
     expect(searchArticlesMock).toHaveBeenCalledWith(pool, {
+      userId: '1',
       keyword: 'FeedFuse',
       limit: 12,
     });

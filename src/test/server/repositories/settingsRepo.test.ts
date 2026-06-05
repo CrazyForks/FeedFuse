@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Pool } from 'pg';
 
-describe('settingsRepo (ai api key)', () => {
-  it('reads and updates ai_api_key in app_settings', async () => {
+describe('settingsRepo (user settings and keys)', () => {
+  it('reads and updates ai_api_key in user_settings', async () => {
     const query = vi
       .fn()
       .mockResolvedValueOnce({ rows: [{ aiApiKey: 'sk-test' }] })
@@ -22,19 +22,40 @@ describe('settingsRepo (ai api key)', () => {
       expect.fail('clearAiApiKey is not implemented');
     }
 
-    const first = await mod.getAiApiKey(pool);
+    const first = await mod.getAiApiKey(pool, '1');
     expect(first).toBe('sk-test');
     expect(String(query.mock.calls[0]?.[0] ?? '')).toContain('ai_api_key');
+    expect(String(query.mock.calls[0]?.[0] ?? '')).toContain('from user_settings');
+    expect(query.mock.calls[0]?.[1]).toEqual(['1']);
 
-    const second = await mod.setAiApiKey(pool, 'sk-next');
+    const second = await mod.setAiApiKey(pool, '1', 'sk-next');
     expect(second).toBe('sk-next');
-    expect(String(query.mock.calls[1]?.[0] ?? '')).toContain('update app_settings');
-    expect(query.mock.calls[1]?.[1]).toEqual(['sk-next']);
+    expect(String(query.mock.calls[1]?.[0] ?? '')).toContain('insert into user_settings');
+    expect(String(query.mock.calls[1]?.[0] ?? '')).toContain('on conflict (user_id)');
+    expect(query.mock.calls[1]?.[1]).toEqual(['1', 'sk-next']);
 
-    const third = await mod.clearAiApiKey(pool);
+    const third = await mod.clearAiApiKey(pool, '1');
     expect(third).toBe('');
-    expect(String(query.mock.calls[2]?.[0] ?? '')).toContain('update app_settings');
-    expect(query.mock.calls[2]?.[1]).toEqual(['']);
+    expect(String(query.mock.calls[2]?.[0] ?? '')).toContain('insert into user_settings');
+    expect(query.mock.calls[2]?.[1]).toEqual(['1', '']);
+  });
+
+  it('reads and updates ui_settings by user_id', async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [{ uiSettings: { theme: 'dark' } }] })
+      .mockResolvedValueOnce({ rows: [{ uiSettings: { theme: 'light' } }] });
+
+    const pool = { query } as unknown as Pool;
+    const mod = (await import('@/server/domains/settings/repositories/settingsRepo')) as typeof import('@/server/domains/settings/repositories/settingsRepo');
+
+    await expect(mod.getUiSettings(pool, '1')).resolves.toEqual({ theme: 'dark' });
+    await expect(mod.updateUiSettings(pool, '1', { theme: 'light' })).resolves.toEqual({ theme: 'light' });
+
+    expect(String(query.mock.calls[0]?.[0] ?? '')).toContain('from user_settings');
+    expect(query.mock.calls[0]?.[1]).toEqual(['1']);
+    expect(String(query.mock.calls[1]?.[0] ?? '')).toContain('insert into user_settings');
+    expect(query.mock.calls[1]?.[1]).toEqual(['1', { theme: 'light' }]);
   });
 });
 

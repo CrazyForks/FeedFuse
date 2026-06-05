@@ -26,9 +26,9 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ runId: string }> },
 ) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -38,7 +38,7 @@ export async function GET(
       return fail(new ValidationError('Invalid route params', zodIssuesToFields(parsed.error)));
     }
 
-    const run = await getAiDigestRunById(getPool(), parsed.data.runId);
+    const run = await getAiDigestRunById(getPool(), parsed.data.runId, session.userId);
     if (!run) {
       return fail(new NotFoundError('AI digest run not found'));
     }

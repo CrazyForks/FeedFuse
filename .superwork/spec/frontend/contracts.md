@@ -15,6 +15,23 @@
 - 设置保存逻辑先看 `src/features/settings/hooks/useSettingsAutosave.ts`
 - AI 设置中的 `summaryPrompt`、`translationPrompt` 由设置中心维护；前端只负责编辑与保存，不在组件层拼接任务级 system prompt
 - 中栏文章列表的已读/未读按钮按当前选中 `view` 记忆用户选择；该选择优先于全局 `defaultUnreadOnlyInAll`，刷新页面和切换订阅源后仍应保留。
+- 多用户登录后，前端本地状态必须按 `userId` 命名空间隔离；设置缓存使用 `feedfuse-settings:${userId}`，阅读器未读筛选使用 `feedfuse.reader.unreadOnlyByView.v1:${userId}`。
+- ReaderApp 获取当前用户后必须重新读取该用户命名空间的本地设置和阅读器本地状态，避免从 anonymous 或上一个账号继承状态。
+- 旧单用户 localStorage key 只允许作为默认管理员或 anonymous 的迁移兼容来源，不能让普通成员读取旧全局缓存。
+
+## 用户管理交互契约
+
+- 登录表单使用 `username + password`，成功后必须写入当前用户上下文并让后续本地状态按该 `userId` 隔离。
+- 设置中心安全分区的模块外层只展示账号信息；当前用户资料编辑、密码修改、管理员新增用户和编辑用户都必须进入弹窗完成。
+- 安全分区所有账号展示只保留用户名、角色、状态，不展示 `id`；当前账号卡片中角色和状态紧跟用户名显示。
+- 设置中心安全分区展示当前用户资料；所有用户都可在“当前账号”弹窗中修改自己的用户名和密码，不在面板外直接展开资料或密码表单。
+- “当前账号”弹窗里的用户名、新密码、确认新密码必须通过同一个 `保存` 动作提交；不能再拆成单独的“保存用户名”按钮和独立密码提交按钮，也不再要求用户在已登录状态下重复输入当前密码。
+- 只有 admin 用户能看到第二个“用户管理”模块；该模块表格只展示用户信息，外层不直接暴露可编辑输入框。
+- 初始管理员账号不出现在下方“用户管理”表格里，也不能作为该表格中的管理对象执行删除等操作。
+- 当前用户、用户列表与登录返回结构都必须携带 `type = 'initial_admin' | 'admin' | 'member'`；前端展示初始用户标识和隐藏危险入口时优先依赖 `type`，不要再散落 `id === '1'` 判断。
+- “删除用户”按钮只对初始用户显示；其他管理员即使能进入用户管理，也不能看到或触发删除其他用户的入口。
+- 初始用户只能通过“当前账号”入口修改自己；管理员用户管理弹窗不能把初始用户当成可编辑对象。
+- admin 用户可在用户编辑弹窗中修改用户名、角色和状态；新增用户使用独立弹窗录入初始密码，现有用户密码修改不再混入管理员表格编辑流程。
 
 ## 与后端联动
 
@@ -38,7 +55,7 @@
 - Fever feed 仍出现在阅读器左栏和快照里，但编辑弹窗中的标题、URL、分类等上游托管字段必须只读，避免把本地表单当成上游配置入口。
 - Fever feed 的右键菜单不能暴露本地删除、改分类这类会与上游权威状态冲突的入口；这类操作只能通过 Fever account 级入口处理。
 - 设置中心为 Fever account 提供独立分区入口；新增账号和手动同步通过该分区完成，不在普通添加 RSS 源对话框中混入 Fever feed 创建，也不与密码/登录安全操作混放。
-- Fever account 分区还必须提供自动同步配置入口，并通过 `src/lib/api/apiClient.ts` 的 `/api/fever/accounts` PATCH 保存 `autoSyncEnabled` 与 `autoSyncIntervalMinutes`。
+- Fever account 分区还必须提供自动同步配置入口，并通过 `src/lib/api/apiClient.ts` 的 `/api/fever/accounts` PATCH 保存 `enabled` 与 `autoSyncIntervalMinutes`。
 - Fever account 的新增和编辑共用同一个弹窗表单，避免新增/编辑表单规则分叉；卡片右上角还必须提供服务级启用开关，支持不进弹窗快速启用/停用账号。
 - Fever account 分区通过 `src/lib/api/apiClient.ts` 的 `/api/fever/accounts` 保存 `enabled` 与 `autoSyncIntervalMinutes`；当同步间隔大于 `0` 时自动启用自动同步，等于 `0` 时视为关闭自动同步，不再单独暴露自动同步开关字段给表单。
 - Fever account 的新增和编辑必须在前端显示后端返回的连接校验失败，而不是先乐观保存再等同步阶段报错。

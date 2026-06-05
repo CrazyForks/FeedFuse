@@ -75,7 +75,7 @@ describe('feverWritebackService', () => {
       itemId: 'remote-1',
       as: 'read',
     });
-    expect(setArticleReadMock).toHaveBeenCalledWith(pool, '1', true);
+    expect(setArticleReadMock).toHaveBeenCalledWith(pool, '1', true, '1');
   });
 
   it('does not commit local state when fever writeback fails', async () => {
@@ -136,10 +136,11 @@ describe('feverWritebackService', () => {
       itemId: 'remote-2',
       as: 'read',
     });
-    expect(setArticleReadMock).toHaveBeenNthCalledWith(1, expect.anything(), 'article-1', true);
-    expect(setArticleReadMock).toHaveBeenNthCalledWith(2, expect.anything(), 'article-2', true);
+    expect(setArticleReadMock).toHaveBeenNthCalledWith(1, expect.anything(), 'article-1', true, '1');
+    expect(setArticleReadMock).toHaveBeenNthCalledWith(2, expect.anything(), 'article-2', true, '1');
     expect(markAllReadMock).toHaveBeenCalledWith(expect.anything(), {
       feedId: 'feed-1',
+      userId: '1',
       excludeArticleIds: ['article-1', 'article-2'],
     });
   });
@@ -157,8 +158,8 @@ describe('feverWritebackService', () => {
     });
 
     expect(createFeverClientMock).not.toHaveBeenCalled();
-    expect(setArticleReadMock).toHaveBeenCalledWith(pool, '1', true);
-    expect(setArticleStarredMock).toHaveBeenCalledWith(pool, '1', false);
+    expect(setArticleReadMock).toHaveBeenCalledWith(pool, '1', true, '1');
+    expect(setArticleStarredMock).toHaveBeenCalledWith(pool, '1', false, '1');
   });
 
   it('rejects writeback updates when a fever article loses its active mapping', async () => {
@@ -208,6 +209,7 @@ describe('feverWritebackService', () => {
     expect(setArticleReadMock).toHaveBeenCalledTimes(1);
     expect(markAllReadMock).toHaveBeenCalledWith(expect.anything(), {
       feedId: 'feed-1',
+      userId: '1',
       excludeArticleIds: ['article-1'],
     });
   });

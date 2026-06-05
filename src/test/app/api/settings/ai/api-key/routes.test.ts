@@ -104,10 +104,11 @@ describe('/api/settings/ai/api-key', () => {
     );
     const json = await res.json();
 
-    expect(setAiApiKeyMock).toHaveBeenCalledWith(pool, 'sk-test');
+    expect(setAiApiKeyMock).toHaveBeenCalledWith(pool, '1', 'sk-test');
     expect(cleanupAiRuntimeStateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         pool,
+        userId: '1',
         scopes: {
           summary: true,
           translation: true,
@@ -131,10 +132,11 @@ describe('/api/settings/ai/api-key', () => {
     const res = await mod.DELETE();
     const json = await res.json();
 
-    expect(clearAiApiKeyMock).toHaveBeenCalledWith(pool);
+    expect(clearAiApiKeyMock).toHaveBeenCalledWith(pool, '1');
     expect(cleanupAiRuntimeStateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         pool,
+        userId: '1',
         scopes: {
           summary: true,
           translation: true,

@@ -369,10 +369,16 @@ describe('SettingsCenterModal', () => {
 
     fireEvent.click(screen.getByTestId('settings-section-tab-security'));
 
-    expect(await screen.findByLabelText('当前密码')).toBeInTheDocument();
-    expect(screen.getByLabelText('新密码')).toBeInTheDocument();
+    expect(await screen.findByText('当前账号')).toBeInTheDocument();
     const logoutButton = screen.getByRole('button', { name: '退出登录' });
     expect(logoutButton).toBeInTheDocument();
+    expect(screen.queryByLabelText('当前密码')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('security-current-user-edit-button'));
+
+    expect(await screen.findByRole('dialog', { name: '编辑当前账号' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('当前密码')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('新密码')).toBeInTheDocument();
 
     const countLogoutCalls = () =>
       (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.filter(([input, init]) => {

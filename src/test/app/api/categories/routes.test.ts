@@ -103,7 +103,7 @@ describe('/api/categories', () => {
   it('POST returns conflict on duplicate', async () => {
     createCategoryMock.mockRejectedValue({
       code: '23505',
-      constraint: 'categories_name_unique',
+      constraint: 'categories_user_name_unique',
     });
 
     const mod = await import('../../../../app/api/categories/route');
@@ -113,6 +113,26 @@ describe('/api/categories', () => {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ name: 'Tech' }),
       }),
+    );
+    const json = await res.json();
+    expect(json.ok).toBe(false);
+    expect(json.error.code).toBe('conflict');
+  });
+
+  it('PATCH returns conflict on duplicate category name', async () => {
+    updateCategoryMock.mockRejectedValue({
+      code: '23505',
+      constraint: 'categories_user_name_unique',
+    });
+
+    const mod = await import('../../../../app/api/categories/[id]/route');
+    const res = await mod.PATCH(
+      new Request(`http://localhost/api/categories/${categoryId}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'Tech' }),
+      }),
+      { params: Promise.resolve({ id: categoryId }) },
     );
     const json = await res.json();
     expect(json.ok).toBe(false);

@@ -28,9 +28,9 @@ export async function GET(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   const params = await context.params;
@@ -39,7 +39,7 @@ export async function GET(
     return new Response('Bad request', { status: 400 });
   }
 
-  const asset = await getOrFetchFeedFavicon(getPool(), parsedParams.data);
+  const asset = await getOrFetchFeedFavicon(getPool(), parsedParams.data, session?.userId);
   if (!asset) {
     return new Response('Not found', {
       status: 404,

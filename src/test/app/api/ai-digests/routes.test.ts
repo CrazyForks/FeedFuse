@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ValidationError } from '@/server/infra/http/errors';
 import { getQueueSendOptions } from '@/server/infra/queue/contracts';
 import { JOB_AI_DIGEST_GENERATE } from '@/server/infra/queue/jobs';
 
 const pool = { connect: vi.fn(), query: vi.fn() };
+const requireApiSessionMock = vi.fn();
 const createAiDigestWithCategoryResolutionMock = vi.fn();
 const updateAiDigestWithCategoryResolutionMock = vi.fn();
 
@@ -20,6 +22,10 @@ const writeUserOperationFailedLogMock = vi.fn();
 vi.mock('@/server/infra/db/pool', () => ({ getPool: () => pool }));
 vi.mock('@/server/infra/db/pool', () => ({ getPool: () => pool }));
 vi.mock('@/server/infra/db/pool', () => ({ getPool: () => pool }));
+
+vi.mock('@/server/domains/auth/services/session', () => ({
+  requireApiSession: (...args: unknown[]) => requireApiSessionMock(...args),
+}));
 
 vi.mock('@/server/domains/ai-digests/services/aiDigestLifecycleService', () => ({
   createAiDigestWithCategoryResolution: (...args: unknown[]) =>
@@ -102,6 +108,11 @@ vi.mock('@/server/infra/logging/userOperationLogger', () => ({
 
 describe('/api/ai-digests', () => {
   beforeEach(() => {
+    requireApiSessionMock.mockReset().mockResolvedValue({
+      userId: '2',
+      role: 'member',
+      sessionVersion: 1,
+    });
     pool.connect.mockReset();
     pool.query.mockReset();
     createAiDigestWithCategoryResolutionMock.mockReset();
@@ -155,7 +166,9 @@ describe('/api/ai-digests', () => {
     expect(json.data.kind).toBe('ai_digest');
     expect(createAiDigestWithCategoryResolutionMock).toHaveBeenCalledWith(
       pool,
-      expect.not.objectContaining({ feedId: expect.anything() }),
+      expect.objectContaining({
+        userId: '2',
+      }),
     );
   });
 
@@ -176,6 +189,33 @@ describe('/api/ai-digests', () => {
     );
 
     expect(res.status).toBe(400);
+  });
+
+  it('POST returns validation error when categoryId is scoped to another user', async () => {
+    createAiDigestWithCategoryResolutionMock.mockRejectedValue(
+      new ValidationError('Invalid request body', { categoryId: 'not_found' }),
+    );
+
+    const mod = await import('../../../../app/api/ai-digests/route');
+    const res = await mod.POST(
+      new Request('http://localhost/api/ai-digests', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          title: 'My Digest',
+          prompt: '解读这些文章',
+          intervalMinutes: 60,
+          selectedFeedIds: ['1002'],
+          categoryId: '2999',
+        }),
+      }),
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.ok).toBe(false);
+    expect(json.error.code).toBe('validation_error');
+    expect(json.error.fields.categoryId).toBe('not_found');
   });
 
   it('PATCH writes aiDigest.update success log through the shared helper', async () => {
@@ -227,6 +267,11 @@ describe('/api/ai-digests', () => {
 
 describe('/api/ai-digests/:feedId/generate', () => {
   beforeEach(() => {
+    requireApiSessionMock.mockReset().mockResolvedValue({
+      userId: '2',
+      role: 'member',
+      sessionVersion: 1,
+    });
     getAiApiKeyMock.mockReset();
     getUiSettingsMock.mockReset();
     getUiSettingsMock.mockResolvedValue({});
@@ -279,8 +324,12 @@ describe('/api/ai-digests/:feedId/generate', () => {
     expect(json.data.runId).toBe('5001');
     expect(enqueueWithResultMock).toHaveBeenCalledWith(
       JOB_AI_DIGEST_GENERATE,
-      expect.objectContaining({ runId: '5001', sharedConfigFingerprint: expect.any(String) }),
-      getQueueSendOptions(JOB_AI_DIGEST_GENERATE, { runId: '5001' }),
+      expect.objectContaining({
+        userId: '2',
+        runId: '5001',
+        sharedConfigFingerprint: expect.any(String),
+      }),
+      getQueueSendOptions(JOB_AI_DIGEST_GENERATE, { userId: '2', runId: '5001' }),
     );
     expect(writeUserOperationStartedLogMock).toHaveBeenCalledWith(
       pool,

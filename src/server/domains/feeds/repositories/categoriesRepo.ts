@@ -1,4 +1,5 @@
 import type { Pool, PoolClient } from 'pg';
+import { normalizeUserId } from '@/server/domains/users/userScope';
 
 type DbClient = Pool | PoolClient;
 
@@ -8,24 +9,27 @@ export interface CategoryRow {
   position: number;
 }
 
-export async function listCategories(db: DbClient): Promise<CategoryRow[]> {
+export async function listCategories(db: DbClient, userId?: string): Promise<CategoryRow[]> {
+  const scopedUserId = normalizeUserId(userId);
   const { rows } = await db.query<CategoryRow>(
-    'select id, name, position from categories order by position asc, name asc',
+    'select id, name, position from categories where user_id = $1 order by position asc, name asc',
+    [scopedUserId],
   );
   return rows;
 }
 
 export async function createCategory(
   db: DbClient,
-  input: { name: string; position?: number },
+  input: { name: string; position?: number; userId?: string },
 ): Promise<CategoryRow> {
+  const scopedUserId = normalizeUserId(input.userId);
   const { rows } = await db.query<CategoryRow>(
     `
-      insert into categories(name, position)
-      values ($1, $2)
+      insert into categories(user_id, name, position)
+      values ($1, $2, $3)
       returning id, name, position
     `,
-    [input.name, input.position ?? 0],
+    [scopedUserId, input.name, input.position ?? 0],
   );
   return rows[0];
 }
@@ -33,8 +37,9 @@ export async function createCategory(
 export async function updateCategory(
   db: DbClient,
   id: string,
-  input: { name?: string; position?: number },
+  input: { name?: string; position?: number; userId?: string },
 ): Promise<CategoryRow | null> {
+  const scopedUserId = normalizeUserId(input.userId);
   const fields: string[] = [];
   const values: Array<string | number> = [];
   let paramIndex = 1;
@@ -51,12 +56,14 @@ export async function updateCategory(
 
   fields.push('updated_at = now()');
   values.push(id);
+  values.push(scopedUserId);
 
   const { rows } = await db.query<CategoryRow>(
     `
       update categories
       set ${fields.join(', ')}
       where id = $${paramIndex}
+        and user_id = $${paramIndex + 1}
       returning id, name, position
     `,
     values,
@@ -65,30 +72,54 @@ export async function updateCategory(
   return rows[0] ?? null;
 }
 
-export async function deleteCategory(db: DbClient, id: string): Promise<boolean> {
-  const res = await db.query('delete from categories where id = $1', [id]);
+export async function deleteCategory(db: DbClient, id: string, userId?: string): Promise<boolean> {
+  const res = await db.query('delete from categories where id = $1 and user_id = $2', [
+    id,
+    normalizeUserId(userId),
+  ]);
   return (res.rowCount ?? 0) > 0;
 }
 
 export async function findCategoryByNormalizedName(
   db: DbClient,
   name: string,
+  userId?: string,
 ): Promise<CategoryRow | null> {
   const { rows } = await db.query<CategoryRow>(
     `
       select id, name, position
       from categories
-      where lower(btrim(name)) = lower(btrim($1))
+      where user_id = $1
+        and lower(btrim(name)) = lower(btrim($2))
       limit 1
     `,
-    [name.trim()],
+    [normalizeUserId(userId), name.trim()],
   );
   return rows[0] ?? null;
 }
 
-export async function getNextCategoryPosition(db: DbClient): Promise<number> {
+export async function getCategoryById(
+  db: DbClient,
+  id: string,
+  userId?: string,
+): Promise<CategoryRow | null> {
+  const { rows } = await db.query<CategoryRow>(
+    `
+      select id, name, position
+      from categories
+      where id = $1
+        and user_id = $2
+      limit 1
+    `,
+    [id, normalizeUserId(userId)],
+  );
+  return rows[0] ?? null;
+}
+
+export async function getNextCategoryPosition(db: DbClient, userId?: string): Promise<number> {
   const { rows } = await db.query<{ nextPosition: number }>(
-    'select coalesce(max(position), -1) + 1 as "nextPosition" from categories',
+    'select coalesce(max(position), -1) + 1 as "nextPosition" from categories where user_id = $1',
+    [normalizeUserId(userId)],
   );
   return rows[0]?.nextPosition ?? 0;
 }
@@ -96,15 +127,17 @@ export async function getNextCategoryPosition(db: DbClient): Promise<number> {
 export async function reorderCategories(
   db: DbClient,
   items: Array<{ id: string; position: number }>,
+  userId?: string,
 ): Promise<CategoryRow[]> {
+  const scopedUserId = normalizeUserId(userId);
   await db.query('begin');
   try {
     const ids = items.map((item) => item.id);
     const positions = items.map((item) => item.position);
 
     const existing = await db.query<{ id: string }>(
-      'select id from categories where id = any($1::bigint[])',
-      [ids],
+      'select id from categories where user_id = $1 and id = any($2::bigint[])',
+      [scopedUserId, ids],
     );
     if (existing.rows.length !== ids.length) {
       throw new Error('category_not_found');
@@ -119,12 +152,14 @@ export async function reorderCategories(
         select unnest($1::bigint[]) as id, unnest($2::int[]) as position
       ) as v
       where c.id = v.id
+        and c.user_id = $3
       `,
-      [ids, positions],
+      [ids, positions, scopedUserId],
     );
 
     const result = await db.query<CategoryRow>(
-      'select id, name, position from categories order by position asc, name asc',
+      'select id, name, position from categories where user_id = $1 order by position asc, name asc',
+      [scopedUserId],
     );
 
     await db.query('commit');

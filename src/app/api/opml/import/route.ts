@@ -15,9 +15,9 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -26,6 +26,7 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       const error = new ValidationError('Invalid request body', { content: 'required' });
       await writeUserOperationFailedLog(getPool(), {
+        userId: session.userId,
         actionKey: 'opml.import',
         source: 'app/api/opml/import',
         err: error,
@@ -34,8 +35,9 @@ export async function POST(request: Request) {
     }
 
     const pool = getPool();
-    const result = await importOpml(pool, parsed.data);
+    const result = await importOpml(pool, { ...parsed.data, userId: session.userId });
     await writeUserOperationSucceededLog(pool, {
+      userId: session.userId,
       actionKey: 'opml.import',
       source: 'app/api/opml/import',
       context: {
@@ -47,6 +49,7 @@ export async function POST(request: Request) {
     return ok(result);
   } catch (error) {
     await writeUserOperationFailedLog(getPool(), {
+      userId: session.userId,
       actionKey: 'opml.import',
       source: 'app/api/opml/import',
       err: error,

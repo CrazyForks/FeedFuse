@@ -44,9 +44,9 @@ export async function GET(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authResponse = await requireApiSession();
-  if (authResponse) {
-    return authResponse;
+  const session = await requireApiSession();
+  if (session && 'response' in session) {
+    return session.response;
   }
 
   try {
@@ -61,16 +61,17 @@ export async function GET(
     const articleId = paramsParsed.data.id;
     const pool = getPool();
 
-    const article = await getArticleById(pool, articleId);
+    const article = await getArticleById(pool, articleId, session.userId);
     if (!article) return fail(new NotFoundError('Article not found'));
 
-    const session = await getActiveAiSummarySessionByArticleId(pool, articleId);
-    if (!session) return fail(new NotFoundError('Summary session not found'));
+    const summarySession = await getActiveAiSummarySessionByArticleId(pool, articleId, session.userId);
+    if (!summarySession) return fail(new NotFoundError('Summary session not found'));
 
     const initialAfterEventId = parseLastEventId(request.headers.get('last-event-id'));
     let lastEventId = initialAfterEventId;
     const initialEvents = await listAiSummaryEventsAfter(pool, {
-      sessionId: session.id,
+      sessionId: summarySession.id,
+      userId: summarySession.userId,
       afterEventId: lastEventId,
     });
     if (initialEvents.length > 0) {
@@ -93,7 +94,8 @@ export async function GET(
 
         const replayTimer = setInterval(() => {
           void listAiSummaryEventsAfter(pool, {
-            sessionId: session.id,
+            sessionId: summarySession.id,
+            userId: summarySession.userId,
             afterEventId: lastEventId,
           })
             .then((events) => {

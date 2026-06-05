@@ -13,6 +13,7 @@ import {
   putSettings,
   putTranslationApiKey,
 } from '@/lib/api/apiClient';
+import { AUTH_ANONYMOUS_STORAGE_USER_ID, getCurrentStorageUserId } from './authStore';
 
 interface SessionSettings {
   ai: {
@@ -148,6 +149,25 @@ const noopStorage = {
   setItem: () => {},
   removeItem: () => {},
 };
+
+function resolveSettingsStorageName(): string {
+  return `feedfuse-settings:${getCurrentStorageUserId()}`;
+}
+
+function readSettingsStorageValue(): string | null {
+  const userId = getCurrentStorageUserId();
+  const scopedValue = window.localStorage.getItem(resolveSettingsStorageName());
+  if (scopedValue !== null) {
+    return scopedValue;
+  }
+
+  // 默认管理员继承旧单用户缓存；其他用户必须使用自己的命名空间。
+  if (userId === AUTH_ANONYMOUS_STORAGE_USER_ID || userId === '1') {
+    return window.localStorage.getItem('feedfuse-settings');
+  }
+
+  return null;
+}
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
@@ -342,7 +362,15 @@ export const useSettingsStore = create<SettingsState>()(
           return noopStorage;
         }
 
-        return window.localStorage;
+        return {
+          getItem: () => readSettingsStorageValue(),
+          setItem: (_name, value) => {
+            window.localStorage.setItem(resolveSettingsStorageName(), value);
+          },
+          removeItem: () => {
+            window.localStorage.removeItem(resolveSettingsStorageName());
+          },
+        };
       }),
       partialize: (state) => ({ persistedSettings: state.persistedSettings }),
       version: 3,

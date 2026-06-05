@@ -16,6 +16,7 @@ export interface WorkerOptions {
 }
 
 type SendContext = {
+  userId?: string;
   articleId?: string;
   accountId?: string;
   feedId?: string;
@@ -42,7 +43,7 @@ export const QUEUE_CONTRACTS: Record<string, QueueContract> = {
     worker: { localConcurrency: 3, batchSize: 1 },
     send: (ctx) =>
       ctx.runId && ctx.feedId
-        ? { singletonKey: `${ctx.runId}:${ctx.feedId}`, singletonSeconds: 3600 }
+        ? { singletonKey: [ctx.userId, ctx.runId, ctx.feedId].filter(Boolean).join(':'), singletonSeconds: 3600 }
         : {},
   },
   'article.fetch_fulltext': {
@@ -57,7 +58,7 @@ export const QUEUE_CONTRACTS: Record<string, QueueContract> = {
       warningQueueSize: 300,
     },
     worker: { localConcurrency: 4, batchSize: 2 },
-    send: (ctx) => ({ singletonKey: ctx.articleId, singletonSeconds: 600 }),
+    send: (ctx) => ({ singletonKey: [ctx.userId, ctx.articleId].filter(Boolean).join(':'), singletonSeconds: 600 }),
   },
   'article.filter': {
     queue: {
@@ -71,12 +72,12 @@ export const QUEUE_CONTRACTS: Record<string, QueueContract> = {
       warningQueueSize: 300,
     },
     worker: { localConcurrency: 3, batchSize: 1 },
-    send: (ctx) => ({ singletonKey: ctx.articleId, singletonSeconds: 600 }),
+    send: (ctx) => ({ singletonKey: [ctx.userId, ctx.articleId].filter(Boolean).join(':'), singletonSeconds: 600 }),
   },
   'ai.summarize_article': {
     queue: { heartbeatSeconds: 60, expireInSeconds: 1800, warningQueueSize: 300 },
     worker: { localConcurrency: 2, batchSize: 1 },
-    send: (ctx) => ({ singletonKey: ctx.articleId, singletonSeconds: 600, retryLimit: 0 }),
+    send: (ctx) => ({ singletonKey: [ctx.userId, ctx.articleId].filter(Boolean).join(':'), singletonSeconds: 600, retryLimit: 0 }),
   },
   'ai.translate_article_zh': {
     queue: { heartbeatSeconds: 60, expireInSeconds: 1800, warningQueueSize: 300 },
@@ -84,12 +85,12 @@ export const QUEUE_CONTRACTS: Record<string, QueueContract> = {
     send: (ctx) =>
       ctx.force
         ? { retryLimit: 0 }
-        : { singletonKey: ctx.articleId, singletonSeconds: 600, retryLimit: 0 },
+        : { singletonKey: [ctx.userId, ctx.articleId].filter(Boolean).join(':'), singletonSeconds: 600, retryLimit: 0 },
   },
   'ai.translate_title_zh': {
     queue: { warningQueueSize: 300 },
     worker: { localConcurrency: 2, batchSize: 1 },
-    send: (ctx) => ({ singletonKey: ctx.articleId, singletonSeconds: 600, retryLimit: 0 }),
+    send: (ctx) => ({ singletonKey: [ctx.userId, ctx.articleId].filter(Boolean).join(':'), singletonSeconds: 600, retryLimit: 0 }),
   },
   'ai.digest_tick': {
     queue: { warningQueueSize: 5 },
@@ -107,7 +108,8 @@ export const QUEUE_CONTRACTS: Record<string, QueueContract> = {
       warningQueueSize: 50,
     },
     worker: { localConcurrency: 1, batchSize: 1 },
-    send: (ctx) => (ctx.runId ? { singletonKey: ctx.runId, singletonSeconds: 3600 } : {}),
+    send: (ctx) =>
+      ctx.runId ? { singletonKey: [ctx.userId, ctx.runId].filter(Boolean).join(':'), singletonSeconds: 3600 } : {},
   },
   'fever.sync': {
     queue: {
@@ -121,7 +123,7 @@ export const QUEUE_CONTRACTS: Record<string, QueueContract> = {
     // Fever 同步以账号为调度粒度，runId 只做追踪，不能破坏账号级互斥。
     send: (ctx) =>
       ctx.accountId
-        ? { singletonKey: ctx.accountId, singletonSeconds: 5 }
+        ? { singletonKey: [ctx.userId, ctx.accountId].filter(Boolean).join(':'), singletonSeconds: 5 }
         : {},
   },
   'fever.sync_due': {
@@ -132,7 +134,8 @@ export const QUEUE_CONTRACTS: Record<string, QueueContract> = {
   'feed.refresh_all': {
     queue: { warningQueueSize: 50 },
     worker: { localConcurrency: 1, batchSize: 1 },
-    send: (ctx) => (ctx.runId ? { singletonKey: ctx.runId, singletonSeconds: 3600 } : {}),
+    send: (ctx) =>
+      ctx.runId ? { singletonKey: [ctx.userId, ctx.runId].filter(Boolean).join(':'), singletonSeconds: 3600 } : {},
   },
   'system_logs.cleanup': {
     queue: { warningQueueSize: 5 },

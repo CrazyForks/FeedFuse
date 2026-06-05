@@ -1,0 +1,468 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const pool = {};
+const requireApiSessionMock = vi.fn();
+const listUsersMock = vi.fn();
+const createUserMock = vi.fn();
+const getUserByIdMock = vi.fn();
+const setUserStatusMock = vi.fn();
+const resetUserPasswordMock = vi.fn();
+const changeUserPasswordMock = vi.fn();
+const updateUserMock = vi.fn();
+const deleteUserMock = vi.fn();
+const deleteUserAndOwnedDataMock = vi.fn();
+const createSessionCookieHeaderMock = vi.fn();
+const hashPasswordMock = vi.fn();
+const verifyPasswordMock = vi.fn();
+
+vi.mock('@/server/infra/db/pool', () => ({
+  getPool: () => pool,
+}));
+
+vi.mock('@/server/domains/auth/services/session', () => ({
+  requireApiSession: (...args: unknown[]) => requireApiSessionMock(...args),
+  createSessionCookieHeader: (...args: unknown[]) => createSessionCookieHeaderMock(...args),
+}));
+
+vi.mock('@/server/domains/auth/services/password', () => ({
+  hashPassword: (...args: unknown[]) => hashPasswordMock(...args),
+  verifyPassword: (...args: unknown[]) => verifyPasswordMock(...args),
+}));
+
+vi.mock('@/server/domains/auth/repositories/usersRepo', () => ({
+  listUsers: (...args: unknown[]) => listUsersMock(...args),
+  createUser: (...args: unknown[]) => createUserMock(...args),
+  getUserById: (...args: unknown[]) => getUserByIdMock(...args),
+  setUserStatus: (...args: unknown[]) => setUserStatusMock(...args),
+  resetUserPassword: (...args: unknown[]) => resetUserPasswordMock(...args),
+  changeUserPassword: (...args: unknown[]) => changeUserPasswordMock(...args),
+  updateUser: (...args: unknown[]) => updateUserMock(...args),
+  deleteUser: (...args: unknown[]) => deleteUserMock(...args),
+}));
+
+vi.mock('@/server/domains/auth/services/userLifecycleService', () => ({
+  deleteUserAndOwnedData: (...args: unknown[]) => deleteUserAndOwnedDataMock(...args),
+}));
+
+describe('/api/users', () => {
+  beforeEach(() => {
+    requireApiSessionMock.mockReset().mockResolvedValue({
+      userId: '1',
+      role: 'admin',
+      sessionVersion: 1,
+    });
+    listUsersMock.mockReset();
+    createUserMock.mockReset();
+    getUserByIdMock.mockReset();
+    setUserStatusMock.mockReset();
+    resetUserPasswordMock.mockReset();
+    changeUserPasswordMock.mockReset();
+    updateUserMock.mockReset();
+    deleteUserMock.mockReset();
+    deleteUserAndOwnedDataMock.mockReset();
+    createSessionCookieHeaderMock.mockReset().mockResolvedValue(
+      'feedfuse_session=rotated-token; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600',
+    );
+    hashPasswordMock.mockReset().mockReturnValue('scrypt$hashed');
+    verifyPasswordMock.mockReset().mockReturnValue(true);
+  });
+
+  it('GET lists users for admins', async () => {
+    listUsersMock.mockResolvedValue([
+      { id: '1', username: 'admin', role: 'admin', status: 'active', sessionVersion: 1, type: 'initial_admin' },
+    ]);
+
+    const mod = await import('../../../../app/api/users/route');
+    const res = await mod.GET();
+    const json = await res.json();
+
+    expect(json.ok).toBe(true);
+    expect(json.data[0].username).toBe('admin');
+    expect(listUsersMock).toHaveBeenCalledWith(pool);
+  });
+
+  it('GET rejects members', async () => {
+    requireApiSessionMock.mockResolvedValue({ userId: '2', role: 'member', sessionVersion: 1 });
+
+    const mod = await import('../../../../app/api/users/route');
+    const res = await mod.GET();
+    const json = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(json.error.code).toBe('forbidden');
+  });
+
+  it('POST creates users for admins', async () => {
+    createUserMock.mockResolvedValue({
+      id: '2',
+      username: 'member',
+      role: 'member',
+      status: 'active',
+      sessionVersion: 1,
+      type: 'member',
+    });
+
+    const mod = await import('../../../../app/api/users/route');
+    const res = await mod.POST(
+      new Request('http://localhost/api/users', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username: 'member', password: 'password-123', role: 'member' }),
+      }),
+    );
+    const json = await res.json();
+
+    expect(json.ok).toBe(true);
+    expect(hashPasswordMock).toHaveBeenCalledWith('password-123');
+    expect(createUserMock).toHaveBeenCalledWith(pool, {
+      username: 'member',
+      passwordHash: 'scrypt$hashed',
+      role: 'member',
+    });
+  });
+
+  it('PATCH updates username role status and password', async () => {
+    getUserByIdMock.mockResolvedValue({
+      id: '2',
+      username: 'member',
+      passwordHash: 'hash',
+      role: 'member',
+      status: 'active',
+      sessionVersion: 1,
+      type: 'member',
+    });
+    updateUserMock.mockResolvedValue({
+      id: '2',
+      username: 'member-next',
+      role: 'admin',
+      status: 'disabled',
+      sessionVersion: 3,
+      type: 'admin',
+    });
+
+    const mod = await import('../../../../app/api/users/[id]/route');
+    const res = await mod.PATCH(
+      new Request('http://localhost/api/users/2', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          username: 'member-next',
+          role: 'admin',
+          status: 'disabled',
+          password: 'next-password-123',
+        }),
+      }),
+      { params: Promise.resolve({ id: '2' }) },
+    );
+    const json = await res.json();
+
+    expect(json.ok).toBe(true);
+    expect(updateUserMock).toHaveBeenCalledWith(pool, {
+      userId: '2',
+      username: 'member-next',
+      role: 'admin',
+      status: 'disabled',
+      passwordHash: 'scrypt$hashed',
+    });
+  });
+
+  it('PATCH /api/users/me updates current user username', async () => {
+    updateUserMock.mockResolvedValue({
+      id: '1',
+      username: 'renamed-admin',
+      role: 'admin',
+      status: 'active',
+      sessionVersion: 1,
+      type: 'initial_admin',
+    });
+
+    const mod = await import('../../../../app/api/users/me/route');
+    const res = await mod.PATCH(
+      new Request('http://localhost/api/users/me', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username: 'renamed-admin' }),
+      }),
+    );
+    const json = await res.json();
+
+    expect(json.ok).toBe(true);
+    expect(updateUserMock).toHaveBeenCalledWith(pool, {
+      userId: '1',
+      username: 'renamed-admin',
+    });
+  });
+
+  it('PATCH /api/users/me updates username and password together', async () => {
+    updateUserMock.mockResolvedValue({
+      id: '1',
+      username: 'renamed-admin',
+      role: 'admin',
+      status: 'active',
+      sessionVersion: 2,
+      type: 'initial_admin',
+    });
+
+    const mod = await import('../../../../app/api/users/me/route');
+    const res = await mod.PATCH(
+      new Request('http://localhost/api/users/me', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          username: 'renamed-admin',
+          nextPassword: 'new-password-123',
+        }),
+      }),
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.ok).toBe(true);
+    expect(hashPasswordMock).toHaveBeenCalledWith('new-password-123');
+    expect(updateUserMock).toHaveBeenCalledWith(pool, {
+      userId: '1',
+      username: 'renamed-admin',
+      passwordHash: 'scrypt$hashed',
+    });
+    expect(createSessionCookieHeaderMock).toHaveBeenCalledWith({
+      userId: '1',
+      role: 'admin',
+      sessionVersion: 2,
+    });
+    expect(res.headers.get('set-cookie')).toContain('feedfuse_session=rotated-token');
+  });
+
+  it('PATCH /api/users/me rejects incomplete password change payload', async () => {
+    updateUserMock.mockResolvedValue(null);
+
+    const mod = await import('../../../../app/api/users/me/route');
+    const res = await mod.PATCH(
+      new Request('http://localhost/api/users/me', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          username: 'admin',
+          nextPassword: 'short',
+        }),
+      }),
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.ok).toBe(false);
+    expect(json.error.code).toBe('validation_error');
+    expect(json.error.fields.nextPassword).toBe('新密码至少需要 8 位');
+  });
+
+  it('PATCH /api/users/me returns 409 when username already exists', async () => {
+    updateUserMock.mockRejectedValue({ code: '23505' });
+
+    const mod = await import('../../../../app/api/users/me/route');
+    const res = await mod.PATCH(
+      new Request('http://localhost/api/users/me', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username: 'member' }),
+      }),
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(json.ok).toBe(false);
+    expect(json.error.code).toBe('conflict');
+  });
+
+  it('POST /api/users/me/password changes current user password', async () => {
+    requireApiSessionMock.mockResolvedValue({ userId: '2', role: 'member', sessionVersion: 1 });
+    getUserByIdMock.mockResolvedValue({
+      id: '2',
+      username: 'member',
+      passwordHash: 'scrypt$old',
+      role: 'member',
+      status: 'active',
+      sessionVersion: 1,
+      type: 'member',
+    });
+    changeUserPasswordMock.mockResolvedValue({
+      id: '2',
+      username: 'member',
+      role: 'member',
+      status: 'active',
+      sessionVersion: 2,
+      type: 'member',
+    });
+
+    const mod = await import('../../../../app/api/users/me/password/route');
+    const res = await mod.POST(
+      new Request('http://localhost/api/users/me/password', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ currentPassword: 'old-password-123', nextPassword: 'new-password-123' }),
+      }),
+    );
+    const json = await res.json();
+
+    expect(json.ok).toBe(true);
+    expect(changeUserPasswordMock).toHaveBeenCalledWith(pool, {
+      userId: '2',
+      passwordHash: 'scrypt$hashed',
+    });
+    expect(createSessionCookieHeaderMock).toHaveBeenCalledWith({
+      userId: '2',
+      role: 'member',
+      sessionVersion: 2,
+    });
+    expect(res.headers.get('set-cookie')).toContain('feedfuse_session=rotated-token');
+  });
+
+  it('PATCH rejects editing the initial user through admin endpoint', async () => {
+    getUserByIdMock.mockResolvedValue({
+      id: '1',
+      username: 'renamed-admin',
+      passwordHash: 'hash',
+      role: 'admin',
+      status: 'active',
+      sessionVersion: 1,
+      type: 'initial_admin',
+    });
+
+    const mod = await import('../../../../app/api/users/[id]/route');
+    const res = await mod.PATCH(
+      new Request('http://localhost/api/users/1', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          username: 'hijacked-admin',
+          role: 'member',
+          status: 'disabled',
+        }),
+      }),
+      { params: Promise.resolve({ id: '1' }) },
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(json.ok).toBe(false);
+    expect(json.error.code).toBe('forbidden');
+    expect(updateUserMock).not.toHaveBeenCalled();
+  });
+
+  it('DELETE rejects non-initial admin even if role is admin', async () => {
+    requireApiSessionMock.mockResolvedValue({ userId: '3', role: 'admin', sessionVersion: 1 });
+    getUserByIdMock
+      .mockResolvedValueOnce({
+        id: '3',
+        username: 'ops-admin',
+        passwordHash: 'hash',
+        role: 'admin',
+        status: 'active',
+        sessionVersion: 1,
+      });
+
+    const mod = await import('../../../../app/api/users/[id]/route');
+    const res = await mod.DELETE(
+      new Request('http://localhost/api/users/2', { method: 'DELETE' }),
+      { params: Promise.resolve({ id: '2' }) },
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(json.error.code).toBe('forbidden');
+    expect(deleteUserMock).not.toHaveBeenCalled();
+  });
+
+  it('DELETE rejects deleting the initial admin user', async () => {
+    getUserByIdMock
+      .mockResolvedValueOnce({
+        id: '1',
+        username: 'admin',
+        passwordHash: 'hash',
+        role: 'admin',
+        status: 'active',
+        sessionVersion: 1,
+      })
+      .mockResolvedValueOnce({
+        id: '1',
+        username: 'admin',
+        passwordHash: 'hash',
+        role: 'admin',
+        status: 'active',
+        sessionVersion: 1,
+      });
+
+    const mod = await import('../../../../app/api/users/[id]/route');
+    const res = await mod.DELETE(
+      new Request('http://localhost/api/users/1', { method: 'DELETE' }),
+      { params: Promise.resolve({ id: '1' }) },
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(json.error.code).toBe('forbidden');
+    expect(deleteUserMock).not.toHaveBeenCalled();
+  });
+
+  it('DELETE removes non-initial users for the initial admin', async () => {
+    getUserByIdMock
+      .mockResolvedValueOnce({
+        id: '1',
+        username: 'admin',
+        passwordHash: 'hash',
+        role: 'admin',
+        status: 'active',
+        sessionVersion: 1,
+      })
+      .mockResolvedValueOnce({
+        id: '2',
+        username: 'member',
+        passwordHash: 'hash',
+        role: 'member',
+        status: 'active',
+        sessionVersion: 1,
+      });
+    deleteUserAndOwnedDataMock.mockResolvedValue(true);
+
+    const mod = await import('../../../../app/api/users/[id]/route');
+    const res = await mod.DELETE(
+      new Request('http://localhost/api/users/2', { method: 'DELETE' }),
+      { params: Promise.resolve({ id: '2' }) },
+    );
+    const json = await res.json();
+
+    expect(json.ok).toBe(true);
+    expect(json.data).toEqual({ deleted: true });
+    expect(deleteUserAndOwnedDataMock).toHaveBeenCalledWith(pool, '2');
+  });
+
+  it('DELETE still allows the renamed initial admin to delete others', async () => {
+    getUserByIdMock
+      .mockResolvedValueOnce({
+        id: '1',
+        username: 'renamed-admin',
+        passwordHash: 'hash',
+        role: 'admin',
+        status: 'active',
+        sessionVersion: 1,
+      })
+      .mockResolvedValueOnce({
+        id: '2',
+        username: 'member',
+        passwordHash: 'hash',
+        role: 'member',
+        status: 'active',
+        sessionVersion: 1,
+      });
+    deleteUserAndOwnedDataMock.mockResolvedValue(true);
+
+    const mod = await import('../../../../app/api/users/[id]/route');
+    const res = await mod.DELETE(
+      new Request('http://localhost/api/users/2', { method: 'DELETE' }),
+      { params: Promise.resolve({ id: '2' }) },
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.ok).toBe(true);
+    expect(deleteUserAndOwnedDataMock).toHaveBeenCalledWith(pool, '2');
+  });
+});

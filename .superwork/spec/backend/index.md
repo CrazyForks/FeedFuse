@@ -1,4 +1,4 @@
-# Backend Index
+# 后端层索引
 
 ## Scope
 
@@ -18,6 +18,7 @@
 ## Pre-Development Checklist
 
 - 阅读 [../guides/change-boundaries.md](../guides/change-boundaries.md)，确认改动是在 route、service、repository 还是 worker
+- 如果是登录、会话、用户权限或删除用户相关改动，先看 `src/app/api/auth/**`、`src/app/api/users/**`、`src/server/domains/auth/**`
 - 如果是接口改动，先看对应 `src/app/api/**/route.ts` 和 `src/test/app/api/**` 下镜像测试
 - 如果是业务规则改动，先看 `src/server/domains/**/services/**`
 - 如果是持久化改动，先看 `src/server/domains/**/repositories/**`、`src/server/infra/db/migrations/**`

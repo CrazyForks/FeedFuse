@@ -65,7 +65,7 @@ describe('readerSnapshotService (cursor)', () => {
       .find((statement) => statement.includes('left join lateral'));
 
     expect(articleQuerySql).toContain(
-      `(coalesce(published_at, 'epoch'::timestamptz), articles.id) < ($2, $3)`,
+      `(coalesce(published_at, 'epoch'::timestamptz), articles.id) < ($3, $4)`,
     );
   });
 
@@ -185,5 +185,23 @@ describe('readerSnapshotService (cursor)', () => {
     expect(articleSql).toContain('coalesce(fa.enabled, true) = false');
     expect(unreadSql).toContain('join fever_accounts fa');
     expect(totalCountSql).toContain('join fever_accounts fa');
+  });
+
+  it('uses the current user id in totalCount queries', async () => {
+    listCategoriesMock.mockResolvedValue([]);
+    listFeedsMock.mockResolvedValue([]);
+
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ totalCount: 0 }] });
+
+    const pool = { query } as unknown as Pool;
+    const mod = (await import('@/server/domains/reader/services/readerSnapshotService')) as typeof import('@/server/domains/reader/services/readerSnapshotService');
+    await mod.getReaderSnapshot(pool, { view: 'all', limit: 1, userId: '42' });
+
+    const totalCountParams = query.mock.calls[2]?.[1];
+    expect(totalCountParams?.[0]).toBe('42');
   });
 });

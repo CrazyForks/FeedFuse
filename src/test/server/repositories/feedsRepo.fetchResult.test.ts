@@ -28,6 +28,6 @@ describe('feedsRepo (fetch result fields)', () => {
       rawError: null,
     });
     expect(String(query.mock.calls[0]?.[0] ?? '')).toContain('last_fetch_raw_error = $6');
-    expect(query.mock.calls[0]?.[1]).toEqual(['feed-1', null, null, 200, null, null]);
+    expect(query.mock.calls[0]?.[1]).toEqual(['feed-1', null, null, 200, null, null, '1']);
   });
 });

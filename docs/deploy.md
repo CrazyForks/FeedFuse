@@ -150,7 +150,7 @@ docker compose up -d
 - `ghcr.io/bryanhoo/feedfuse-web:latest`
 - `ghcr.io/bryanhoo/feedfuse-worker:latest`
 
-改成具体版本号，例如 `0.2.0`。
+改成具体版本号，例如 `0.3.0`。
 
 从旧版本升级到多用户版本后，原有单用户数据会归属到初始用户。升级完成后先使用原 `admin` 登录，再到 `设置中心` -> `账号与安全` 检查账号资料。
 

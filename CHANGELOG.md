@@ -6,6 +6,8 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-05
+
 ### 新增
 
 - 新增多用户账号体系，支持管理员创建用户、调整角色、启用或禁用账号，并按用户隔离订阅、设置、Fever 服务和异步任务。
@@ -145,7 +147,8 @@
 - 修复图片代理、全文抓取、AI 任务状态、OPML 图标回填、阅读器选中态与多处可访问性和构建问题。
 - 增强 RSS 拉取异常提示、错误映射与配置校验，降低边界场景下的失败率。
 
-[Unreleased]: https://github.com/BryanHoo/FeedFuse/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/FeedFuse/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/BryanHoo/FeedFuse/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.6...v0.2.0
 [0.1.6]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.4...v0.1.5

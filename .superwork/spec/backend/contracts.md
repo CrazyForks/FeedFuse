@@ -35,6 +35,7 @@
 - 用户私有表的唯一约束必须按用户作用域设计，例如 `(user_id, lower(name))`、`(user_id, url)`；跨用户允许相同分类名、订阅 URL 或外部账号标识。
 - 用户私有关系表的唯一键、upsert 冲突键和数据库兜底也必须按用户作用域设计；`article_tasks`、`feed_refresh_run_items`、Fever 映射、AI digest sources、AI/翻译会话、favicon、媒体附件等表不能在冲突更新中重写 `user_id`，并且必须拒绝关联到其他用户的父资源。
 - `articles.duplicate_of_article_id` 也属于用户私有关联；迁移必须清理历史跨用户重复源引用，数据库层必须拒绝把文章指向其他用户的重复源文章。
+- `article_ai_summary_sessions.superseded_by_session_id` 也属于用户私有自引用；迁移必须清理历史跨用户 supersede 引用，数据库层必须拒绝把摘要会话指向其他用户的摘要会话。
 - AI digest 的 `selectedFeedIds` 只能保存当前用户自己的本地 RSS feed；不能保存其他用户、Fever 投影源或不存在的 feed id，即使生成 worker 后续会按用户过滤候选文章。
 - `app_settings` 只保留全局兼容配置；用户级 UI 设置、AI key、translation key 必须读写 `user_settings`。
 - 历史单用户数据迁移必须归属默认管理员，包括旧 `system_logs`；新系统级日志仍可使用 `user_id = null` 保留系统级语义。

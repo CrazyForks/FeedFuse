@@ -14,13 +14,20 @@ create table if not exists users (
 create unique index if not exists users_username_unique
   on users (lower(username));
 
-insert into users (username, password_hash, role, status)
-values ('admin',
+insert into users (id, username, password_hash, role, status)
+values (1, 'admin',
   coalesce((select auth_password_hash from app_settings where id = 1), ''),
   'admin',
   'active'
 )
 on conflict do nothing;
+
+-- 运行时代码把初始管理员作为固定用户识别，迁移后同步 sequence 避免新用户撞 id。
+select setval(
+  pg_get_serial_sequence('users', 'id'),
+  greatest((select coalesce(max(id), 1) from users), 1),
+  true
+);
 
 create table if not exists user_settings (
   user_id bigint primary key references users(id) on delete cascade,

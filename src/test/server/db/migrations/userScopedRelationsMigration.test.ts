@@ -21,9 +21,12 @@ describe('user scoped relations migration', () => {
 
     expect(sql).toContain('ensure_user_scoped_relations()');
     expect(sql).toContain('articles_duplicate_user_scope_fkey');
+    expect(sql).toContain('article_ai_summary_sessions_superseded_user_scope_fkey');
     expect(sql).toContain('article task must belong to same user as article');
     expect(sql).toContain('feed refresh run item must belong to same user as run and feed');
     expect(sql).toContain('fever mapping must belong to same user as account and local feed');
     expect(sql).toContain('ai digest source must belong to same user as run and article');
+    expect(sql).toContain('ai_digest_configs_selected_feeds_user_scope_fkey');
+    expect(sql).toContain('before insert or update of user_id, article_id, superseded_by_session_id');
   });
 });

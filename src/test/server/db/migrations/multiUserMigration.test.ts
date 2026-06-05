@@ -12,7 +12,10 @@ describe('multi-user migration', () => {
   });
 
   it('backfills admin and single-user data ownership', () => {
-    expect(sql).toContain("values ('admin'");
+    expect(sql).toContain('insert into users (id, username, password_hash, role, status)');
+    expect(sql).toContain("values (1, 'admin'");
+    expect(sql).toContain('select setval(');
+    expect(sql).toContain("pg_get_serial_sequence('users', 'id')");
     expect(sql).toContain("where username = 'admin'");
     expect(sql).toContain('update categories set user_id =');
     expect(sql).toContain('update feeds set user_id =');

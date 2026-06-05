@@ -32,6 +32,26 @@ from articles
 where ai_digest_runs.article_id = articles.id
   and ai_digest_runs.user_id <> articles.user_id;
 
+-- 历史智能报告选源数组不能保留其他用户的订阅源引用。
+update ai_digest_configs
+set selected_feed_ids = coalesce((
+  select array_agg(selected.feed_id order by selected.ordinality)::bigint[]
+  from unnest(ai_digest_configs.selected_feed_ids) with ordinality as selected(feed_id, ordinality)
+  join feeds on feeds.id = selected.feed_id
+  where feeds.user_id = ai_digest_configs.user_id
+    and feeds.kind = 'rss'
+    and feeds.provider = 'local_rss'
+), '{}'::bigint[])
+where exists (
+  select 1
+  from unnest(ai_digest_configs.selected_feed_ids) as selected(feed_id)
+  left join feeds on feeds.id = selected.feed_id
+  where feeds.id is null
+    or feeds.user_id <> ai_digest_configs.user_id
+    or feeds.kind <> 'rss'
+    or feeds.provider <> 'local_rss'
+);
+
 update feed_refresh_runs
 set feed_id = null
 from feeds
@@ -57,6 +77,12 @@ delete from article_ai_summary_sessions
 using articles
 where article_ai_summary_sessions.article_id = articles.id
   and article_ai_summary_sessions.user_id <> articles.user_id;
+
+update article_ai_summary_sessions
+set superseded_by_session_id = null
+from article_ai_summary_sessions as superseding_session
+where article_ai_summary_sessions.superseded_by_session_id = superseding_session.id
+  and article_ai_summary_sessions.user_id <> superseding_session.user_id;
 
 delete from article_ai_summary_events
 using article_ai_summary_sessions
@@ -183,6 +209,19 @@ begin
         using constraint = 'ai_digest_configs_feed_user_scope_fkey',
               message = 'ai digest config must belong to same user as feed';
     end if;
+    if exists (
+      select 1
+      from unnest(new.selected_feed_ids) as selected(feed_id)
+      left join feeds on feeds.id = selected.feed_id
+      where feeds.id is null
+        or feeds.user_id <> new.user_id
+        or feeds.kind <> 'rss'
+        or feeds.provider <> 'local_rss'
+    ) then
+      raise foreign_key_violation
+        using constraint = 'ai_digest_configs_selected_feeds_user_scope_fkey',
+              message = 'ai digest selected feeds must belong to same user';
+    end if;
   elsif tg_table_name = 'ai_digest_runs' then
     if not exists (select 1 from feeds where id = new.feed_id and user_id = new.user_id) then
       raise foreign_key_violation
@@ -231,6 +270,13 @@ begin
       raise foreign_key_violation
         using constraint = 'article_ai_summary_sessions_article_user_scope_fkey',
               message = 'ai summary session must belong to same user as article';
+    end if;
+    if new.superseded_by_session_id is not null and not exists (
+      select 1 from article_ai_summary_sessions where id = new.superseded_by_session_id and user_id = new.user_id
+    ) then
+      raise foreign_key_violation
+        using constraint = 'article_ai_summary_sessions_superseded_user_scope_fkey',
+              message = 'ai summary superseding session must belong to same user';
     end if;
   elsif tg_table_name = 'article_ai_summary_events' then
     if not exists (select 1 from article_ai_summary_sessions where id = new.session_id and user_id = new.user_id) then
@@ -324,7 +370,7 @@ for each row execute function ensure_user_scoped_relations();
 
 drop trigger if exists ai_digest_configs_user_scope_guard on ai_digest_configs;
 create trigger ai_digest_configs_user_scope_guard
-before insert or update of user_id, feed_id on ai_digest_configs
+before insert or update of user_id, feed_id, selected_feed_ids on ai_digest_configs
 for each row execute function ensure_user_scoped_relations();
 
 drop trigger if exists ai_digest_runs_user_scope_guard on ai_digest_runs;
@@ -358,7 +404,7 @@ for each row execute function ensure_user_scoped_relations();
 
 drop trigger if exists article_ai_summary_sessions_user_scope_guard on article_ai_summary_sessions;
 create trigger article_ai_summary_sessions_user_scope_guard
-before insert or update of user_id, article_id on article_ai_summary_sessions
+before insert or update of user_id, article_id, superseded_by_session_id on article_ai_summary_sessions
 for each row execute function ensure_user_scoped_relations();
 
 drop trigger if exists article_ai_summary_events_user_scope_guard on article_ai_summary_events;

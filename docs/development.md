@@ -29,10 +29,12 @@ cp .env.example .env
 全新数据库的开发环境至少需要保证：
 
 - `DATABASE_URL` 指向可用的 PostgreSQL
-- `AUTH_INITIAL_PASSWORD` 已配置，供默认管理员首次登录使用
+- `AUTH_INITIAL_PASSWORD` 已配置，供初始用户首次登录使用
 - `IMAGE_PROXY_SECRET` 不为空
 
-首次启动新库后，登录用户名固定为 `admin`，密码来自 `AUTH_INITIAL_PASSWORD`。首登成功后，密码会写入数据库，后续按应用内修改后的密码登录。
+首次启动新库后，初始用户的用户名为 `admin`，密码来自 `AUTH_INITIAL_PASSWORD`。首登成功后，密码会写入数据库；后续登录使用数据库中的账号密码。
+
+初始用户可以在 `设置中心` -> `账号与安全` 中改名或改密码。即使用户名不再是 `admin`，该账号仍是固定的初始用户。
 
 RSS 网络访问默认使用 `RSS_NETWORK_MODE=public`，只允许公网地址。可选模式：
 
@@ -100,11 +102,21 @@ http://127.0.0.1:9559/login
 - 用户名：`admin`
 - 密码：`.env` 里的 `AUTH_INITIAL_PASSWORD`
 
+登录后可在 `设置中心` -> `账号与安全` 中新增测试用户。管理员可以创建、编辑、启用或禁用用户；只有初始用户可以删除其他用户。
+
+本地开发调试多账号问题时，重点确认这些隔离边界：
+
+- RSS 源、分类、文章阅读状态按当前用户隔离
+- `user_settings` 保存每个用户自己的 AI、翻译和 UI 设置
+- Fever 服务、同步状态和远端投影源按当前用户隔离
+- Worker 任务 payload 需要携带 `userId`
+
 ## 常用命令
 
 ```bash
 pnpm dev
 pnpm worker:dev
+pnpm type-check
 pnpm build
 pnpm lint
 pnpm test:unit

@@ -17,6 +17,7 @@ describe('multi-user migration', () => {
     expect(sql).toContain('update categories set user_id =');
     expect(sql).toContain('update feeds set user_id =');
     expect(sql).toContain('update articles set user_id =');
+    expect(sql).toContain('update system_logs set user_id =');
   });
 
   it('adds user_id to user-private tables', () => {

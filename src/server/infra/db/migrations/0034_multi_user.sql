@@ -137,7 +137,8 @@ from ai_digest_runs
 where ai_digest_run_sources.run_id = ai_digest_runs.id
   and ai_digest_run_sources.user_id is null;
 
--- 旧系统日志没有明确所有者，保留 null 作为系统级日志。
+-- 旧单用户日志迁移给默认管理员，确保升级后仍能在日志面板查看和清理。
+update system_logs set user_id = (select id from users where username = 'admin') where user_id is null;
 update articles set user_id = (select id from users where username = 'admin') where user_id is null;
 update ai_digest_configs set user_id = (select id from users where username = 'admin') where user_id is null;
 update ai_digest_runs set user_id = (select id from users where username = 'admin') where user_id is null;

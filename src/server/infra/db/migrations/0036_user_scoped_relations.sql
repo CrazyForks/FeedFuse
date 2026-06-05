@@ -9,6 +9,13 @@ using feeds
 where articles.feed_id = feeds.id
   and articles.user_id <> feeds.user_id;
 
+-- 历史跨用户重复源引用无法保留，清空后再加同用户守卫。
+update articles
+set duplicate_of_article_id = null
+from articles as duplicate_source
+where articles.duplicate_of_article_id = duplicate_source.id
+  and articles.user_id <> duplicate_source.user_id;
+
 delete from ai_digest_configs
 using feeds
 where ai_digest_configs.feed_id = feeds.id
@@ -162,6 +169,14 @@ begin
         using constraint = 'articles_feed_user_scope_fkey',
               message = 'article must belong to same user as feed';
     end if;
+    -- 重复源文章也是用户私有资源，必须和当前文章归属同一账号。
+    if new.duplicate_of_article_id is not null and not exists (
+      select 1 from articles where id = new.duplicate_of_article_id and user_id = new.user_id
+    ) then
+      raise foreign_key_violation
+        using constraint = 'articles_duplicate_user_scope_fkey',
+              message = 'duplicate source article must belong to same user as article';
+    end if;
   elsif tg_table_name = 'ai_digest_configs' then
     if not exists (select 1 from feeds where id = new.feed_id and user_id = new.user_id) then
       raise foreign_key_violation
@@ -304,7 +319,7 @@ $$;
 drop trigger if exists article_tasks_user_scope_guard on article_tasks;
 drop trigger if exists articles_user_scope_guard on articles;
 create trigger articles_user_scope_guard
-before insert or update of user_id, feed_id on articles
+before insert or update of user_id, feed_id, duplicate_of_article_id on articles
 for each row execute function ensure_user_scoped_relations();
 
 drop trigger if exists ai_digest_configs_user_scope_guard on ai_digest_configs;

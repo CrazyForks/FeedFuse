@@ -34,9 +34,10 @@
 - session payload 必须包含 `userId`、`role`、`sessionVersion`、`iat`、`exp`；用户禁用、重置密码或修改密码时必须递增 `session_version` 使旧 session 失效。
 - 用户私有表的唯一约束必须按用户作用域设计，例如 `(user_id, lower(name))`、`(user_id, url)`；跨用户允许相同分类名、订阅 URL 或外部账号标识。
 - 用户私有关系表的唯一键、upsert 冲突键和数据库兜底也必须按用户作用域设计；`article_tasks`、`feed_refresh_run_items`、Fever 映射、AI digest sources、AI/翻译会话、favicon、媒体附件等表不能在冲突更新中重写 `user_id`，并且必须拒绝关联到其他用户的父资源。
+- `articles.duplicate_of_article_id` 也属于用户私有关联；迁移必须清理历史跨用户重复源引用，数据库层必须拒绝把文章指向其他用户的重复源文章。
 - AI digest 的 `selectedFeedIds` 只能保存当前用户自己的本地 RSS feed；不能保存其他用户、Fever 投影源或不存在的 feed id，即使生成 worker 后续会按用户过滤候选文章。
 - `app_settings` 只保留全局兼容配置；用户级 UI 设置、AI key、translation key 必须读写 `user_settings`。
-- 历史单用户数据迁移必须归属默认管理员，并为默认管理员迁移旧 `app_settings` 中的 UI 设置与密钥。
+- 历史单用户数据迁移必须归属默认管理员，包括旧 `system_logs`；新系统级日志仍可使用 `user_id = null` 保留系统级语义。
 - 所有异步任务 payload、队列 singleton key、任务状态、系统日志和用户操作日志涉及用户私有数据时都必须携带 `userId`；定时任务没有会话上下文时必须按 active users fan-out。
 - AI 配置变更触发的运行态清理也属于用户私有异步状态；`cleanup` / cancel / fail 这类收尾逻辑必须按当前用户 `userId` 限定更新范围，并在写入 `article_ai_summary_events`、`article_translation_events` 等事件表时同步写入 `user_id`。
 - Fever、AI digest、feed refresh、全文抓取、文章过滤、摘要、翻译等 worker 在读取或写入数据前必须用 `userId` 校验资源归属。

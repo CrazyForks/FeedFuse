@@ -20,6 +20,7 @@ describe('user scoped relations migration', () => {
     const sql = readFileSync(migrationPath, 'utf8');
 
     expect(sql).toContain('ensure_user_scoped_relations()');
+    expect(sql).toContain('articles_duplicate_user_scope_fkey');
     expect(sql).toContain('article task must belong to same user as article');
     expect(sql).toContain('feed refresh run item must belong to same user as run and feed');
     expect(sql).toContain('fever mapping must belong to same user as account and local feed');

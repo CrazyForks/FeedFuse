@@ -48,6 +48,31 @@ describe('env', () => {
     expect(env.IMAGE_PROXY_SECRET).toBe('test-image-proxy-secret');
   });
 
+  it('parses optional AUTH_COOKIE_SECURE values', () => {
+    expect(parseEnv({ DATABASE_URL: 'postgres://example' }).AUTH_COOKIE_SECURE).toBeUndefined();
+    expect(
+      parseEnv({
+        DATABASE_URL: 'postgres://example',
+        AUTH_COOKIE_SECURE: 'true',
+      }).AUTH_COOKIE_SECURE,
+    ).toBe(true);
+    expect(
+      parseEnv({
+        DATABASE_URL: 'postgres://example',
+        AUTH_COOKIE_SECURE: 'false',
+      }).AUTH_COOKIE_SECURE,
+    ).toBe(false);
+  });
+
+  it('rejects invalid AUTH_COOKIE_SECURE values', () => {
+    expect(() =>
+      parseEnv({
+        DATABASE_URL: 'postgres://example',
+        AUTH_COOKIE_SECURE: 'sometimes',
+      }),
+    ).toThrow(/AUTH_COOKIE_SECURE/);
+  });
+
   it('defaults RSS_NETWORK_MODE to public with empty allowed cidrs', () => {
     const env = parseEnv({
       DATABASE_URL: 'postgres://example',

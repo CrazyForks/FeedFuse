@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 const createUserBodySchema = z.object({
   username: z.string().trim().min(1),
-  password: z.string().trim().min(8),
+  password: z.string().min(8),
   role: z.enum(['admin', 'member']).default('member'),
 });
 

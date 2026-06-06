@@ -48,6 +48,27 @@ describe('/api/auth/login', () => {
     expect(res.headers.get('set-cookie')).toContain('feedfuse_session=signed-token');
   });
 
+  it('preserves leading and trailing spaces in password input', async () => {
+    verifyUserPasswordMock.mockResolvedValue({
+      ok: true,
+      user: { userId: '2', role: 'member', sessionVersion: 1 },
+    });
+
+    const mod = await import('../../../../../app/api/auth/login/route');
+    await mod.POST(
+      new Request('http://localhost/api/auth/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username: ' member ', password: '  password-123  ' }),
+      }),
+    );
+
+    expect(verifyUserPasswordMock).toHaveBeenCalledWith({
+      username: 'member',
+      password: '  password-123  ',
+    });
+  });
+
   it('returns 503 when initial password is missing', async () => {
     verifyUserPasswordMock.mockResolvedValue({
       ok: false,

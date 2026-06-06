@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 const loginBodySchema = z.object({
   username: z.string().trim().min(1),
-  password: z.string().trim().min(1),
+  password: z.string().min(1),
 });
 
 export async function POST(request: Request) {

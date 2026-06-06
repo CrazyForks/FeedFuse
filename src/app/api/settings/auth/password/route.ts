@@ -14,8 +14,8 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const changePasswordBodySchema = z.object({
-  currentPassword: z.string().trim().min(1),
-  nextPassword: z.string().trim().min(8),
+  currentPassword: z.string().min(1),
+  nextPassword: z.string().min(8),
 });
 
 export async function POST(request: Request) {

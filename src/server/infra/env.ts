@@ -16,6 +16,14 @@ function parseOptionalCsv(value: unknown): string[] | undefined {
   return items.length > 0 ? items : [];
 }
 
+function parseOptionalBoolean(value: unknown): boolean | string | undefined {
+  const normalized = parseOptionalString(value)?.toLowerCase();
+  if (normalized === undefined) return undefined;
+  if (normalized === 'true') return true;
+  if (normalized === 'false') return false;
+  return normalized;
+}
+
 export const RSS_NETWORK_MODES = ['public', 'fake-ip', 'lan', 'custom'] as const;
 export type RssNetworkMode = (typeof RSS_NETWORK_MODES)[number];
 
@@ -46,6 +54,7 @@ const rssAllowedCidrsSchema = z.preprocess(
     }
   }),
 ).default([]);
+const optionalBooleanSchema = z.preprocess(parseOptionalBoolean, z.boolean().optional());
 
 const rssNetworkConfigSchema = z
   .object({
@@ -70,6 +79,7 @@ const envSchema = z
         typeof value === 'string' && value.trim().length === 0 ? undefined : value,
       z.string().min(1).optional(),
     ),
+    AUTH_COOKIE_SECURE: optionalBooleanSchema,
     RSS_NETWORK_MODE: rssNetworkModeOverrideSchema,
     RSS_ALLOWED_CIDRS: rssAllowedCidrsSchema,
   })

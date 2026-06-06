@@ -121,6 +121,28 @@ describe('/api/users', () => {
     });
   });
 
+  it('POST preserves leading and trailing spaces in created user passwords', async () => {
+    createUserMock.mockResolvedValue({
+      id: '2',
+      username: 'member',
+      role: 'member',
+      status: 'active',
+      sessionVersion: 1,
+      type: 'member',
+    });
+
+    const mod = await import('../../../../app/api/users/route');
+    await mod.POST(
+      new Request('http://localhost/api/users', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username: 'member', password: '  password-123  ', role: 'member' }),
+      }),
+    );
+
+    expect(hashPasswordMock).toHaveBeenCalledWith('  password-123  ');
+  });
+
   it('PATCH updates username role status and password', async () => {
     getUserByIdMock.mockResolvedValue({
       id: '2',
@@ -164,6 +186,38 @@ describe('/api/users', () => {
       status: 'disabled',
       passwordHash: 'scrypt$hashed',
     });
+  });
+
+  it('PATCH preserves leading and trailing spaces in admin-reset passwords', async () => {
+    getUserByIdMock.mockResolvedValue({
+      id: '2',
+      username: 'member',
+      passwordHash: 'hash',
+      role: 'member',
+      status: 'active',
+      sessionVersion: 1,
+      type: 'member',
+    });
+    updateUserMock.mockResolvedValue({
+      id: '2',
+      username: 'member',
+      role: 'member',
+      status: 'active',
+      sessionVersion: 2,
+      type: 'member',
+    });
+
+    const mod = await import('../../../../app/api/users/[id]/route');
+    await mod.PATCH(
+      new Request('http://localhost/api/users/2', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ password: '  next-password-123  ' }),
+      }),
+      { params: Promise.resolve({ id: '2' }) },
+    );
+
+    expect(hashPasswordMock).toHaveBeenCalledWith('  next-password-123  ');
   });
 
   it('PATCH /api/users/me updates current user username', async () => {
@@ -230,6 +284,31 @@ describe('/api/users', () => {
       sessionVersion: 2,
     });
     expect(res.headers.get('set-cookie')).toContain('feedfuse_session=rotated-token');
+  });
+
+  it('PATCH /api/users/me preserves leading and trailing spaces in nextPassword', async () => {
+    updateUserMock.mockResolvedValue({
+      id: '1',
+      username: 'renamed-admin',
+      role: 'admin',
+      status: 'active',
+      sessionVersion: 2,
+      type: 'initial_admin',
+    });
+
+    const mod = await import('../../../../app/api/users/me/route');
+    await mod.PATCH(
+      new Request('http://localhost/api/users/me', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          username: 'renamed-admin',
+          nextPassword: '  new-password-123  ',
+        }),
+      }),
+    );
+
+    expect(hashPasswordMock).toHaveBeenCalledWith('  new-password-123  ');
   });
 
   it('PATCH /api/users/me rejects incomplete password change payload', async () => {
@@ -313,6 +392,42 @@ describe('/api/users', () => {
       sessionVersion: 2,
     });
     expect(res.headers.get('set-cookie')).toContain('feedfuse_session=rotated-token');
+  });
+
+  it('POST /api/users/me/password preserves spaces when verifying and hashing passwords', async () => {
+    requireApiSessionMock.mockResolvedValue({ userId: '2', role: 'member', sessionVersion: 1 });
+    getUserByIdMock.mockResolvedValue({
+      id: '2',
+      username: 'member',
+      passwordHash: 'scrypt$old',
+      role: 'member',
+      status: 'active',
+      sessionVersion: 1,
+      type: 'member',
+    });
+    changeUserPasswordMock.mockResolvedValue({
+      id: '2',
+      username: 'member',
+      role: 'member',
+      status: 'active',
+      sessionVersion: 2,
+      type: 'member',
+    });
+
+    const mod = await import('../../../../app/api/users/me/password/route');
+    await mod.POST(
+      new Request('http://localhost/api/users/me/password', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: '  old-password-123  ',
+          nextPassword: '  new-password-123  ',
+        }),
+      }),
+    );
+
+    expect(verifyPasswordMock).toHaveBeenCalledWith('  old-password-123  ', 'scrypt$old');
+    expect(hashPasswordMock).toHaveBeenCalledWith('  new-password-123  ');
   });
 
   it('PATCH rejects editing the initial user through admin endpoint', async () => {

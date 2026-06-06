@@ -107,6 +107,7 @@ async function loadParsedFeedSnapshot(
   appSettings: Awaited<ReturnType<FeverSyncDeps['getAppSettings']>>,
   remoteFeed: FeverFeed,
   cache: Map<string, ParsedFeed | null>,
+  userId?: string | null,
 ): Promise<ParsedFeed | null> {
   const cacheKey = remoteFeed.id;
   if (cache.has(cacheKey)) {
@@ -116,6 +117,7 @@ async function loadParsedFeedSnapshot(
   const res = await deps.fetchFeedXml(remoteFeed.url, {
     timeoutMs: appSettings.rssTimeoutMs,
     userAgent: appSettings.rssUserAgent,
+    userId,
   });
   if (res.status < 200 || res.status >= 300 || !res.xml) {
     cache.set(cacheKey, null);
@@ -207,6 +209,7 @@ export async function runFeverSyncWorker(input: {
           appSettings,
           remoteFeed,
           parsedFeedCache,
+          localFeed.userId,
         );
         if (!parsed) {
           return null;

@@ -22,6 +22,7 @@ cp .env.example .env
 
 - `DATABASE_URL=postgresql://feedfuse:feedfuse@127.0.0.1:5432/feedfuse`
 - `AUTH_INITIAL_PASSWORD=change-me-before-first-login`
+- `AUTH_COOKIE_SECURE=false`
 - `IMAGE_PROXY_SECRET=change-me-before-prod`
 - `RSS_NETWORK_MODE=public`
 - `RSS_ALLOWED_CIDRS=`
@@ -35,6 +36,8 @@ cp .env.example .env
 首次启动新库后，初始用户的用户名为 `admin`，密码来自 `AUTH_INITIAL_PASSWORD`。首登成功后，密码会写入数据库；后续登录使用数据库中的账号密码。
 
 初始用户可以在 `设置中心` -> `账号与安全` 中改名或改密码。即使用户名不再是 `admin`，该账号仍是固定的初始用户。
+
+`AUTH_COOKIE_SECURE=false` 用于本地 HTTP 访问。如果你用 HTTPS 访问开发环境，可以改为 `AUTH_COOKIE_SECURE=true`。
 
 RSS 网络访问默认使用 `RSS_NETWORK_MODE=public`，只允许公网地址。可选模式：
 

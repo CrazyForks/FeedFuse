@@ -32,6 +32,8 @@
 - 用户显式提交 `categoryId` 时，service / repository 在写入 `feeds`、`ai_digest` 等用户私有资源前，必须校验该分类存在且 `categories.user_id = session.userId`；不能只依赖前端下拉选项或全局 `category_id -> categories(id)` 外键。
 - `feeds.category_id` 的同用户归属必须有数据库层兜底；即使应用层漏校验，也要拒绝把某个用户的 feed / ai_digest 绑定到其他用户的分类。
 - session payload 必须包含 `userId`、`role`、`sessionVersion`、`iat`、`exp`；用户禁用、重置密码或修改密码时必须递增 `session_version` 使旧 session 失效。
+- session cookie 必须保持 `HttpOnly`、`SameSite=Lax` 和 `Path=/`；未显式配置时生产环境默认带 `Secure`，但 HTTP / 内网自托管可以通过 `AUTH_COOKIE_SECURE=false` 关闭。
+- 密码字段必须按用户提交的原文校验、验证和哈希，不能 `trim()` 或做空白字符归一化；前后空格属于密码内容。
 - 用户私有表的唯一约束必须按用户作用域设计，例如 `(user_id, lower(name))`、`(user_id, url)`；跨用户允许相同分类名、订阅 URL 或外部账号标识。
 - 用户私有关系表的唯一键、upsert 冲突键和数据库兜底也必须按用户作用域设计；`article_tasks`、`feed_refresh_run_items`、Fever 映射、AI digest sources、AI/翻译会话、favicon、媒体附件等表不能在冲突更新中重写 `user_id`，并且必须拒绝关联到其他用户的父资源。
 - `articles.duplicate_of_article_id` 也属于用户私有关联；迁移必须清理历史跨用户重复源引用，数据库层必须拒绝把文章指向其他用户的重复源文章。
@@ -40,6 +42,7 @@
 - `app_settings` 只保留全局兼容配置；用户级 UI 设置、AI key、translation key 必须读写 `user_settings`。
 - 历史单用户数据迁移必须归属默认管理员，包括旧 `system_logs`；新系统级日志仍可使用 `user_id = null` 保留系统级语义。
 - 所有异步任务 payload、队列 singleton key、任务状态、系统日志和用户操作日志涉及用户私有数据时都必须携带 `userId`；定时任务没有会话上下文时必须按 active users fan-out。
+- 外部 RSS / fulltext 请求日志涉及用户资源时必须写入顶层 `system_logs.user_id`；只把用户标识放进 `context` 不能满足 `/api/logs` 的用户过滤契约。
 - AI 配置变更触发的运行态清理也属于用户私有异步状态；`cleanup` / cancel / fail 这类收尾逻辑必须按当前用户 `userId` 限定更新范围，并在写入 `article_ai_summary_events`、`article_translation_events` 等事件表时同步写入 `user_id`。
 - Fever、AI digest、feed refresh、全文抓取、文章过滤、摘要、翻译等 worker 在读取或写入数据前必须用 `userId` 校验资源归属。
 - 管理员才可创建用户、列表用户、重置密码、禁用或启用用户；普通用户只能读取自己的资料和修改自己的密码。
@@ -57,6 +60,9 @@
 
 - `src/server/integrations/rss/ssrfGuard.ts` 是 RSS 外链安全判定的统一入口；`route.ts`、worker 和抓取流程不要各自散落一套网络地址规则。
 - RSS 链接在发起抓取前要校验原始 URL，抓取完成后如果拿到了重定向后的 `finalUrl`，还必须再次按相同策略校验，避免通过公网入口跳转到内网或 fake-ip 地址绕过限制。
+- RSS 和 fulltext 这类外部 HTTP 抓取不能依赖客户端自动跟随重定向；必须在每一跳 `Location` 发起请求前先按同一安全策略校验目标 URL。
+- Docker/host fallback 只能用于网络类失败；`Unsafe URL`、响应体超限和重定向次数超限这类确定性错误必须保留原始错误。
+- 外部 RSS 响应必须设置读取大小上限；写入 `system_logs.details` 的上游失败响应必须截断，避免超大响应直接落库。
 - `RSS_NETWORK_MODE=lan` 只额外允许 RFC1918 局域网地址；`198.18.0.0/15` fake-ip 兼容只属于 `RSS_NETWORK_MODE=fake-ip`。
 - `.local` 主机名在 `RSS_NETWORK_MODE=lan` 或 `custom` 下不能直接拒绝，必须先解析，再按解析出的 IP 是否命中 RFC1918 或 `RSS_ALLOWED_CIDRS` 判定。
 

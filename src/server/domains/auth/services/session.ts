@@ -68,6 +68,11 @@ function shouldBypassSessionGuard(): boolean {
   return process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
 }
 
+function shouldUseSecureSessionCookie(): boolean {
+  const secureOverride = getServerEnv().AUTH_COOKIE_SECURE;
+  return secureOverride ?? (process.env.NODE_ENV === 'production');
+}
+
 export function createSessionToken(input: {
   secret: string;
   userId: string;
@@ -117,11 +122,14 @@ export function serializeSessionCookie(
   token: string,
   maxAgeSeconds = AUTH_SESSION_MAX_AGE_SECONDS,
 ): string {
-  return `${AUTH_SESSION_COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSeconds}`;
+  // 默认生产环境启用 Secure；内网 HTTP 自托管可通过 AUTH_COOKIE_SECURE=false 关闭。
+  const secureAttribute = shouldUseSecureSessionCookie() ? '; Secure' : '';
+  return `${AUTH_SESSION_COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSeconds}${secureAttribute}`;
 }
 
 export function serializeExpiredSessionCookie(): string {
-  return `${AUTH_SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+  const secureAttribute = shouldUseSecureSessionCookie() ? '; Secure' : '';
+  return `${AUTH_SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secureAttribute}`;
 }
 
 async function getInitialUser(): Promise<UserRow | null> {

@@ -57,13 +57,14 @@ describe('auth password helpers', () => {
   });
 });
 
-describe('auth session helpers', () => {
-  beforeEach(() => {
-    getPoolMock.mockReset().mockReturnValue('pool');
-    getAuthSettingsMock.mockReset().mockResolvedValue({ authSessionSecret: 'session-secret' });
-    findUserByUsernameMock.mockReset();
-    getUserByIdMock.mockReset();
-    persistInitialAdminPasswordMock.mockReset();
+  describe('auth session helpers', () => {
+    beforeEach(() => {
+      vi.unstubAllEnvs();
+      getPoolMock.mockReset().mockReturnValue('pool');
+      getAuthSettingsMock.mockReset().mockResolvedValue({ authSessionSecret: 'session-secret' });
+      findUserByUsernameMock.mockReset();
+      getUserByIdMock.mockReset();
+      persistInitialAdminPasswordMock.mockReset();
     getServerEnvMock.mockReset().mockReturnValue({ AUTH_INITIAL_PASSWORD: 'initial-password' });
   });
 
@@ -127,11 +128,35 @@ describe('auth session helpers', () => {
     expect(cookie).toContain('Max-Age=3600');
     expect(expiredCookie).toContain(`${AUTH_SESSION_COOKIE_NAME}=`);
     expect(expiredCookie).toContain('Max-Age=0');
-    expect(cookie).not.toContain('Secure');
-    expect(expiredCookie).not.toContain('Secure');
-  });
+      expect(cookie).not.toContain('Secure');
+      expect(expiredCookie).not.toContain('Secure');
+    });
 
-  it('uses the fixed initial user id for legacy session cookie fallback', async () => {
+    it('adds Secure to session cookies in production', () => {
+      vi.stubEnv('NODE_ENV', 'production');
+
+      const cookie = serializeSessionCookie('signed-token', 3600);
+      const expiredCookie = serializeExpiredSessionCookie();
+
+      expect(cookie).toContain('Secure');
+      expect(expiredCookie).toContain('Secure');
+    });
+
+    it('allows disabling Secure cookies for production HTTP deployments', () => {
+      vi.stubEnv('NODE_ENV', 'production');
+      getServerEnvMock.mockReturnValue({
+        AUTH_INITIAL_PASSWORD: 'initial-password',
+        AUTH_COOKIE_SECURE: false,
+      });
+
+      const cookie = serializeSessionCookie('signed-token', 3600);
+      const expiredCookie = serializeExpiredSessionCookie();
+
+      expect(cookie).not.toContain('Secure');
+      expect(expiredCookie).not.toContain('Secure');
+    });
+
+    it('uses the fixed initial user id for legacy session cookie fallback', async () => {
     getUserByIdMock.mockResolvedValue({
       id: '1',
       username: 'renamed-admin',

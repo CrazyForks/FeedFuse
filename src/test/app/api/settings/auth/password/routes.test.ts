@@ -84,6 +84,23 @@ describe('/api/settings/auth/password', () => {
     expect(json.data.updated).toBe(true);
   });
 
+  it('preserves leading and trailing spaces in compatibility password changes', async () => {
+    const mod = await import('../../../../../../app/api/settings/auth/password/route');
+    await mod.POST(
+      new Request('http://localhost/api/settings/auth/password', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: '  initial-password  ',
+          nextPassword: '  next-password-123  ',
+        }),
+      }),
+    );
+
+    expect(verifyPasswordMock).toHaveBeenCalledWith('  initial-password  ', 'scrypt$old');
+    expect(hashPasswordMock).toHaveBeenCalledWith('  next-password-123  ');
+  });
+
   it('returns 403 when a non-initial admin tries to use the compatibility endpoint', async () => {
     requireApiSessionMock.mockResolvedValue({ userId: '3', role: 'admin', sessionVersion: 1 });
     getUserByIdMock.mockResolvedValue({

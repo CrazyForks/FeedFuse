@@ -16,7 +16,7 @@ const patchUserBodySchema = z.object({
   username: z.string().trim().min(1).optional(),
   role: z.enum(['admin', 'member']).optional(),
   status: z.enum(['active', 'disabled']).optional(),
-  password: z.string().trim().min(8).optional(),
+  password: z.string().min(8).optional(),
 });
 
 function zodIssuesToFields(error: z.ZodError): Record<string, string> {

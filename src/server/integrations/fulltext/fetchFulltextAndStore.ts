@@ -75,10 +75,10 @@ export async function fetchFulltextAndStore(
       userAgent: settings.rssUserAgent,
       maxBytes: MAX_HTML_BYTES,
       logging: {
+        userId: article.userId,
         source: 'server/fulltext/fetchFulltextAndStore',
         requestLabel: 'Fulltext fetch',
         context: {
-          userId: article.userId,
           articleId,
           articleLink: link,
         },

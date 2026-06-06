@@ -30,6 +30,7 @@ describe('fetchFeedXml', () => {
       'https://example.com/feed.xml',
       expect.objectContaining({
         logging: {
+          userId: null,
           source: 'server/rss/fetchFeedXml',
           requestLabel: 'RSS fetch',
           context: {

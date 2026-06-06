@@ -125,6 +125,7 @@ export async function GET(request: Request) {
     const res = await fetchRssXml(normalizedUrl, {
       timeoutMs: 10_000,
       userAgent: 'FeedFuse RSS Validator',
+      isSafeUrl: (value) => isSafeExternalUrl(value, feedUrlSafetyOptions),
     });
 
     // 跟随重定向后需要再次校验最终地址，避免绕过 RSS 网络访问限制。

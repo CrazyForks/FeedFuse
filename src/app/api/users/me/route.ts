@@ -52,18 +52,18 @@ export async function PATCH(request: Request) {
       throw new ValidationError('用户信息校验失败', zodIssuesToFields(parsed.error));
     }
 
-    const normalizedNextPassword = parsed.data.nextPassword.trim();
-    const shouldChangePassword = normalizedNextPassword.length > 0;
+    const nextPassword = parsed.data.nextPassword;
+    const shouldChangePassword = nextPassword.length > 0;
 
     let passwordHash: string | undefined;
     if (shouldChangePassword) {
-      if (normalizedNextPassword.length < 8) {
+      if (nextPassword.length < 8) {
         throw new ValidationError('密码校验失败', {
           nextPassword: '新密码至少需要 8 位',
         });
       }
 
-      passwordHash = hashPassword(normalizedNextPassword);
+      passwordHash = hashPassword(nextPassword);
     }
 
     // 当前账号自助入口统一保存用户名与密码，角色和状态仍保持后端只读。

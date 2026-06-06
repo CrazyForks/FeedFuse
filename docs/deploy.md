@@ -44,8 +44,11 @@ curl -fsSL -o .env https://raw.githubusercontent.com/BryanHoo/FeedFuse/main/depl
 - `WEB_PORT`
 - `IMAGE_PROXY_SECRET`
 - `AUTH_INITIAL_PASSWORD`
+- `AUTH_COOKIE_SECURE`
 - `RSS_NETWORK_MODE`
 - `RSS_ALLOWED_CIDRS`
+
+`AUTH_COOKIE_SECURE=false` 适合默认的 HTTP 端口访问，包含局域网 IP 访问。如果你在前面接了 HTTPS 反向代理，并且用户通过 `https://` 访问 FeedFuse，建议改成 `AUTH_COOKIE_SECURE=true`。
 
 RSS 网络访问默认使用 `RSS_NETWORK_MODE=public`，仅允许公网地址。常见模式：
 

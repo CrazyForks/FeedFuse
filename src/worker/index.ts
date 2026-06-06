@@ -286,6 +286,7 @@ export async function fetchAndIngestFeed(
       userAgent: settings.rssUserAgent,
       etag: feed.etag,
       lastModified: feed.lastModified,
+      userId: feed.userId,
     });
     status = res.status;
     etag = res.etag;

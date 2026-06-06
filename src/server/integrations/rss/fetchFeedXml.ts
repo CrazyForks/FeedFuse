@@ -12,6 +12,7 @@ export interface FetchFeedXmlOptions {
   userAgent: string;
   etag?: string | null;
   lastModified?: string | null;
+  userId?: string | null;
 }
 
 export async function fetchFeedXml(
@@ -21,6 +22,7 @@ export async function fetchFeedXml(
   const res = await fetchRssXml(url, {
     ...options,
     logging: {
+      userId: options.userId ?? null,
       source: 'server/rss/fetchFeedXml',
       requestLabel: 'RSS fetch',
       context: {

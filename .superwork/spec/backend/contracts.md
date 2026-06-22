@@ -48,6 +48,7 @@
 - 所有异步任务 payload、队列 singleton key、任务状态、系统日志和用户操作日志涉及用户私有数据时都必须携带 `userId`；定时任务没有会话上下文时必须按 active users fan-out。
 - 外部 RSS / fulltext 请求日志涉及用户资源时必须写入顶层 `system_logs.user_id`；只把用户标识放进 `context` 不能满足 `/api/logs` 的用户过滤契约。
 - AI 配置变更触发的运行态清理也属于用户私有异步状态；`cleanup` / cancel / fail 这类收尾逻辑必须按当前用户 `userId` 限定更新范围，并在写入 `article_ai_summary_events`、`article_translation_events` 等事件表时同步写入 `user_id`。
+- 即使 `translation.useSharedAi = false`，专用翻译链路仍会消费共享的 `ui_settings.ai.deepThinkingEnabled`；因此 translation fingerprint 与 cleanup scope 也必须覆盖这个开关，避免切换深度思考后旧翻译 session 继续按过期配置运行。
 - Fever、AI digest、feed refresh、全文抓取、文章过滤、摘要、翻译等 worker 在读取或写入数据前必须用 `userId` 校验资源归属。
 - 管理员才可创建用户、列表用户、重置密码、禁用或启用用户；普通用户只能读取自己的资料和修改自己的密码。
 - 删除用户属于更强权限操作：只有初始用户可删除其他用户，且初始用户自身永远不可删除；后端必须在 route/service 层显式校验，不能只依赖前端隐藏按钮。

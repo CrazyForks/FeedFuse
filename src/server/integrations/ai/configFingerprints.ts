@@ -61,6 +61,8 @@ export function resolveAiConfigFingerprints(
         model: trim(settings.ai.translation.model),
         apiBaseUrl: trim(settings.ai.translation.apiBaseUrl),
         apiKey: trim(input.translationApiKey),
+        // 专用翻译配置同样会消费深度思考开关，指纹必须覆盖它才能正确触发 cleanup。
+        deepThinkingEnabled: Boolean(settings.ai.deepThinkingEnabled),
       };
 
   const translationConfigWithPrompt = {

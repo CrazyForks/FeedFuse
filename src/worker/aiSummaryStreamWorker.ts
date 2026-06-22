@@ -5,6 +5,7 @@ import {
   createConfigFingerprintGuard,
   resolveAiConfigFingerprints,
 } from '@/server/integrations/ai/configFingerprints';
+import { createThinkingDeltaFilter } from '@/server/integrations/ai/deepThinking';
 import {
   isAiRuntimeConfigComplete,
   resolveSharedAiConfig,
@@ -297,7 +298,8 @@ export async function runAiSummaryStreamWorker(
           throw new Error('Missing AI configuration');
         }
 
-        const { model, apiBaseUrl, apiKey } = sharedAiConfig;
+        const { model, apiBaseUrl, apiKey, deepThinkingEnabled } = sharedAiConfig;
+        const thinkingFilter = createThinkingDeltaFilter();
 
         draftText = session.draftText ?? '';
         await deps.insertAiSummaryEvent(input.pool, {
@@ -317,9 +319,15 @@ export async function runAiSummaryStreamWorker(
           text: sourceText,
           // 允许用户在设置中自定义摘要提示词；为空时由 AI 层回退默认模板。
           prompt: normalizedSettings.ai.summaryPrompt,
+          deepThinkingEnabled,
         })) {
           await ensureSharedConfigCurrent();
-          draftText += deltaText;
+          const visibleDeltaText = thinkingFilter.push(deltaText);
+          if (!visibleDeltaText) {
+            continue;
+          }
+
+          draftText += visibleDeltaText;
 
           await deps.updateAiSummarySessionDraft(input.pool, {
             userId: article.userId,
@@ -330,7 +338,7 @@ export async function runAiSummaryStreamWorker(
             userId: article.userId,
             sessionId: session.id,
             eventType: 'summary.delta',
-            payload: { deltaText },
+            payload: { deltaText: visibleDeltaText },
           });
           await deps.insertAiSummaryEvent(input.pool, {
             userId: article.userId,
@@ -340,7 +348,7 @@ export async function runAiSummaryStreamWorker(
           });
         }
 
-        const finalText = draftText.trim();
+        const finalText = thinkingFilter.getVisibleText() || draftText.trim();
         if (!finalText) {
           throw new Error('Invalid summarize response: missing content');
         }

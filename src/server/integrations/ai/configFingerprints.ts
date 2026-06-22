@@ -47,6 +47,7 @@ export function resolveAiConfigFingerprints(
     model: trim(settings.ai.model),
     apiBaseUrl: trim(settings.ai.apiBaseUrl),
     apiKey: trim(input.aiApiKey),
+    deepThinkingEnabled: Boolean(settings.ai.deepThinkingEnabled),
     summaryPrompt: trim(settings.ai.summaryPrompt),
   };
 

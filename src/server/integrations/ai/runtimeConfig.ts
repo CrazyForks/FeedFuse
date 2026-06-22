@@ -2,6 +2,7 @@ export interface AiRuntimeConfig {
   model: string;
   apiBaseUrl: string;
   apiKey: string;
+  deepThinkingEnabled: boolean;
 }
 
 export interface SharedAiConfigInput {
@@ -9,6 +10,7 @@ export interface SharedAiConfigInput {
     ai: {
       model: string;
       apiBaseUrl: string;
+      deepThinkingEnabled?: boolean;
     };
   };
   aiApiKey: string;
@@ -23,6 +25,7 @@ export function resolveSharedAiConfig(input: SharedAiConfigInput): AiRuntimeConf
     model: trim(input.settings.ai.model),
     apiBaseUrl: trim(input.settings.ai.apiBaseUrl),
     apiKey: trim(input.aiApiKey),
+    deepThinkingEnabled: Boolean(input.settings.ai.deepThinkingEnabled),
   };
 }
 

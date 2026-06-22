@@ -13,7 +13,8 @@
 - 新增或调整 reader 快捷键时，同步更新快捷键帮助弹窗，并在 `src/test/features/reader/ReaderLayout.test.tsx` 覆盖至少一个正向触发和一个弹窗/输入焦点保护场景。
 - 文章视图相关契约先看 `src/features/articles/components/ArticleView.tsx`、`src/features/articles/hooks/useStreamingAiSummary.ts`、`src/features/articles/hooks/useImmersiveTranslation.ts`
 - 设置保存逻辑先看 `src/features/settings/hooks/useSettingsAutosave.ts`
-- AI 设置中的 `summaryPrompt`、`translationPrompt` 由设置中心维护；前端只负责编辑与保存，不在组件层拼接任务级 system prompt
+- AI 设置中的 `summaryPrompt`、`translationPrompt`、`deepThinkingEnabled` 由设置中心维护；前端只负责编辑与保存，不在组件层拼接任务级 system prompt
+- `deepThinkingEnabled` 开启后，摘要卡片、智能解读等 AI 内容区域只展示最终回复；前端不应把中间思考文案、`<think>` 标签或推理过程暴露给用户
 - 中栏文章列表的已读/未读按钮按当前选中 `view` 记忆用户选择；该选择优先于全局 `defaultUnreadOnlyInAll`，刷新页面和切换订阅源后仍应保留。
 - 多用户登录后，前端本地状态必须按 `userId` 命名空间隔离；设置缓存使用 `feedfuse-settings:${userId}`，阅读器未读筛选使用 `feedfuse.reader.unreadOnlyByView.v1:${userId}`。
 - ReaderApp 获取当前用户后必须重新读取该用户命名空间的本地设置和阅读器本地状态，避免从 anonymous 或上一个账号继承状态。

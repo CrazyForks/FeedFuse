@@ -545,6 +545,7 @@ async function main() {
             model,
             prompt,
             articleText,
+            deepThinkingEnabled: uiSettings.ai.deepThinkingEnabled,
           });
         },
       });
@@ -689,6 +690,7 @@ async function main() {
             throw new Error('Missing translation configuration');
           }
           const { model, apiBaseUrl, apiKey } = resolved;
+          const deepThinkingEnabled = resolved.deepThinkingEnabled;
 
           await runImmersiveTranslateSession({
             pool,
@@ -707,6 +709,7 @@ async function main() {
                 batchSize: 1,
                 // 使用用户可配置翻译提示词；为空时在 AI 层自动回退默认提示词。
                 prompt: normalizedSettings.ai.translationPrompt,
+                deepThinkingEnabled,
                 segments: [
                   {
                     id: `seg-${currentSegmentIndex}`,
@@ -777,7 +780,7 @@ async function main() {
       });
       if (!resolved.apiKey.trim()) continue;
       if (!isTranslationConfigComplete(resolved)) continue;
-      const { model, apiBaseUrl, apiKey } = resolved;
+      const { model, apiBaseUrl, apiKey, deepThinkingEnabled } = resolved;
 
       try {
         const translatedTitle = await translateTitle({
@@ -787,6 +790,7 @@ async function main() {
           title: titleSource,
           // 标题翻译与正文翻译共用同一条用户可配置的翻译提示词。
           prompt: normalizedSettings.ai.translationPrompt,
+          deepThinkingEnabled,
         });
         await ensureTranslationConfigCurrent();
         if (!translatedTitle.trim()) {

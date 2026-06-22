@@ -143,6 +143,7 @@ describe('settingsSchema normalize', () => {
   it('normalizes ai.translation defaults with shared provider enabled', () => {
     const normalized = normalizePersistedSettings({
       ai: {
+        deepThinkingEnabled: true,
         model: 'gpt-4.1-mini',
         apiBaseUrl: 'https://api.example.com/v1',
         summaryPrompt: '  摘要提示词  ',
@@ -161,6 +162,7 @@ describe('settingsSchema normalize', () => {
     expect(ai.translation?.useSharedAi).toBe(true);
     expect(ai.translation?.model).toBe('');
     expect(ai.translation?.apiBaseUrl).toBe('');
+    expect(normalized.ai.deepThinkingEnabled).toBe(true);
     expect(normalized.ai.summaryPrompt).toBe('摘要提示词');
     expect(normalized.ai.translationPrompt).toBe('翻译提示词');
   });

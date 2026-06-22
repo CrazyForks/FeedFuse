@@ -112,4 +112,26 @@ describe('streamSummarizeText', () => {
     expect(systemPrompt).toContain('不要返回');
     expect(systemPrompt).toContain('TL;DR');
   });
+
+  it('adds deep thinking request hints but still requires final-only output', async () => {
+    createCompletionMock.mockResolvedValue(fakeOpenAiStream(['结论']));
+    const mod = await import('@/server/integrations/ai/streamSummarizeText');
+
+    for await (const part of mod.streamSummarizeText({
+      apiBaseUrl: 'https://api.openai.com/v1',
+      apiKey: 'key',
+      model: 'gpt-4o-mini',
+      text: 'hello',
+      deepThinkingEnabled: true,
+    })) {
+      void part;
+    }
+
+    const request = createCompletionMock.mock.calls[0]?.[0];
+    const systemPrompt = request?.messages?.[0]?.content;
+
+    expect(request?.reasoning_effort).toBe('high');
+    expect(systemPrompt).toContain('只输出最终结果');
+    expect(systemPrompt).toContain('<think>');
+  });
 });

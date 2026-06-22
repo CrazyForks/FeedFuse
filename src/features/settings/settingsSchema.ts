@@ -34,6 +34,7 @@ const defaultAISettings: AIPersistedSettings = {
   summaryEnabled: false,
   translateEnabled: false,
   autoSummarize: false,
+  deepThinkingEnabled: false,
   model: '',
   apiBaseUrl: '',
   summaryPrompt: '',
@@ -138,6 +139,10 @@ function normalizeAISettings(input: Record<string, unknown>): AIPersistedSetting
     summaryEnabled: readBoolean(aiInput.summaryEnabled, defaultAISettings.summaryEnabled),
     translateEnabled: readBoolean(aiInput.translateEnabled, defaultAISettings.translateEnabled),
     autoSummarize: readBoolean(aiInput.autoSummarize, defaultAISettings.autoSummarize),
+    deepThinkingEnabled: readBoolean(
+      aiInput.deepThinkingEnabled,
+      defaultAISettings.deepThinkingEnabled,
+    ),
     model: readString(aiInput.model, defaultAISettings.model),
     apiBaseUrl: readString(aiInput.apiBaseUrl, defaultAISettings.apiBaseUrl),
     summaryPrompt: readString(aiInput.summaryPrompt, defaultAISettings.summaryPrompt).trim(),

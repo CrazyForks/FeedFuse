@@ -1,4 +1,9 @@
 import { createOpenAIClient } from '@/server/integrations/ai/openaiClient';
+import {
+  applyDeepThinkingToChatRequest,
+  buildFinalOnlySystemPrompt,
+  stripThinkingText,
+} from '@/server/integrations/ai/deepThinking';
 
 export interface ArticleFilterJudgeResult {
   ok: boolean;
@@ -45,7 +50,7 @@ function parseJudgeContent(content: unknown): ArticleFilterJudgeResult {
     return createJudgeErrorResult('Invalid article-filter response: missing content');
   }
 
-  const normalized = content.trim().toUpperCase();
+  const normalized = stripThinkingText(content).toUpperCase();
 
   if (normalized === FILTER_DECISION) {
     return createJudgeResult(true);
@@ -72,6 +77,7 @@ export async function articleFilterJudge(input: {
   model: string;
   prompt: string;
   articleText: string;
+  deepThinkingEnabled?: boolean;
 }): Promise<ArticleFilterJudgeResult> {
   try {
     const client = createOpenAIClient({
@@ -81,13 +87,16 @@ export async function articleFilterJudge(input: {
       requestLabel: 'AI article filter request',
     });
 
-    const completion = await client.chat.completions.create({
+    const completion = await client.chat.completions.create(applyDeepThinkingToChatRequest({
       model: input.model,
       temperature: 0,
       messages: [
         {
           role: 'system',
-          content: '你是文章过滤助手。仅输出 FILTER 或 ALLOW。',
+          content: buildFinalOnlySystemPrompt(
+            '你是文章过滤助手。仅输出 FILTER 或 ALLOW。',
+            Boolean(input.deepThinkingEnabled),
+          ),
         },
         {
           role: 'user',
@@ -97,7 +106,7 @@ export async function articleFilterJudge(input: {
           }),
         },
       ],
-    });
+    }, Boolean(input.deepThinkingEnabled)));
 
     return parseJudgeContent(completion.choices?.[0]?.message?.content);
   } catch (error) {

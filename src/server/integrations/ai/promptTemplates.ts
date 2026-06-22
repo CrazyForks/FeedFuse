@@ -1,3 +1,5 @@
+import { buildFinalOnlySystemPrompt } from '@/server/integrations/ai/deepThinking';
+
 export const DEFAULT_SUMMARY_PROMPT =
   '你是中文摘要助手。请输出简洁中文摘要：先给 1-2 句总结，再给 3-5 条要点。不要返回“TL;DR：”或类似前缀。';
 
@@ -17,7 +19,11 @@ export function resolveSummaryPrompt(input: string | undefined): string {
 export function buildTranslationSystemPrompt(input: {
   basePrompt: string | undefined;
   taskInstruction: string;
+  deepThinkingEnabled?: boolean;
 }): string {
   const normalized = normalizePrompt(input.basePrompt, DEFAULT_TRANSLATION_PROMPT);
-  return `${normalized}\n\n${input.taskInstruction}`;
+  return buildFinalOnlySystemPrompt(
+    `${normalized}\n\n${input.taskInstruction}`,
+    Boolean(input.deepThinkingEnabled),
+  );
 }

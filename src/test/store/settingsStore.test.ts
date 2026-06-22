@@ -213,6 +213,17 @@ describe('settingsStore', () => {
     expect(lastSettingsPutBodyText).toContain('"maxStoredArticlesPerFeed":1000');
   });
 
+  it('persists ai deepThinkingEnabled through settingsStore saveDraft', async () => {
+    useSettingsStore.getState().loadDraft();
+    useSettingsStore.getState().updateDraft((draft) => {
+      draft.persisted.ai.deepThinkingEnabled = true;
+    });
+
+    await useSettingsStore.getState().saveDraft();
+
+    expect(lastSettingsPutBodyText).toContain('"deepThinkingEnabled":true');
+  });
+
   it('persists logging settings through settingsStore saveDraft', async () => {
     useSettingsStore.getState().loadDraft();
     useSettingsStore.getState().updateDraft((draft) => {

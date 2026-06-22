@@ -1,4 +1,9 @@
 import { createOpenAIClient } from '@/server/integrations/ai/openaiClient';
+import {
+  applyDeepThinkingToChatRequest,
+  buildFinalOnlySystemPrompt,
+  stripThinkingText,
+} from '@/server/integrations/ai/deepThinking';
 import { resolveSummaryPrompt } from '@/server/integrations/ai/promptTemplates';
 
 interface SummarizeTextInput {
@@ -7,13 +12,14 @@ interface SummarizeTextInput {
   model: string;
   text: string;
   prompt?: string;
+  deepThinkingEnabled?: boolean;
 }
 
 function getSummaryContent(content: unknown): string {
   if (typeof content !== 'string' || !content.trim()) {
     throw new Error('Invalid summarize response: missing content');
   }
-  return content.trim();
+  return stripThinkingText(content);
 }
 
 export async function summarizeText(input: SummarizeTextInput): Promise<string> {
@@ -24,20 +30,23 @@ export async function summarizeText(input: SummarizeTextInput): Promise<string> 
     requestLabel: 'AI summary request',
   });
 
-  const completion = await client.chat.completions.create({
+  const completion = await client.chat.completions.create(applyDeepThinkingToChatRequest({
     model: input.model,
     temperature: 0.2,
     messages: [
       {
         role: 'system',
-        content: resolveSummaryPrompt(input.prompt),
+        content: buildFinalOnlySystemPrompt(
+          resolveSummaryPrompt(input.prompt),
+          Boolean(input.deepThinkingEnabled),
+        ),
       },
       {
         role: 'user',
         content: input.text,
       },
     ],
-  });
+  }, Boolean(input.deepThinkingEnabled)));
 
   return getSummaryContent(completion.choices?.[0]?.message?.content);
 }

@@ -17,6 +17,8 @@
 - worker 任务应复用 `src/server/domains/**/services/**`、`src/server/integrations/ai/**`、`src/server/integrations/rss/**`
 - 队列任务名字、状态和错误语义变更时，检查 `src/server/infra/queue/contracts.ts`、`src/server/domains/**/tasks/**`、前端轮询消费方
 - AI 摘要/翻译提示词来自 `ui_settings.ai.summaryPrompt`、`ui_settings.ai.translationPrompt`；为空时必须在 `src/server/integrations/ai/**` 统一回退默认模板，不在 route/worker 内硬编码默认词
+- `ui_settings.ai.deepThinkingEnabled` 属于共享 AI 运行时配置；开启后统一由 `src/server/integrations/ai/**` 请求更高推理强度，并追加“只输出最终结果”的 system 约束
+- AI 摘要、翻译、智能报告这类用户可见输出在写入 session、事件流、文章内容前，必须去除思考文案、`<think>` 标签和中间推理文本，避免前端泄露模型内部思考
 
 ## 数据与迁移
 
@@ -73,6 +75,7 @@
 - 入库链路的自动 AI 触发统一走 `src/worker/autoAiTriggers.ts`，只根据 `aiSummaryOnFetchEnabled`、`bodyTranslateOnFetchEnabled` 和文章已有内容决定是否入队。
 - 打开文章链路通过 `src/app/api/articles/[id]/fulltext/route.ts`、`ai-summary/route.ts`、`ai-translate/route.ts` 创建 `article_tasks`，状态由 `src/app/api/articles/[id]/tasks/route.ts` 返回给前端轮询。
 - AI 摘要/翻译提示词来自 `ui_settings.ai.summaryPrompt`、`ui_settings.ai.translationPrompt`；为空时必须在 `src/server/integrations/ai/**` 统一回退默认模板，不在 route/worker 内硬编码默认词。
+- 开启 `ui_settings.ai.deepThinkingEnabled` 后，AI 摘要 SSE 只能下发最终可见文本增量；不能把思考流原样写入 `article_ai_summary_sessions`、`article_ai_summary_events` 或文章摘要字段。
 
 ## 播客 RSS 契约
 

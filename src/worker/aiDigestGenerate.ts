@@ -318,6 +318,7 @@ async function selectRelevantArticles(input: {
   model: string;
   prompt: string;
   candidates: AiDigestCandidateArticleRow[];
+  deepThinkingEnabled?: boolean;
 }): Promise<AiDigestCandidateArticleRow[]> {
   if (input.candidates.length === 0) {
     return [];
@@ -341,6 +342,7 @@ async function selectRelevantArticles(input: {
         model: input.model,
         prompt: input.prompt,
         batch,
+        deepThinkingEnabled: input.deepThinkingEnabled,
       });
       for (const id of ids) {
         selectedIds.add(id);
@@ -536,6 +538,7 @@ async function executeAiDigestRun(input: {
   const model = settings.ai.model.trim() || DEFAULT_DIGEST_MODEL;
   const apiBaseUrl = settings.ai.apiBaseUrl.trim() || DEFAULT_DIGEST_API_BASE_URL;
   const maxStoredArticlesPerFeed = settings.rss.maxStoredArticlesPerFeed;
+  const deepThinkingEnabled = settings.ai.deepThinkingEnabled;
 
   const selected = await selectRelevantArticles({
     deps: input.deps,
@@ -544,6 +547,7 @@ async function executeAiDigestRun(input: {
     model,
     prompt: config.prompt,
     candidates,
+    deepThinkingEnabled,
   });
 
   const clusteredSelected = dedupeClusteredArticles(selected);
@@ -569,6 +573,7 @@ async function executeAiDigestRun(input: {
     model,
     prompt: config.prompt,
     articles: toComposeArticles(clusteredSelected),
+    deepThinkingEnabled,
   });
   await input.ensureSharedConfigCurrent();
 

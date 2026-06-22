@@ -1,5 +1,9 @@
 import { JSDOM } from 'jsdom';
 import { createOpenAIClient } from '@/server/integrations/ai/openaiClient';
+import {
+  applyDeepThinkingToChatRequest,
+  stripThinkingText,
+} from '@/server/integrations/ai/deepThinking';
 import { buildTranslationSystemPrompt } from '@/server/integrations/ai/promptTemplates';
 
 export const translatableSelectors = [
@@ -38,6 +42,7 @@ interface TranslateBatchInput {
   model: string;
   texts: string[];
   prompt?: string;
+  deepThinkingEnabled?: boolean;
 }
 
 interface TranslateSegmentsInput {
@@ -47,6 +52,7 @@ interface TranslateSegmentsInput {
   segments: TranslatableSegment[];
   batchSize?: number;
   prompt?: string;
+  deepThinkingEnabled?: boolean;
 }
 
 function normalizeVisibleText(value: string): string {
@@ -73,7 +79,7 @@ function getMessageContent(content: unknown): string {
     throw new Error('Invalid bilingual translation response: missing content');
   }
 
-  return unwrapCodeFence(content);
+  return stripThinkingText(unwrapCodeFence(content));
 }
 
 function parseBatchTranslations(content: string, expectedCount: number): string[] {
@@ -123,7 +129,7 @@ async function translateBatch(input: TranslateBatchInput): Promise<string[]> {
     source: 'server/ai/bilingualHtmlTranslator',
     requestLabel: 'AI bilingual translation request',
   });
-  const completion = await client.chat.completions.create({
+  const completion = await client.chat.completions.create(applyDeepThinkingToChatRequest({
     model: input.model,
     temperature: 0.2,
     messages: [
@@ -133,6 +139,7 @@ async function translateBatch(input: TranslateBatchInput): Promise<string[]> {
           basePrompt: input.prompt,
           taskInstruction:
             '把用户给出的字符串数组逐项翻译为简体中文，保持数组顺序和长度完全一致。只输出 JSON 字符串数组，不要输出解释。',
+          deepThinkingEnabled: input.deepThinkingEnabled,
         }),
       },
       {
@@ -140,7 +147,7 @@ async function translateBatch(input: TranslateBatchInput): Promise<string[]> {
         content: JSON.stringify(input.texts),
       },
     ],
-  });
+  }, Boolean(input.deepThinkingEnabled)));
 
   const content = getMessageContent(completion.choices?.[0]?.message?.content);
   return parseBatchTranslations(content, input.texts.length);
@@ -211,6 +218,7 @@ export async function translateSegmentsInBatches(
       model: input.model,
       texts,
       prompt: input.prompt,
+      deepThinkingEnabled: input.deepThinkingEnabled,
     });
 
     for (let j = 0; j < batch.length; j += 1) {

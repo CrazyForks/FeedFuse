@@ -1,4 +1,9 @@
 import { createOpenAIClient } from '@/server/integrations/ai/openaiClient';
+import {
+  applyDeepThinkingToChatRequest,
+  buildFinalOnlySystemPrompt,
+  stripThinkingText,
+} from '@/server/integrations/ai/deepThinking';
 
 export interface AiDigestRerankItem {
   id: string;
@@ -23,7 +28,7 @@ function getMessageContent(content: unknown): string {
     throw new Error('Invalid aiDigestRerank response: missing content');
   }
 
-  return unwrapCodeFence(content);
+  return stripThinkingText(unwrapCodeFence(content));
 }
 
 function parseIdArray(content: string): string[] {
@@ -65,6 +70,7 @@ export async function aiDigestRerank(input: {
   model: string;
   prompt: string;
   batch: AiDigestRerankItem[];
+  deepThinkingEnabled?: boolean;
 }): Promise<string[]> {
   const client = createOpenAIClient({
     apiBaseUrl: input.apiBaseUrl,
@@ -74,14 +80,16 @@ export async function aiDigestRerank(input: {
   });
   const allowedIds = new Set(input.batch.map((item) => item.id).filter((id) => Boolean(id)));
 
-  const completion = await client.chat.completions.create({
+  const completion = await client.chat.completions.create(applyDeepThinkingToChatRequest({
     model: input.model,
     temperature: 0.2,
     messages: [
       {
         role: 'system',
-        content:
+        content: buildFinalOnlySystemPrompt(
           '你是信息筛选助手。根据用户的智能报告提示词，判断本批候选文章里哪些内容与主题相关。只输出 JSON 字符串数组，元素为相关文章 id；不要输出解释、不要输出 Markdown。',
+          Boolean(input.deepThinkingEnabled),
+        ),
       },
       {
         role: 'user',
@@ -92,7 +100,7 @@ export async function aiDigestRerank(input: {
         }),
       },
     ],
-  });
+  }, Boolean(input.deepThinkingEnabled)));
 
   const content = getMessageContent(completion.choices?.[0]?.message?.content);
   const ids = dedupePreserveOrder(parseIdArray(content));

@@ -5,6 +5,7 @@ export interface TranslationConfigInput {
     ai: {
       model: string;
       apiBaseUrl: string;
+      deepThinkingEnabled?: boolean;
       translation: {
         useSharedAi: boolean;
         model: string;
@@ -32,6 +33,7 @@ export function resolveTranslationConfig(
       model: trim(input.settings.ai.model),
       apiBaseUrl: trim(input.settings.ai.apiBaseUrl),
       apiKey: trim(input.aiApiKey),
+      deepThinkingEnabled: Boolean(input.settings.ai.deepThinkingEnabled),
     };
   }
 
@@ -39,6 +41,7 @@ export function resolveTranslationConfig(
     model: trim(input.settings.ai.translation.model),
     apiBaseUrl: trim(input.settings.ai.translation.apiBaseUrl),
     apiKey: trim(input.translationApiKey),
+    deepThinkingEnabled: Boolean(input.settings.ai.deepThinkingEnabled),
   };
 }
 

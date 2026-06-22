@@ -129,6 +129,7 @@ export interface AIPersistedSettings {
   summaryEnabled: boolean;
   translateEnabled: boolean;
   autoSummarize: boolean;
+  deepThinkingEnabled: boolean;
   model: string;
   apiBaseUrl: string;
   summaryPrompt: string;

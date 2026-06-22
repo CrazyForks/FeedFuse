@@ -1,5 +1,10 @@
 import { JSDOM } from 'jsdom';
 import { createOpenAIClient } from '@/server/integrations/ai/openaiClient';
+import {
+  applyDeepThinkingToChatRequest,
+  buildFinalOnlySystemPrompt,
+  stripThinkingText,
+} from '@/server/integrations/ai/deepThinking';
 
 export interface AiDigestComposeArticle {
   id: string;
@@ -72,7 +77,7 @@ function getMessageContent(content: unknown): string {
     throw new Error('Invalid aiDigestCompose response: missing content');
   }
 
-  return unwrapCodeFence(content);
+  return stripThinkingText(unwrapCodeFence(content));
 }
 
 function parseTitleHtml(content: string): { title: string; html: string } {
@@ -115,6 +120,7 @@ async function callChatJson<T>(input: {
   system: string;
   user: unknown;
   requestLabel: string;
+  deepThinkingEnabled?: boolean;
 }): Promise<T> {
   const client = createOpenAIClient({
     apiBaseUrl: input.apiBaseUrl,
@@ -122,14 +128,17 @@ async function callChatJson<T>(input: {
     source: 'server/ai/aiDigestCompose',
     requestLabel: input.requestLabel,
   });
-  const completion = await client.chat.completions.create({
+  const completion = await client.chat.completions.create(applyDeepThinkingToChatRequest({
     model: input.model,
     temperature: 0.2,
     messages: [
-      { role: 'system', content: input.system },
+      {
+        role: 'system',
+        content: buildFinalOnlySystemPrompt(input.system, Boolean(input.deepThinkingEnabled)),
+      },
       { role: 'user', content: JSON.stringify(input.user) },
     ],
-  });
+  }, Boolean(input.deepThinkingEnabled)));
 
   const content = getMessageContent(completion.choices?.[0]?.message?.content);
   return JSON.parse(content) as T;
@@ -155,6 +164,7 @@ async function mapBatch(input: {
     fetchedAt: string;
     text: string;
   }>;
+  deepThinkingEnabled?: boolean;
 }): Promise<MapBatchNote[]> {
   type MapResult = { items: Array<{ id: string; points: string[] }> };
 
@@ -165,6 +175,7 @@ async function mapBatch(input: {
     requestLabel: 'AI digest map request',
     system:
       '你是中文信息提炼助手。根据用户的智能报告提示词，为每篇文章提炼 2-4 条关键事实、变化或信号。只输出 JSON 对象：{ "items": [{ "id": "...", "points": ["..."] }] }，不要输出解释或 Markdown。',
+    deepThinkingEnabled: input.deepThinkingEnabled,
     user: {
       prompt: input.prompt,
       articles: input.articles.map((a) => ({
@@ -208,6 +219,7 @@ async function foldNotesToBudget(input: {
   model: string;
   prompt: string;
   notesText: string;
+  deepThinkingEnabled?: boolean;
 }): Promise<string> {
   const client = createOpenAIClient({
     apiBaseUrl: input.apiBaseUrl,
@@ -215,14 +227,16 @@ async function foldNotesToBudget(input: {
     source: 'server/ai/aiDigestCompose',
     requestLabel: 'AI digest fold request',
   });
-  const completion = await client.chat.completions.create({
+  const completion = await client.chat.completions.create(applyDeepThinkingToChatRequest({
     model: input.model,
     temperature: 0.2,
     messages: [
       {
         role: 'system',
-        content:
+        content: buildFinalOnlySystemPrompt(
           '你是中文压缩助手。把用户提供的笔记压缩为更短的要点列表，保留文章 id 与关键结论。只输出纯文本，不要输出 Markdown code fence。',
+          Boolean(input.deepThinkingEnabled),
+        ),
       },
       {
         role: 'user',
@@ -233,14 +247,14 @@ async function foldNotesToBudget(input: {
         }),
       },
     ],
-  });
+  }, Boolean(input.deepThinkingEnabled)));
 
   const content = completion.choices?.[0]?.message?.content;
   if (typeof content !== 'string' || !content.trim()) {
     throw new Error('Invalid aiDigestCompose fold response: missing content');
   }
 
-  return content.trim();
+  return stripThinkingText(content);
 }
 
 export async function aiDigestCompose(input: {
@@ -249,6 +263,7 @@ export async function aiDigestCompose(input: {
   model: string;
   prompt: string;
   articles: AiDigestComposeArticle[];
+  deepThinkingEnabled?: boolean;
 }): Promise<{ title: string; html: string }> {
   const maxArticleTextChars = resolveMaxArticleTextChars(input.articles.length);
   const prepared = input.articles.map((article) => ({
@@ -269,21 +284,23 @@ export async function aiDigestCompose(input: {
       source: 'server/ai/aiDigestCompose',
       requestLabel: 'AI digest compose request',
     });
-    const completion = await client.chat.completions.create({
+    const completion = await client.chat.completions.create(applyDeepThinkingToChatRequest({
       model: input.model,
       temperature: 0.2,
       messages: [
         {
           role: 'system',
-          content:
+          content: buildFinalOnlySystemPrompt(
             '你是中文智能报告助手。根据用户提示词与文章内容生成一篇结构化智能报告，突出主题、变化、信号与可执行结论。只输出 JSON：{ "title": "...", "html": "<p>...</p>" }，不要输出解释或 Markdown。',
+            Boolean(input.deepThinkingEnabled),
+          ),
         },
         {
           role: 'user',
           content: JSON.stringify({ prompt: input.prompt, articles: prepared }),
         },
       ],
-    });
+    }, Boolean(input.deepThinkingEnabled)));
 
     const content = getMessageContent(completion.choices?.[0]?.message?.content);
     return parseTitleHtml(content);
@@ -298,6 +315,7 @@ export async function aiDigestCompose(input: {
         model: input.model,
         prompt: input.prompt,
         articles: batch,
+        deepThinkingEnabled: input.deepThinkingEnabled,
       }),
     ),
   );
@@ -318,6 +336,7 @@ export async function aiDigestCompose(input: {
       model: input.model,
       prompt: input.prompt,
       notesText,
+      deepThinkingEnabled: input.deepThinkingEnabled,
     });
   }
 
@@ -327,14 +346,16 @@ export async function aiDigestCompose(input: {
     source: 'server/ai/aiDigestCompose',
     requestLabel: 'AI digest compose request',
   });
-  const completion = await client.chat.completions.create({
+  const completion = await client.chat.completions.create(applyDeepThinkingToChatRequest({
     model: input.model,
     temperature: 0.2,
     messages: [
       {
         role: 'system',
-        content:
+        content: buildFinalOnlySystemPrompt(
           '你是中文智能报告助手。根据用户提示词与文章要点生成一篇结构化智能报告，突出主题、变化、信号与可执行结论。只输出 JSON：{ "title": "...", "html": "<p>...</p>" }，不要输出解释或 Markdown。',
+          Boolean(input.deepThinkingEnabled),
+        ),
       },
       {
         role: 'user',
@@ -345,7 +366,7 @@ export async function aiDigestCompose(input: {
         }),
       },
     ],
-  });
+  }, Boolean(input.deepThinkingEnabled)));
 
   const content = getMessageContent(completion.choices?.[0]?.message?.content);
   return parseTitleHtml(content);

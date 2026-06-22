@@ -8,6 +8,7 @@ describe('resolveTranslationConfig', () => {
         ai: {
           model: 'shared-model',
           apiBaseUrl: 'https://shared.example.com/v1',
+          deepThinkingEnabled: true,
           translation: {
             useSharedAi: true,
             model: 'dedicated-model',
@@ -23,6 +24,7 @@ describe('resolveTranslationConfig', () => {
       model: 'shared-model',
       apiBaseUrl: 'https://shared.example.com/v1',
       apiKey: 'shared-key',
+      deepThinkingEnabled: true,
     });
   });
 
@@ -32,6 +34,7 @@ describe('resolveTranslationConfig', () => {
         ai: {
           model: 'shared-model',
           apiBaseUrl: 'https://shared.example.com/v1',
+          deepThinkingEnabled: false,
           translation: {
             useSharedAi: false,
             model: 'dedicated-model',
@@ -47,6 +50,7 @@ describe('resolveTranslationConfig', () => {
       model: 'dedicated-model',
       apiBaseUrl: 'https://dedicated.example.com/v1',
       apiKey: 'dedicated-key',
+      deepThinkingEnabled: false,
     });
   });
 });

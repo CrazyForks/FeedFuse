@@ -78,4 +78,14 @@ describe("AISettingsPanel", () => {
     expect((summaryPrompt as HTMLTextAreaElement).value).toBe("请输出两条要点");
     expect((translationPrompt as HTMLTextAreaElement).value).toBe("请保留术语英文");
   });
+
+  it("allows toggling deep thinking", () => {
+    render(<Harness />);
+
+    const toggle = screen.getByRole("switch", { name: "启用深度思考" });
+
+    expect(toggle).toHaveAttribute("data-state", "unchecked");
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("data-state", "checked");
+  });
 });

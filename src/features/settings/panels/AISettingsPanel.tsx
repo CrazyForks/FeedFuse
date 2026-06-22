@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useRef } from "react";
 import type { SettingsDraft } from "../../../store/settingsStore";
@@ -173,6 +174,27 @@ export default function AISettingsPanel({
                   {clearApiKey ? "保留已保存的密钥" : "删除已保存的密钥"}
                 </Button>
               ) : null}
+            </div>
+          </div>
+
+          <div className="px-4 py-3.5">
+            <div className="flex items-center justify-between gap-4 rounded-md border border-border px-3 py-2.5">
+              <div className="space-y-1">
+                <SettingTooltipLabel
+                  label="启用深度思考"
+                  description="适用于支持推理的模型。开启后会请求更充分的内部思考，但页面只展示最终回复，不显示思考文案。"
+                  className="text-sm font-medium text-foreground"
+                />
+              </div>
+              <Switch
+                aria-label="启用深度思考"
+                checked={ai.deepThinkingEnabled}
+                onCheckedChange={(checked) =>
+                  onChange((nextDraft) => {
+                    nextDraft.persisted.ai.deepThinkingEnabled = checked;
+                  })
+                }
+              />
             </div>
           </div>
 

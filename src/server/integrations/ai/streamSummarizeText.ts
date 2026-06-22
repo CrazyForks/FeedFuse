@@ -1,4 +1,8 @@
 import { createOpenAIClient } from '@/server/integrations/ai/openaiClient';
+import {
+  applyDeepThinkingToChatRequest,
+  buildFinalOnlySystemPrompt,
+} from '@/server/integrations/ai/deepThinking';
 import { resolveSummaryPrompt } from '@/server/integrations/ai/promptTemplates';
 
 export interface StreamSummarizeTextInput {
@@ -7,6 +11,7 @@ export interface StreamSummarizeTextInput {
   model: string;
   text: string;
   prompt?: string;
+  deepThinkingEnabled?: boolean;
 }
 
 interface StreamChunkShape {
@@ -32,21 +37,24 @@ async function createDefaultStream(
     source: 'server/ai/streamSummarizeText',
     requestLabel: 'AI summary request',
   });
-  return client.chat.completions.create({
+  return client.chat.completions.create(applyDeepThinkingToChatRequest({
     model: input.model,
     temperature: 0.2,
     stream: true,
     messages: [
       {
         role: 'system',
-        content: resolveSummaryPrompt(input.prompt),
+        content: buildFinalOnlySystemPrompt(
+          resolveSummaryPrompt(input.prompt),
+          Boolean(input.deepThinkingEnabled),
+        ),
       },
       {
         role: 'user',
         content: input.text,
       },
     ],
-  });
+  }, Boolean(input.deepThinkingEnabled)));
 }
 
 export async function* streamSummarizeText(

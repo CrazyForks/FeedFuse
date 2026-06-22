@@ -6,6 +6,21 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-22
+
+这一版聚焦 AI 提示词兼容与外部访问边界收紧，补齐深度思考参数支持，并修复多家兼容服务下的摘要与翻译调用问题。
+
+### 新增
+
+- 新增 AI 深度思考开关与参数透传能力，支持在设置中心配置并传递给兼容模型服务。
+- 新增兼容层参数适配能力，支持为 DeepSeek 等兼容 OpenAI 的服务补齐深度思考相关请求参数。
+
+### 修复
+
+- 修复 AI 摘要、重排、标题翻译、正文翻译和双语阅读在兼容服务下的参数指纹与请求兼容问题。
+- 修复 AI 设置面板字段排序，避免深度思考相关配置显示错位。
+- 修复认证与 RSS/全文抓取的安全边界，新增 `AUTH_COOKIE_SECURE` 与 RSS 网络访问限制配置，收紧非预期外部地址访问。
+
 ## [0.3.0] - 2026-06-05
 
 ### 新增
@@ -147,7 +162,8 @@
 - 修复图片代理、全文抓取、AI 任务状态、OPML 图标回填、阅读器选中态与多处可访问性和构建问题。
 - 增强 RSS 拉取异常提示、错误映射与配置校验，降低边界场景下的失败率。
 
-[Unreleased]: https://github.com/BryanHoo/FeedFuse/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/FeedFuse/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/BryanHoo/FeedFuse/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/BryanHoo/FeedFuse/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.6...v0.2.0
 [0.1.6]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.5...v0.1.6

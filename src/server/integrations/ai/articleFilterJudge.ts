@@ -1,9 +1,11 @@
 import { createOpenAIClient } from '@/server/integrations/ai/openaiClient';
 import {
-  applyDeepThinkingToChatRequest,
   buildFinalOnlySystemPrompt,
-  stripThinkingText,
 } from '@/server/integrations/ai/deepThinking';
+import {
+  applyProviderThinkingConfig,
+  extractAssistantText,
+} from '@/server/integrations/ai/providerCompatibility';
 
 export interface ArticleFilterJudgeResult {
   ok: boolean;
@@ -45,12 +47,16 @@ function createJudgeErrorResult(errorMessage: string): ArticleFilterJudgeResult 
   };
 }
 
-function parseJudgeContent(content: unknown): ArticleFilterJudgeResult {
-  if (typeof content !== 'string' || !content.trim()) {
+function parseJudgeContent(message: unknown): ArticleFilterJudgeResult {
+  const content = extractAssistantText(message as {
+    content?: unknown;
+    reasoning_content?: unknown;
+  } | null | undefined);
+  if (!content) {
     return createJudgeErrorResult('Invalid article-filter response: missing content');
   }
 
-  const normalized = stripThinkingText(content).toUpperCase();
+  const normalized = content.toUpperCase();
 
   if (normalized === FILTER_DECISION) {
     return createJudgeResult(true);
@@ -87,28 +93,33 @@ export async function articleFilterJudge(input: {
       requestLabel: 'AI article filter request',
     });
 
-    const completion = await client.chat.completions.create(applyDeepThinkingToChatRequest({
+    const completion = await client.chat.completions.create(applyProviderThinkingConfig({
+      apiBaseUrl: input.apiBaseUrl,
       model: input.model,
-      temperature: 0,
-      messages: [
-        {
-          role: 'system',
-          content: buildFinalOnlySystemPrompt(
-            '你是文章过滤助手。仅输出 FILTER 或 ALLOW。',
-            Boolean(input.deepThinkingEnabled),
-          ),
-        },
-        {
-          role: 'user',
-          content: buildPrompt({
-            prompt: input.prompt,
-            articleText: input.articleText,
-          }),
-        },
-      ],
-    }, Boolean(input.deepThinkingEnabled)));
+      deepThinkingEnabled: Boolean(input.deepThinkingEnabled),
+      request: {
+        model: input.model,
+        temperature: 0,
+        messages: [
+          {
+            role: 'system',
+            content: buildFinalOnlySystemPrompt(
+              '你是文章过滤助手。仅输出 FILTER 或 ALLOW。',
+              Boolean(input.deepThinkingEnabled),
+            ),
+          },
+          {
+            role: 'user',
+            content: buildPrompt({
+              prompt: input.prompt,
+              articleText: input.articleText,
+            }),
+          },
+        ],
+      },
+    }));
 
-    return parseJudgeContent(completion.choices?.[0]?.message?.content);
+    return parseJudgeContent(completion.choices?.[0]?.message);
   } catch (error) {
     return createJudgeErrorResult(getErrorMessage(error));
   }

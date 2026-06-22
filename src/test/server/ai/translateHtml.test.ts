@@ -43,4 +43,24 @@ describe('translateHtml', () => {
       }),
     );
   });
+
+  it('supports DeepSeek reasoning_content fallback', async () => {
+    createCompletionMock.mockResolvedValue({
+      choices: [{ message: { content: '', reasoning_content: '<think>分析</think><p>你好</p>' } }],
+    });
+
+    const { translateHtml } = await import('@/server/integrations/ai/translateHtml');
+    const out = await translateHtml({
+      apiBaseUrl: 'https://api.deepseek.com',
+      apiKey: 'sk-test',
+      model: 'deepseek-v4-pro',
+      html: '<p>Hello</p>',
+      deepThinkingEnabled: true,
+    });
+
+    const request = createCompletionMock.mock.calls[0]?.[0];
+    expect(out).toContain('你好');
+    expect(request?.thinking).toEqual({ type: 'enabled' });
+    expect(request?.temperature).toBeUndefined();
+  });
 });

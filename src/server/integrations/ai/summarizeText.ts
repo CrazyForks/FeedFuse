@@ -1,12 +1,14 @@
 import { createOpenAIClient } from '@/server/integrations/ai/openaiClient';
 import {
-  applyDeepThinkingToChatRequest,
   buildFinalOnlySystemPrompt,
-  stripThinkingText,
 } from '@/server/integrations/ai/deepThinking';
 import { resolveSummaryPrompt } from '@/server/integrations/ai/promptTemplates';
+import {
+  applyProviderThinkingConfig,
+  extractAssistantText,
+} from '@/server/integrations/ai/providerCompatibility';
 
-interface SummarizeTextInput {
+export interface SummarizeTextInput {
   apiBaseUrl: string;
   apiKey: string;
   model: string;
@@ -15,11 +17,15 @@ interface SummarizeTextInput {
   deepThinkingEnabled?: boolean;
 }
 
-function getSummaryContent(content: unknown): string {
-  if (typeof content !== 'string' || !content.trim()) {
+function getSummaryContent(message: unknown): string {
+  const content = extractAssistantText(message as {
+    content?: unknown;
+    reasoning_content?: unknown;
+  } | null | undefined);
+  if (!content) {
     throw new Error('Invalid summarize response: missing content');
   }
-  return stripThinkingText(content);
+  return content;
 }
 
 export async function summarizeText(input: SummarizeTextInput): Promise<string> {
@@ -30,23 +36,28 @@ export async function summarizeText(input: SummarizeTextInput): Promise<string> 
     requestLabel: 'AI summary request',
   });
 
-  const completion = await client.chat.completions.create(applyDeepThinkingToChatRequest({
+  const completion = await client.chat.completions.create(applyProviderThinkingConfig({
+    apiBaseUrl: input.apiBaseUrl,
     model: input.model,
-    temperature: 0.2,
-    messages: [
-      {
-        role: 'system',
-        content: buildFinalOnlySystemPrompt(
-          resolveSummaryPrompt(input.prompt),
-          Boolean(input.deepThinkingEnabled),
-        ),
-      },
-      {
-        role: 'user',
-        content: input.text,
-      },
-    ],
-  }, Boolean(input.deepThinkingEnabled)));
+    deepThinkingEnabled: Boolean(input.deepThinkingEnabled),
+    request: {
+      model: input.model,
+      temperature: 0.2,
+      messages: [
+        {
+          role: 'system',
+          content: buildFinalOnlySystemPrompt(
+            resolveSummaryPrompt(input.prompt),
+            Boolean(input.deepThinkingEnabled),
+          ),
+        },
+        {
+          role: 'user',
+          content: input.text,
+        },
+      ],
+    },
+  }));
 
-  return getSummaryContent(completion.choices?.[0]?.message?.content);
+  return getSummaryContent(completion.choices?.[0]?.message);
 }

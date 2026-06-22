@@ -33,6 +33,22 @@ function fakeOpenAiStream(chunks: string[]) {
   })();
 }
 
+function fakeMixedStream(
+  chunks: Array<{ content?: string; reasoning_content?: string }>,
+) {
+  return (async function* () {
+    for (const chunk of chunks) {
+      yield {
+        choices: [
+          {
+            delta: chunk,
+          },
+        ],
+      };
+    }
+  })();
+}
+
 describe('streamSummarizeText', () => {
   beforeEach(() => {
     createOpenAIClientMock.mockReset();
@@ -133,5 +149,33 @@ describe('streamSummarizeText', () => {
     expect(request?.reasoning_effort).toBe('high');
     expect(systemPrompt).toContain('只输出最终结果');
     expect(systemPrompt).toContain('<think>');
+  });
+
+  it('uses DeepSeek thinking payload and ignores reasoning-only stream deltas', async () => {
+    createCompletionMock.mockResolvedValue(
+      fakeMixedStream([
+        { reasoning_content: '先分析' },
+        { content: '最终' },
+        { content: '答案' },
+      ]),
+    );
+    const result: string[] = [];
+    const mod = await import('@/server/integrations/ai/streamSummarizeText');
+
+    for await (const part of mod.streamSummarizeText({
+      apiBaseUrl: 'https://api.deepseek.com',
+      apiKey: 'key',
+      model: 'deepseek-v4-pro',
+      text: 'hello',
+      deepThinkingEnabled: true,
+    })) {
+      result.push(part);
+    }
+
+    const request = createCompletionMock.mock.calls[0]?.[0];
+    expect(result).toEqual(['最终', '答案']);
+    expect(request?.reasoning_effort).toBe('high');
+    expect(request?.thinking).toEqual({ type: 'enabled' });
+    expect(request?.temperature).toBeUndefined();
   });
 });

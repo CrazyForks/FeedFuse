@@ -322,6 +322,7 @@ export async function runAiSummaryStreamWorker(
           deepThinkingEnabled,
         })) {
           await ensureSharedConfigCurrent();
+          // DeepSeek 一类 provider 会单独返回思考片段，这里只落最终可见文本。
           const visibleDeltaText = thinkingFilter.push(deltaText);
           if (!visibleDeltaText) {
             continue;

@@ -95,6 +95,26 @@ describe('bilingualHtmlTranslator', () => {
     ]);
   });
 
+  it('uses DeepSeek reasoning_content fallback for batch translations', async () => {
+    createCompletionMock.mockResolvedValue({
+      choices: [{ message: { content: '', reasoning_content: '<think>分析</think>["段落一"]' } }],
+    });
+
+    const translated = await translateSegmentsInBatches({
+      apiBaseUrl: 'https://api.deepseek.com',
+      apiKey: 'sk-test',
+      model: 'deepseek-v4-pro',
+      batchSize: 1,
+      segments: [{ id: 'seg-0', tagName: 'p', text: 'Paragraph one' }],
+      deepThinkingEnabled: true,
+    });
+
+    const request = createCompletionMock.mock.calls[0]?.[0];
+    expect(translated[0]?.translatedText).toBe('段落一');
+    expect(request?.thinking).toEqual({ type: 'enabled' });
+    expect(request?.temperature).toBeUndefined();
+  });
+
   it('reconstructs bilingual blocks with stable data-segment-id and keeps original attributes', () => {
     const html = `
       <article>

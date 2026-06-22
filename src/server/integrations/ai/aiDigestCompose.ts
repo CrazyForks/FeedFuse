@@ -1,10 +1,12 @@
 import { JSDOM } from 'jsdom';
 import { createOpenAIClient } from '@/server/integrations/ai/openaiClient';
 import {
-  applyDeepThinkingToChatRequest,
   buildFinalOnlySystemPrompt,
-  stripThinkingText,
 } from '@/server/integrations/ai/deepThinking';
+import {
+  applyProviderThinkingConfig,
+  extractAssistantText,
+} from '@/server/integrations/ai/providerCompatibility';
 
 export interface AiDigestComposeArticle {
   id: string;
@@ -72,12 +74,16 @@ function unwrapCodeFence(value: string): string {
     .trim();
 }
 
-function getMessageContent(content: unknown): string {
-  if (typeof content !== 'string' || !content.trim()) {
+function getMessageContent(message: unknown): string {
+  const content = extractAssistantText(message as {
+    content?: unknown;
+    reasoning_content?: unknown;
+  } | null | undefined);
+  if (!content) {
     throw new Error('Invalid aiDigestCompose response: missing content');
   }
 
-  return stripThinkingText(unwrapCodeFence(content));
+  return unwrapCodeFence(content);
 }
 
 function parseTitleHtml(content: string): { title: string; html: string } {
@@ -128,19 +134,24 @@ async function callChatJson<T>(input: {
     source: 'server/ai/aiDigestCompose',
     requestLabel: input.requestLabel,
   });
-  const completion = await client.chat.completions.create(applyDeepThinkingToChatRequest({
+  const completion = await client.chat.completions.create(applyProviderThinkingConfig({
+    apiBaseUrl: input.apiBaseUrl,
     model: input.model,
-    temperature: 0.2,
-    messages: [
-      {
-        role: 'system',
-        content: buildFinalOnlySystemPrompt(input.system, Boolean(input.deepThinkingEnabled)),
-      },
-      { role: 'user', content: JSON.stringify(input.user) },
-    ],
-  }, Boolean(input.deepThinkingEnabled)));
+    deepThinkingEnabled: Boolean(input.deepThinkingEnabled),
+    request: {
+      model: input.model,
+      temperature: 0.2,
+      messages: [
+        {
+          role: 'system',
+          content: buildFinalOnlySystemPrompt(input.system, Boolean(input.deepThinkingEnabled)),
+        },
+        { role: 'user', content: JSON.stringify(input.user) },
+      ],
+    },
+  }));
 
-  const content = getMessageContent(completion.choices?.[0]?.message?.content);
+  const content = getMessageContent(completion.choices?.[0]?.message);
   return JSON.parse(content) as T;
 }
 
@@ -227,34 +238,44 @@ async function foldNotesToBudget(input: {
     source: 'server/ai/aiDigestCompose',
     requestLabel: 'AI digest fold request',
   });
-  const completion = await client.chat.completions.create(applyDeepThinkingToChatRequest({
+  const completion = await client.chat.completions.create(applyProviderThinkingConfig({
+    apiBaseUrl: input.apiBaseUrl,
     model: input.model,
-    temperature: 0.2,
-    messages: [
-      {
-        role: 'system',
-        content: buildFinalOnlySystemPrompt(
-          '你是中文压缩助手。把用户提供的笔记压缩为更短的要点列表，保留文章 id 与关键结论。只输出纯文本，不要输出 Markdown code fence。',
-          Boolean(input.deepThinkingEnabled),
-        ),
-      },
-      {
-        role: 'user',
-        content: JSON.stringify({
-          prompt: input.prompt,
-          notes: input.notesText,
-          outputContract: 'plain text bullet list, keep article ids',
-        }),
-      },
-    ],
-  }, Boolean(input.deepThinkingEnabled)));
+    deepThinkingEnabled: Boolean(input.deepThinkingEnabled),
+    request: {
+      model: input.model,
+      temperature: 0.2,
+      messages: [
+        {
+          role: 'system',
+          content: buildFinalOnlySystemPrompt(
+            '你是中文压缩助手。把用户提供的笔记压缩为更短的要点列表，保留文章 id 与关键结论。只输出纯文本，不要输出 Markdown code fence。',
+            Boolean(input.deepThinkingEnabled),
+          ),
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({
+            prompt: input.prompt,
+            notes: input.notesText,
+            outputContract: 'plain text bullet list, keep article ids',
+          }),
+        },
+      ],
+    },
+  }));
 
-  const content = completion.choices?.[0]?.message?.content;
-  if (typeof content !== 'string' || !content.trim()) {
+  const content = extractAssistantText(
+    completion.choices?.[0]?.message as {
+      content?: unknown;
+      reasoning_content?: unknown;
+    } | undefined,
+  );
+  if (!content) {
     throw new Error('Invalid aiDigestCompose fold response: missing content');
   }
 
-  return stripThinkingText(content);
+  return content;
 }
 
 export async function aiDigestCompose(input: {
@@ -284,25 +305,30 @@ export async function aiDigestCompose(input: {
       source: 'server/ai/aiDigestCompose',
       requestLabel: 'AI digest compose request',
     });
-    const completion = await client.chat.completions.create(applyDeepThinkingToChatRequest({
+    const completion = await client.chat.completions.create(applyProviderThinkingConfig({
+      apiBaseUrl: input.apiBaseUrl,
       model: input.model,
-      temperature: 0.2,
-      messages: [
-        {
-          role: 'system',
-          content: buildFinalOnlySystemPrompt(
-            '你是中文智能报告助手。根据用户提示词与文章内容生成一篇结构化智能报告，突出主题、变化、信号与可执行结论。只输出 JSON：{ "title": "...", "html": "<p>...</p>" }，不要输出解释或 Markdown。',
-            Boolean(input.deepThinkingEnabled),
-          ),
-        },
-        {
-          role: 'user',
-          content: JSON.stringify({ prompt: input.prompt, articles: prepared }),
-        },
-      ],
-    }, Boolean(input.deepThinkingEnabled)));
+      deepThinkingEnabled: Boolean(input.deepThinkingEnabled),
+      request: {
+        model: input.model,
+        temperature: 0.2,
+        messages: [
+          {
+            role: 'system',
+            content: buildFinalOnlySystemPrompt(
+              '你是中文智能报告助手。根据用户提示词与文章内容生成一篇结构化智能报告，突出主题、变化、信号与可执行结论。只输出 JSON：{ "title": "...", "html": "<p>...</p>" }，不要输出解释或 Markdown。',
+              Boolean(input.deepThinkingEnabled),
+            ),
+          },
+          {
+            role: 'user',
+            content: JSON.stringify({ prompt: input.prompt, articles: prepared }),
+          },
+        ],
+      },
+    }));
 
-    const content = getMessageContent(completion.choices?.[0]?.message?.content);
+    const content = getMessageContent(completion.choices?.[0]?.message);
     return parseTitleHtml(content);
   }
 
@@ -346,28 +372,33 @@ export async function aiDigestCompose(input: {
     source: 'server/ai/aiDigestCompose',
     requestLabel: 'AI digest compose request',
   });
-  const completion = await client.chat.completions.create(applyDeepThinkingToChatRequest({
+  const completion = await client.chat.completions.create(applyProviderThinkingConfig({
+    apiBaseUrl: input.apiBaseUrl,
     model: input.model,
-    temperature: 0.2,
-    messages: [
-      {
-        role: 'system',
-        content: buildFinalOnlySystemPrompt(
-          '你是中文智能报告助手。根据用户提示词与文章要点生成一篇结构化智能报告，突出主题、变化、信号与可执行结论。只输出 JSON：{ "title": "...", "html": "<p>...</p>" }，不要输出解释或 Markdown。',
-          Boolean(input.deepThinkingEnabled),
-        ),
-      },
-      {
-        role: 'user',
-        content: JSON.stringify({
-          prompt: input.prompt,
-          notes: notesText,
-          outputContract: '{title, html}',
-        }),
-      },
-    ],
-  }, Boolean(input.deepThinkingEnabled)));
+    deepThinkingEnabled: Boolean(input.deepThinkingEnabled),
+    request: {
+      model: input.model,
+      temperature: 0.2,
+      messages: [
+        {
+          role: 'system',
+          content: buildFinalOnlySystemPrompt(
+            '你是中文智能报告助手。根据用户提示词与文章要点生成一篇结构化智能报告，突出主题、变化、信号与可执行结论。只输出 JSON：{ "title": "...", "html": "<p>...</p>" }，不要输出解释或 Markdown。',
+            Boolean(input.deepThinkingEnabled),
+          ),
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({
+            prompt: input.prompt,
+            notes: notesText,
+            outputContract: '{title, html}',
+          }),
+        },
+      ],
+    },
+  }));
 
-  const content = getMessageContent(completion.choices?.[0]?.message?.content);
+  const content = getMessageContent(completion.choices?.[0]?.message);
   return parseTitleHtml(content);
 }

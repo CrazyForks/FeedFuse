@@ -111,4 +111,43 @@ describe('aiDigestCompose', () => {
     expect(mapPayloads[0]?.articles[0]?.text).toContain('标题：Title 1');
     expect(mapPayloads[0]?.articles[0]?.text).toContain('摘要：');
   });
+
+  it('supports DeepSeek thinking payload and reasoning_content fallback', async () => {
+    createCompletionMock.mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: '',
+            reasoning_content:
+              '<think>分析</think>```json\n{"title":"今日智能报告","html":"<p>内容</p>"}\n```',
+          },
+        },
+      ],
+    });
+
+    const { aiDigestCompose } = await import('@/server/integrations/ai/aiDigestCompose');
+    const out = await aiDigestCompose({
+      apiBaseUrl: 'https://api.deepseek.com',
+      apiKey: 'sk-test',
+      model: 'deepseek-v4-pro',
+      prompt: '请生成这些文章的智能报告',
+      deepThinkingEnabled: true,
+      articles: [
+        {
+          id: 'a1',
+          feedTitle: 'Feed 1',
+          title: 'Title 1',
+          summary: 'Summary 1',
+          link: 'https://example.com/1',
+          fetchedAt: '2026-03-14T00:00:00.000Z',
+          contentFullHtml: null,
+        },
+      ],
+    });
+
+    const request = createCompletionMock.mock.calls[0]?.[0];
+    expect(out.title).toBe('今日智能报告');
+    expect(request?.thinking).toEqual({ type: 'enabled' });
+    expect(request?.temperature).toBeUndefined();
+  });
 });

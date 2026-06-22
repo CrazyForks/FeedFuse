@@ -1,9 +1,12 @@
 import { createOpenAIClient } from '@/server/integrations/ai/openaiClient';
 import {
-  applyDeepThinkingToChatRequest,
   buildFinalOnlySystemPrompt,
 } from '@/server/integrations/ai/deepThinking';
 import { resolveSummaryPrompt } from '@/server/integrations/ai/promptTemplates';
+import {
+  applyProviderThinkingConfig,
+  extractStreamTextDelta,
+} from '@/server/integrations/ai/providerCompatibility';
 
 export interface StreamSummarizeTextInput {
   apiBaseUrl: string;
@@ -37,24 +40,29 @@ async function createDefaultStream(
     source: 'server/ai/streamSummarizeText',
     requestLabel: 'AI summary request',
   });
-  return client.chat.completions.create(applyDeepThinkingToChatRequest({
+  return client.chat.completions.create(applyProviderThinkingConfig({
+    apiBaseUrl: input.apiBaseUrl,
     model: input.model,
-    temperature: 0.2,
-    stream: true,
-    messages: [
-      {
-        role: 'system',
-        content: buildFinalOnlySystemPrompt(
-          resolveSummaryPrompt(input.prompt),
-          Boolean(input.deepThinkingEnabled),
-        ),
-      },
-      {
-        role: 'user',
-        content: input.text,
-      },
-    ],
-  }, Boolean(input.deepThinkingEnabled)));
+    deepThinkingEnabled: Boolean(input.deepThinkingEnabled),
+    request: {
+      model: input.model,
+      temperature: 0.2,
+      stream: true,
+      messages: [
+        {
+          role: 'system',
+          content: buildFinalOnlySystemPrompt(
+            resolveSummaryPrompt(input.prompt),
+            Boolean(input.deepThinkingEnabled),
+          ),
+        },
+        {
+          role: 'user',
+          content: input.text,
+        },
+      ],
+    },
+  }));
 }
 
 export async function* streamSummarizeText(
@@ -65,8 +73,8 @@ export async function* streamSummarizeText(
   const stream = await createStream(input);
 
   for await (const chunk of stream) {
-    const delta = chunk.choices?.[0]?.delta?.content;
-    if (typeof delta === 'string' && delta) {
+    const delta = extractStreamTextDelta(chunk);
+    if (delta) {
       yield delta;
     }
   }

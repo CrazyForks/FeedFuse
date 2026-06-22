@@ -1,9 +1,11 @@
 import { createOpenAIClient } from '@/server/integrations/ai/openaiClient';
 import {
-  applyDeepThinkingToChatRequest,
   buildFinalOnlySystemPrompt,
-  stripThinkingText,
 } from '@/server/integrations/ai/deepThinking';
+import {
+  applyProviderThinkingConfig,
+  extractAssistantText,
+} from '@/server/integrations/ai/providerCompatibility';
 
 export interface AiDigestRerankItem {
   id: string;
@@ -23,12 +25,16 @@ function unwrapCodeFence(value: string): string {
     .trim();
 }
 
-function getMessageContent(content: unknown): string {
-  if (typeof content !== 'string' || !content.trim()) {
+function getMessageContent(message: unknown): string {
+  const content = extractAssistantText(message as {
+    content?: unknown;
+    reasoning_content?: unknown;
+  } | null | undefined);
+  if (!content) {
     throw new Error('Invalid aiDigestRerank response: missing content');
   }
 
-  return stripThinkingText(unwrapCodeFence(content));
+  return unwrapCodeFence(content);
 }
 
 function parseIdArray(content: string): string[] {
@@ -80,29 +86,34 @@ export async function aiDigestRerank(input: {
   });
   const allowedIds = new Set(input.batch.map((item) => item.id).filter((id) => Boolean(id)));
 
-  const completion = await client.chat.completions.create(applyDeepThinkingToChatRequest({
+  const completion = await client.chat.completions.create(applyProviderThinkingConfig({
+    apiBaseUrl: input.apiBaseUrl,
     model: input.model,
-    temperature: 0.2,
-    messages: [
-      {
-        role: 'system',
-        content: buildFinalOnlySystemPrompt(
-          '你是信息筛选助手。根据用户的智能报告提示词，判断本批候选文章里哪些内容与主题相关。只输出 JSON 字符串数组，元素为相关文章 id；不要输出解释、不要输出 Markdown。',
-          Boolean(input.deepThinkingEnabled),
-        ),
-      },
-      {
-        role: 'user',
-        content: JSON.stringify({
-          prompt: input.prompt,
-          batch: input.batch,
-          outputContract: 'JSON string array of ids, subset of batch',
-        }),
-      },
-    ],
-  }, Boolean(input.deepThinkingEnabled)));
+    deepThinkingEnabled: Boolean(input.deepThinkingEnabled),
+    request: {
+      model: input.model,
+      temperature: 0.2,
+      messages: [
+        {
+          role: 'system',
+          content: buildFinalOnlySystemPrompt(
+            '你是信息筛选助手。根据用户的智能报告提示词，判断本批候选文章里哪些内容与主题相关。只输出 JSON 字符串数组，元素为相关文章 id；不要输出解释、不要输出 Markdown。',
+            Boolean(input.deepThinkingEnabled),
+          ),
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({
+            prompt: input.prompt,
+            batch: input.batch,
+            outputContract: 'JSON string array of ids, subset of batch',
+          }),
+        },
+      ],
+    },
+  }));
 
-  const content = getMessageContent(completion.choices?.[0]?.message?.content);
+  const content = getMessageContent(completion.choices?.[0]?.message);
   const ids = dedupePreserveOrder(parseIdArray(content));
 
   // Guardrail: ids must be a subset of the input candidate set, otherwise fallback.

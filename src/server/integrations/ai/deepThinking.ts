@@ -38,26 +38,6 @@ export function buildFinalOnlySystemPrompt(basePrompt: string, enabled: boolean)
   return `${basePrompt}\n\n请先充分思考，再只输出最终结果，不要输出思考过程、推理步骤、思维链、<think> 标签或额外分析。`;
 }
 
-export function applyDeepThinkingToChatRequest(
-  request: OpenAI.Chat.ChatCompletionCreateParamsStreaming,
-  enabled: boolean,
-): OpenAI.Chat.ChatCompletionCreateParamsStreaming;
-export function applyDeepThinkingToChatRequest(
-  request: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming,
-  enabled: boolean,
-): OpenAI.Chat.ChatCompletionCreateParamsNonStreaming;
-export function applyDeepThinkingToChatRequest(
-  request: OpenAI.Chat.ChatCompletionCreateParams,
-  enabled: boolean,
-): OpenAI.Chat.ChatCompletionCreateParams {
-  if (enabled) {
-    // 仅在用户显式开启时请求更高推理强度，避免默认放大成本与时延。
-    (request as unknown as Record<string, unknown>).reasoning_effort = 'high';
-  }
-
-  return request;
-}
-
 export function createThinkingDeltaFilter() {
   let rawText = '';
   let visibleText = '';
@@ -82,4 +62,3 @@ export function createThinkingDeltaFilter() {
     },
   };
 }
-import OpenAI from 'openai';

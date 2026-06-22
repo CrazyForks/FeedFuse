@@ -48,4 +48,24 @@ describe('summarizeText', () => {
     expect(systemPrompt).toContain('不要返回');
     expect(systemPrompt).toContain('TL;DR');
   });
+
+  it('falls back to reasoning_content for DeepSeek-compatible responses', async () => {
+    createCompletionMock.mockResolvedValue({
+      choices: [{ message: { content: '', reasoning_content: '<think>分析</think>最终答案' } }],
+    });
+
+    const { summarizeText } = await import('@/server/integrations/ai/summarizeText');
+    const out = await summarizeText({
+      apiBaseUrl: 'https://api.deepseek.com',
+      apiKey: 'sk-test',
+      model: 'deepseek-v4-pro',
+      text: 'hello',
+      deepThinkingEnabled: true,
+    });
+
+    const request = createCompletionMock.mock.calls[0]?.[0];
+    expect(out).toBe('最终答案');
+    expect(request?.thinking).toEqual({ type: 'enabled' });
+    expect(request?.temperature).toBeUndefined();
+  });
 });

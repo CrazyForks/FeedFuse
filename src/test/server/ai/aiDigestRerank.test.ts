@@ -61,4 +61,34 @@ describe('aiDigestRerank', () => {
       }),
     );
   });
+
+  it('supports DeepSeek thinking payload and reasoning_content fallback', async () => {
+    createCompletionMock.mockResolvedValue({
+      choices: [{ message: { content: '', reasoning_content: '<think>分析</think>["a1"]' } }],
+    });
+
+    const { aiDigestRerank } = await import('@/server/integrations/ai/aiDigestRerank');
+    const out = await aiDigestRerank({
+      apiBaseUrl: 'https://api.deepseek.com',
+      apiKey: 'sk-test',
+      model: 'deepseek-v4-pro',
+      prompt: '整理这些文章的智能报告',
+      deepThinkingEnabled: true,
+      batch: [
+        {
+          id: 'a1',
+          feedTitle: 'Feed 1',
+          title: 'Title 1',
+          summary: null,
+          link: null,
+          fetchedAt: '2026-03-14T00:00:00.000Z',
+        },
+      ],
+    });
+
+    const request = createCompletionMock.mock.calls[0]?.[0];
+    expect(out).toEqual(['a1']);
+    expect(request?.thinking).toEqual({ type: 'enabled' });
+    expect(request?.temperature).toBeUndefined();
+  });
 });

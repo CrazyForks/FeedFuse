@@ -1,10 +1,12 @@
 import { JSDOM } from 'jsdom';
 import { createOpenAIClient } from '@/server/integrations/ai/openaiClient';
 import {
-  applyDeepThinkingToChatRequest,
-  stripThinkingText,
 } from '@/server/integrations/ai/deepThinking';
 import { buildTranslationSystemPrompt } from '@/server/integrations/ai/promptTemplates';
+import {
+  applyProviderThinkingConfig,
+  extractAssistantText,
+} from '@/server/integrations/ai/providerCompatibility';
 
 export const translatableSelectors = [
   'p',
@@ -74,12 +76,16 @@ function unwrapCodeFence(value: string): string {
     .trim();
 }
 
-function getMessageContent(content: unknown): string {
-  if (typeof content !== 'string' || !content.trim()) {
+function getMessageContent(message: unknown): string {
+  const content = extractAssistantText(message as {
+    content?: unknown;
+    reasoning_content?: unknown;
+  } | null | undefined);
+  if (!content) {
     throw new Error('Invalid bilingual translation response: missing content');
   }
 
-  return stripThinkingText(unwrapCodeFence(content));
+  return unwrapCodeFence(content);
 }
 
 function parseBatchTranslations(content: string, expectedCount: number): string[] {
@@ -129,27 +135,32 @@ async function translateBatch(input: TranslateBatchInput): Promise<string[]> {
     source: 'server/ai/bilingualHtmlTranslator',
     requestLabel: 'AI bilingual translation request',
   });
-  const completion = await client.chat.completions.create(applyDeepThinkingToChatRequest({
+  const completion = await client.chat.completions.create(applyProviderThinkingConfig({
+    apiBaseUrl: input.apiBaseUrl,
     model: input.model,
-    temperature: 0.2,
-    messages: [
-      {
-        role: 'system',
-        content: buildTranslationSystemPrompt({
-          basePrompt: input.prompt,
-          taskInstruction:
-            '把用户给出的字符串数组逐项翻译为简体中文，保持数组顺序和长度完全一致。只输出 JSON 字符串数组，不要输出解释。',
-          deepThinkingEnabled: input.deepThinkingEnabled,
-        }),
-      },
-      {
-        role: 'user',
-        content: JSON.stringify(input.texts),
-      },
-    ],
-  }, Boolean(input.deepThinkingEnabled)));
+    deepThinkingEnabled: Boolean(input.deepThinkingEnabled),
+    request: {
+      model: input.model,
+      temperature: 0.2,
+      messages: [
+        {
+          role: 'system',
+          content: buildTranslationSystemPrompt({
+            basePrompt: input.prompt,
+            taskInstruction:
+              '把用户给出的字符串数组逐项翻译为简体中文，保持数组顺序和长度完全一致。只输出 JSON 字符串数组，不要输出解释。',
+            deepThinkingEnabled: input.deepThinkingEnabled,
+          }),
+        },
+        {
+          role: 'user',
+          content: JSON.stringify(input.texts),
+        },
+      ],
+    },
+  }));
 
-  const content = getMessageContent(completion.choices?.[0]?.message?.content);
+  const content = getMessageContent(completion.choices?.[0]?.message);
   return parseBatchTranslations(content, input.texts.length);
 }
 

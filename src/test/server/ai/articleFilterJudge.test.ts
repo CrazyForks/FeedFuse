@@ -117,4 +117,25 @@ describe('articleFilterJudge', () => {
       errorMessage: 'Invalid article-filter response: unsupported decision',
     });
   });
+
+  it('supports DeepSeek reasoning_content fallback and strips unsupported sampling knobs', async () => {
+    createCompletionMock.mockResolvedValueOnce({
+      choices: [{ message: { content: '', reasoning_content: '<think>分析</think>ALLOW' } }],
+    });
+
+    const { articleFilterJudge } = await import('@/server/integrations/ai/articleFilterJudge');
+    const result = await articleFilterJudge({
+      apiBaseUrl: 'https://api.deepseek.com',
+      apiKey: 'sk-test',
+      model: 'deepseek-v4-pro',
+      prompt: '过滤广告',
+      articleText: 'Weekly roundup',
+      deepThinkingEnabled: true,
+    });
+
+    const request = createCompletionMock.mock.calls[0]?.[0];
+    expect(result).toEqual({ ok: true, matched: false, errorMessage: null });
+    expect(request?.thinking).toEqual({ type: 'enabled' });
+    expect(request?.temperature).toBeUndefined();
+  });
 });

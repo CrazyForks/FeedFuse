@@ -70,4 +70,24 @@ describe('translateTitle', () => {
     const systemPrompt = request?.messages?.[0]?.content;
     expect(systemPrompt).toContain(DEFAULT_TRANSLATION_PROMPT);
   });
+
+  it('uses DeepSeek thinking payload and reasoning_content fallback', async () => {
+    createCompletionMock.mockResolvedValue({
+      choices: [{ message: { content: ' ', reasoning_content: '<thinking>分析</thinking>你好世界' } }],
+    });
+
+    const { translateTitle } = await import('@/server/integrations/ai/translateTitle');
+    const out = await translateTitle({
+      apiBaseUrl: 'https://api.deepseek.com',
+      apiKey: 'sk-test',
+      model: 'deepseek-v4-pro',
+      title: 'Hello world',
+      deepThinkingEnabled: true,
+    });
+
+    const request = createCompletionMock.mock.calls[0]?.[0];
+    expect(out).toBe('你好世界');
+    expect(request?.thinking).toEqual({ type: 'enabled' });
+    expect(request?.temperature).toBeUndefined();
+  });
 });

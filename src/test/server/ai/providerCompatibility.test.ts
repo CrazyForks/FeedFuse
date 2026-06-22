@@ -42,6 +42,26 @@ describe('providerCompatibility', () => {
     expect(request.temperature).toBe(0.2);
   });
 
+  it('does not treat non-DeepSeek hosts as DeepSeek just because the model name matches', () => {
+    const request = applyProviderThinkingConfig({
+      apiBaseUrl: 'https://openrouter.ai/api/v1',
+      model: 'deepseek-v4-pro',
+      deepThinkingEnabled: true,
+      request: {
+        model: 'deepseek-v4-pro',
+        temperature: 0.2,
+        top_p: 0.9,
+        messages: [{ role: 'user', content: 'hello' }],
+      },
+    });
+
+    // 只有原生 DeepSeek host 才需要私有 thinking 参数。
+    expect(request.reasoning_effort).toBe('high');
+    expect((request as Record<string, unknown>).thinking).toBeUndefined();
+    expect(request.temperature).toBe(0.2);
+    expect(request.top_p).toBe(0.9);
+  });
+
   it('prefers content but falls back to reasoning_content when content is blank', () => {
     expect(
       extractAssistantText({ content: '最终答案', reasoning_content: '思考过程' }),

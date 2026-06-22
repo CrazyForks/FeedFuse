@@ -349,7 +349,8 @@ export async function runAiSummaryStreamWorker(
           });
         }
 
-        const finalText = thinkingFilter.getVisibleText() || draftText.trim();
+        // 恢复中的 session 可能已经持久化了前半段草稿，最终结果必须基于累计草稿而不是仅本次增量。
+        const finalText = draftText.trim();
         if (!finalText) {
           throw new Error('Invalid summarize response: missing content');
         }

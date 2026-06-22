@@ -601,6 +601,112 @@ describe('aiSummaryStreamWorker', () => {
     );
   });
 
+  it('preserves previously persisted draft text when deep thinking stream resumes', async () => {
+    const updateSessionDraftMock = vi.fn().mockResolvedValue(undefined);
+    const completeSessionMock = vi.fn().mockResolvedValue(undefined);
+    const setArticleAiSummaryMock = vi.fn().mockResolvedValue(undefined);
+
+    const mod = await import('../../worker/aiSummaryStreamWorker');
+
+    await mod.runAiSummaryStreamWorker({
+      pool: {} as never,
+      articleId: 'article-1',
+      sessionId: 'session-1',
+      jobId: 'job-1',
+      deps: {
+        getArticleById: async () =>
+          ({
+            id: 'article-1',
+            feedId: 'feed-1',
+            contentHtml: '<p>hello</p>',
+            contentFullHtml: null,
+            contentFullError: null,
+            summary: null,
+            aiSummary: null,
+          }) as never,
+        getAiSummarySessionById: async () =>
+          ({
+            id: 'session-1',
+            articleId: 'article-1',
+            sourceTextHash: 'hash-1',
+            status: 'queued',
+            draftText: '前半段',
+            finalText: null,
+            model: null,
+            jobId: 'job-1',
+            errorCode: null,
+            errorMessage: null,
+            rawErrorMessage: null,
+            supersededBySessionId: null,
+            startedAt: '2026-03-09T00:00:00.000Z',
+            finishedAt: null,
+            createdAt: '2026-03-09T00:00:00.000Z',
+            updatedAt: '2026-03-09T00:00:00.000Z',
+          }) as never,
+        getActiveAiSummarySessionByArticleId: async () => null,
+        upsertAiSummarySession: async () =>
+          ({
+            id: 'session-1',
+            articleId: 'article-1',
+            sourceTextHash: 'hash-1',
+            status: 'running',
+            draftText: '前半段',
+            finalText: null,
+            model: null,
+            jobId: 'job-1',
+            errorCode: null,
+            errorMessage: null,
+            rawErrorMessage: null,
+            supersededBySessionId: null,
+            startedAt: '2026-03-09T00:00:00.000Z',
+            finishedAt: null,
+            createdAt: '2026-03-09T00:00:00.000Z',
+            updatedAt: '2026-03-09T00:00:00.000Z',
+          }) as never,
+        getAiApiKey: async () => 'sk-test',
+        getUiSettings: async () =>
+          ({
+            ai: {
+              model: 'deepseek-v4-pro',
+              apiBaseUrl: 'https://api.deepseek.com',
+              deepThinkingEnabled: true,
+            },
+          }) as never,
+        getFeedFullTextOnOpenEnabled: async () => false,
+        runArticleTaskWithStatus: async ({ fn }) => fn(),
+        streamSummarizeText: async function* () {
+          // 模拟恢复后的流只返回剩余尾部。
+          yield '后半段';
+        },
+        updateAiSummarySessionDraft: updateSessionDraftMock,
+        insertAiSummaryEvent: vi.fn().mockResolvedValue(undefined),
+        completeAiSummarySession: completeSessionMock,
+        failAiSummarySession: vi.fn().mockResolvedValue(undefined),
+        setArticleAiSummary: setArticleAiSummaryMock,
+      },
+    });
+
+    expect(updateSessionDraftMock).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        draftText: '前半段后半段',
+      }),
+    );
+    expect(completeSessionMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        finalText: '前半段后半段',
+      }),
+    );
+    expect(setArticleAiSummaryMock).toHaveBeenCalledWith(
+      expect.anything(),
+      'article-1',
+      expect.objectContaining({
+        aiSummary: '前半段后半段',
+      }),
+    );
+  });
+
   it('emits session.failed when pre-stream setup fails before streaming starts', async () => {
     const insertEventMock = vi.fn().mockResolvedValue(undefined);
     const failSessionMock = vi.fn().mockResolvedValue(undefined);

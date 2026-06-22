@@ -19,6 +19,7 @@
 - AI 摘要/翻译提示词来自 `ui_settings.ai.summaryPrompt`、`ui_settings.ai.translationPrompt`；为空时必须在 `src/server/integrations/ai/**` 统一回退默认模板，不在 route/worker 内硬编码默认词
 - `ui_settings.ai.deepThinkingEnabled` 属于共享 AI 运行时配置；开启后统一由 `src/server/integrations/ai/providerCompatibility.ts` 按 provider 协议映射思考参数，并追加“只输出最终结果”的 system 约束。
 - OpenAI-compatible provider 至少要请求更高推理强度；DeepSeek 一类 provider 在思考模式下还必须显式传 `thinking` 开关，并避免继续传递 `temperature`、`top_p`、`presence_penalty`、`frequency_penalty` 这类不会生效的采样参数。
+- DeepSeek 专有 thinking 参数只能根据 provider 协议能力判断，不能只凭 `model` 名称前缀推断；像 OpenRouter 这类第三方 OpenAI-compatible 网关即使承载 `deepseek-*` 模型，也不能强行套用原生 DeepSeek 私有参数。
 - AI 摘要、翻译、智能报告这类用户可见输出在写入 session、事件流、文章内容前，必须去除思考文案、`<think>` 标签和中间推理文本；如果 provider 额外返回 `reasoning_content`，也只能消费最终可见文本，不能把 reasoning-only delta 或中间推理落到 SSE、事件表或文章字段里。
 
 ## 数据与迁移
@@ -77,6 +78,7 @@
 - 打开文章链路通过 `src/app/api/articles/[id]/fulltext/route.ts`、`ai-summary/route.ts`、`ai-translate/route.ts` 创建 `article_tasks`，状态由 `src/app/api/articles/[id]/tasks/route.ts` 返回给前端轮询。
 - AI 摘要/翻译提示词来自 `ui_settings.ai.summaryPrompt`、`ui_settings.ai.translationPrompt`；为空时必须在 `src/server/integrations/ai/**` 统一回退默认模板，不在 route/worker 内硬编码默认词。
 - 开启 `ui_settings.ai.deepThinkingEnabled` 后，AI 摘要 SSE 只能下发最终可见文本增量；不能把 `reasoning_content`、thinking-only delta 或思考流原样写入 `article_ai_summary_sessions`、`article_ai_summary_events` 或文章摘要字段。
+- 流式 AI 摘要如果恢复已有 `article_ai_summary_sessions.draft_text`，完成态 `finalText` 必须基于累计后的可见草稿生成，不能只取本次恢复后新增的 delta，否则重试或恢复运行会截断前半段摘要。
 
 ## 播客 RSS 契约
 

@@ -2,7 +2,6 @@ import OpenAI from 'openai';
 import { stripThinkingText } from '@/server/integrations/ai/deepThinking';
 
 const DEEPSEEK_HOST_RE = /(^|\.)deepseek\.com$/i;
-const DEEPSEEK_MODEL_RE = /^deepseek\b/i;
 
 type ChatRequest = OpenAI.Chat.ChatCompletionCreateParams;
 type StreamingChatRequest = OpenAI.Chat.ChatCompletionCreateParamsStreaming;
@@ -30,9 +29,10 @@ function getProviderHostname(apiBaseUrl: string): string {
   }
 }
 
-function isDeepSeekProvider(apiBaseUrl: string, model: string): boolean {
+function isDeepSeekProvider(apiBaseUrl: string): boolean {
   const hostname = getProviderHostname(apiBaseUrl);
-  return DEEPSEEK_HOST_RE.test(hostname) || DEEPSEEK_MODEL_RE.test(model.trim());
+  // 只按 provider host 判断，避免把第三方 OpenAI-compatible 网关误判成原生 DeepSeek。
+  return DEEPSEEK_HOST_RE.test(hostname);
 }
 
 export function applyProviderThinkingConfig<T extends StreamingChatRequest>(input: {
@@ -60,7 +60,7 @@ export function applyProviderThinkingConfig<T extends ChatRequest>(input: {
 
   request.reasoning_effort = 'high';
 
-  if (!isDeepSeekProvider(input.apiBaseUrl, input.model)) {
+  if (!isDeepSeekProvider(input.apiBaseUrl)) {
     return request;
   }
 

@@ -178,7 +178,8 @@ export default function AISettingsPanel({
           </div>
 
           <div className="px-4 py-3.5">
-            <div className="flex items-center justify-between gap-4 rounded-md border border-border px-3 py-2.5">
+            {/* 深度思考与其他字段保持同层级，不再额外套一层描边容器。 */}
+            <div className="flex items-center justify-between gap-4">
               <div className="space-y-1">
                 <SettingTooltipLabel
                   label="启用深度思考"
@@ -198,6 +199,29 @@ export default function AISettingsPanel({
             </div>
           </div>
 
+          <div className="px-4 py-3.5">
+            <Label htmlFor="ai-summary-prompt" className="mb-2 block">
+              <SettingTooltipLabel
+                label="摘要提示词"
+                description="留空将使用内置默认模板；建议描述摘要语言、风格和输出结构。"
+                className="text-sm font-medium text-foreground"
+              />
+            </Label>
+            <Textarea
+              id="ai-summary-prompt"
+              aria-label="摘要提示词"
+              value={ai.summaryPrompt}
+              onChange={(event) =>
+                onChange((nextDraft) => {
+                  nextDraft.persisted.ai.summaryPrompt = event.target.value;
+                })
+              }
+              placeholder="例如：用简洁中文总结，先 1-2 句结论，再给 3 条要点。"
+              className="min-h-28"
+            />
+          </div>
+
+          {/* 摘要提示词放在翻译配置前，避免被翻译专属配置区打断。 */}
           <div className="px-4 py-3.5">
             <div className="mb-2 flex items-center justify-between gap-3">
               <div>
@@ -243,28 +267,6 @@ export default function AISettingsPanel({
                 </Button>
               </div>
             </div>
-          </div>
-
-          <div className="px-4 py-3.5">
-            <Label htmlFor="ai-summary-prompt" className="mb-2 block">
-              <SettingTooltipLabel
-                label="摘要提示词"
-                description="留空将使用内置默认模板；建议描述摘要语言、风格和输出结构。"
-                className="text-sm font-medium text-foreground"
-              />
-            </Label>
-            <Textarea
-              id="ai-summary-prompt"
-              aria-label="摘要提示词"
-              value={ai.summaryPrompt}
-              onChange={(event) =>
-                onChange((nextDraft) => {
-                  nextDraft.persisted.ai.summaryPrompt = event.target.value;
-                })
-              }
-              placeholder="例如：用简洁中文总结，先 1-2 句结论，再给 3 条要点。"
-              className="min-h-28"
-            />
           </div>
 
           <div className="px-4 py-3.5">

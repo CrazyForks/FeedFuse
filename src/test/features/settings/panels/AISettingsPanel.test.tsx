@@ -83,8 +83,15 @@ describe("AISettingsPanel", () => {
     render(<Harness />);
 
     const toggle = screen.getByRole("switch", { name: "启用深度思考" });
+    const deepThinkingRow = toggle.closest("div[class*='justify-between']");
+    const summaryPromptLabel = screen.getByText("摘要提示词");
+    const translationConfigLabel = screen.getByText("翻译配置");
 
     expect(toggle).toHaveAttribute("data-state", "unchecked");
+    expect(deepThinkingRow).not.toHaveClass("border", "border-border", "rounded-md");
+    expect(
+      summaryPromptLabel.compareDocumentPosition(translationConfigLabel),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute("data-state", "checked");
   });

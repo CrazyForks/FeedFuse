@@ -1900,7 +1900,7 @@ describe('FeedList manage', () => {
     expect(screen.queryByText('操作失败：输入不合法。')).not.toBeInTheDocument();
   });
 
-  it('shows tooltip and prefers fetchRawError for feeds with fetchError', async () => {
+  it('shows tooltip and prefers user-facing fetchError over fetchRawError', async () => {
     useAppStore.setState({
       categories: [{ id: 'cat-uncategorized', name: '未分类', expanded: true }],
       feeds: [
@@ -1923,8 +1923,9 @@ describe('FeedList manage', () => {
           categoryId: null,
           category: null,
           fetchStatus: 403,
-          fetchError: '更新失败：源站拒绝访问（HTTP 403）',
-          fetchRawError: 'HTTP 403 from upstream',
+          fetchError:
+            '更新失败：当前 DNS 将域名解析到 fake-ip 地址 198.18.0.69，但 RSS_NETWORK_MODE 仍是 public。请改为 RSS_NETWORK_MODE=fake-ip 后重试。',
+          fetchRawError: 'Unsafe URL',
         },
       ],
       articles: [],
@@ -1943,7 +1944,14 @@ describe('FeedList manage', () => {
     fireEvent.mouseEnter(feedButton);
 
     expect((await screen.findAllByText('更新失败')).length).toBeGreaterThan(0);
-    expect((await screen.findAllByText('HTTP 403 from upstream')).length).toBeGreaterThan(0);
+    expect(
+      (
+        await screen.findAllByText(
+          '更新失败：当前 DNS 将域名解析到 fake-ip 地址 198.18.0.69，但 RSS_NETWORK_MODE 仍是 public。请改为 RSS_NETWORK_MODE=fake-ip 后重试。',
+        )
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryAllByText('Unsafe URL')).toHaveLength(0);
     expect(feedButton.className).toMatch(/destructive|red/);
   });
 

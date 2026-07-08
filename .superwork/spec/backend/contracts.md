@@ -70,6 +70,8 @@
 - 外部 RSS 响应必须设置读取大小上限；写入 `system_logs.details` 的上游失败响应必须截断，避免超大响应直接落库。
 - `RSS_NETWORK_MODE=lan` 只额外允许 RFC1918 局域网地址；`198.18.0.0/15` fake-ip 兼容只属于 `RSS_NETWORK_MODE=fake-ip`。
 - `.local` 主机名在 `RSS_NETWORK_MODE=lan` 或 `custom` 下不能直接拒绝，必须先解析，再按解析出的 IP 是否命中 RFC1918 或 `RSS_ALLOWED_CIDRS` 判定。
+- RSS 安全阻断不能只返回“链接不安全”这类泛化文案；`/api/rss/validate` 和 worker 刷新失败必须尽量说明具体原因，例如 fake-ip、内网地址、本机回环地址、本地域名、账号密码、协议不支持或 DNS 无法解析。
+- fake-ip 阻断提示必须包含解析出的 `198.18.0.0/15` 地址和当前 `RSS_NETWORK_MODE`，并明确提示需要 `RSS_NETWORK_MODE=fake-ip`。
 
 ## 订阅源自动化契约
 

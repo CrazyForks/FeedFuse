@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const parseStringMock = vi.fn();
 const isSafeExternalUrlMock = vi.fn();
+const getExternalUrlSafetyMock = vi.fn();
 const fetchRssXmlMock = vi.fn();
 
 vi.mock('rss-parser', () => {
@@ -15,6 +16,19 @@ vi.mock('rss-parser', () => {
 });
 
 vi.mock('@/server/integrations/rss/ssrfGuard', () => ({
+  formatExternalUrlSafetyMessage: (
+    safety: { reason: string; address?: string; mode?: string },
+    target: 'source' | 'redirect',
+  ) => {
+    if (safety.reason === 'fake_ip') {
+      return `当前 DNS 将域名解析到 fake-ip 地址 ${safety.address}，但 RSS_NETWORK_MODE 仍是 ${safety.mode}。请改为 RSS_NETWORK_MODE=fake-ip 后重试。`;
+    }
+    if (safety.reason === 'private_ip' && target === 'redirect') {
+      return `RSS 源重定向后的地址解析到内网地址 ${safety.address}，当前 RSS_NETWORK_MODE=${safety.mode} 不允许访问内网源。`;
+    }
+    return '当前网络环境不允许访问该链接';
+  },
+  getExternalUrlSafety: (...args: unknown[]) => getExternalUrlSafetyMock(...args),
   isSafeExternalUrl: (...args: unknown[]) => isSafeExternalUrlMock(...args),
 }));
 
@@ -26,9 +40,11 @@ describe('/api/rss/validate', () => {
   beforeEach(() => {
     parseStringMock.mockReset();
     isSafeExternalUrlMock.mockReset();
+    getExternalUrlSafetyMock.mockReset();
     fetchRssXmlMock.mockReset();
     vi.restoreAllMocks();
     isSafeExternalUrlMock.mockResolvedValue(true);
+    getExternalUrlSafetyMock.mockResolvedValue({ safe: true });
   });
 
   it('returns siteUrl from parsed feed.link when validation succeeds', async () => {
@@ -54,7 +70,7 @@ describe('/api/rss/validate', () => {
       valid: true,
       siteUrl: 'https://example.com/',
     });
-    expect(isSafeExternalUrlMock).toHaveBeenCalledWith('https://example.com/rss.xml', {
+    expect(getExternalUrlSafetyMock).toHaveBeenCalledWith('https://example.com/rss.xml', {
       allowUnresolvedHostname: true,
     });
   });
@@ -135,7 +151,12 @@ describe('/api/rss/validate', () => {
   });
 
   it('returns unsafe_url when rss guard blocks the link', async () => {
-    isSafeExternalUrlMock.mockResolvedValue(false);
+    getExternalUrlSafetyMock.mockResolvedValue({
+      safe: false,
+      reason: 'fake_ip',
+      address: '198.18.0.69',
+      mode: 'public',
+    });
 
     const mod = await import('../../../../../app/api/rss/validate/route');
     const response = await mod.GET(
@@ -150,13 +171,21 @@ describe('/api/rss/validate', () => {
       data: {
         valid: false,
         reason: 'unsafe_url',
-        message: '当前网络环境不允许访问该链接',
+        message:
+          '当前 DNS 将域名解析到 fake-ip 地址 198.18.0.69，但 RSS_NETWORK_MODE 仍是 public。请改为 RSS_NETWORK_MODE=fake-ip 后重试。',
       },
     });
   });
 
   it('returns unsafe_url when redirected finalUrl is blocked by rss guard', async () => {
-    isSafeExternalUrlMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    getExternalUrlSafetyMock
+      .mockResolvedValueOnce({ safe: true })
+      .mockResolvedValueOnce({
+        safe: false,
+        reason: 'private_ip',
+        address: '192.168.1.10',
+        mode: 'public',
+      });
     fetchRssXmlMock.mockResolvedValue({
       status: 200,
       xml: '<?xml version="1.0"?><rss><channel><title>Feed</title></channel></rss>',
@@ -178,13 +207,14 @@ describe('/api/rss/validate', () => {
       data: {
         valid: false,
         reason: 'unsafe_url',
-        message: '当前网络环境不允许访问该链接',
+        message:
+          'RSS 源重定向后的地址解析到内网地址 192.168.1.10，当前 RSS_NETWORK_MODE=public 不允许访问内网源。',
       },
     });
-    expect(isSafeExternalUrlMock).toHaveBeenNthCalledWith(1, 'https://example.com/rss.xml', {
+    expect(getExternalUrlSafetyMock).toHaveBeenNthCalledWith(1, 'https://example.com/rss.xml', {
       allowUnresolvedHostname: true,
     });
-    expect(isSafeExternalUrlMock).toHaveBeenNthCalledWith(2, 'http://192.168.1.10/rss.xml', {
+    expect(getExternalUrlSafetyMock).toHaveBeenNthCalledWith(2, 'http://192.168.1.10/rss.xml', {
       allowUnresolvedHostname: true,
     });
   });

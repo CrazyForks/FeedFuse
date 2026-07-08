@@ -24,7 +24,10 @@ import {
 import { fetchFeedXml } from '@/server/integrations/rss/fetchFeedXml';
 import { parseFeed } from '@/server/integrations/rss/parseFeed';
 import { sanitizeContent } from '@/server/integrations/rss/sanitizeContent';
-import { isSafeExternalUrl } from '@/server/integrations/rss/ssrfGuard';
+import {
+  formatExternalUrlSafetyMessage,
+  getExternalUrlSafety,
+} from '@/server/integrations/rss/ssrfGuard';
 import { fetchFulltextAndStore } from '@/server/integrations/fulltext/fetchFulltextAndStore';
 import { translateSegmentsInBatches } from '@/server/integrations/ai/bilingualHtmlTranslator';
 import {
@@ -139,7 +142,7 @@ type FeedFetchResult = {
 type FeedIngestionDeps = {
   getPool: typeof getPool;
   getFeedForFetch: typeof getFeedForFetch;
-  isSafeExternalUrl: typeof isSafeExternalUrl;
+  getExternalUrlSafety: typeof getExternalUrlSafety;
   getAppSettings: typeof getAppSettings;
   getUiSettings: typeof getUiSettings;
   fetchFeedXml: typeof fetchFeedXml;
@@ -155,7 +158,7 @@ type FeedIngestionDeps = {
 const defaultFeedIngestionDeps: FeedIngestionDeps = {
   getPool,
   getFeedForFetch,
-  isSafeExternalUrl,
+  getExternalUrlSafety,
   getAppSettings,
   getUiSettings,
   fetchFeedXml,
@@ -258,8 +261,12 @@ export async function fetchAndIngestFeed(
     return { inserted: 0, errorMessage: null };
   }
 
-  if (!(await deps.isSafeExternalUrl(feed.url))) {
-    const mapped = mapFeedFetchError('Unsafe URL');
+  const urlSafety = await deps.getExternalUrlSafety(feed.url);
+  if (!urlSafety.safe) {
+    const mapped = {
+      errorMessage: `更新失败：${formatExternalUrlSafetyMessage(urlSafety, 'source')}`,
+      rawErrorMessage: 'Unsafe URL',
+    };
     await deps.recordFeedFetchResult(pool, feedId, {
       userId: feed.userId,
       status: null,

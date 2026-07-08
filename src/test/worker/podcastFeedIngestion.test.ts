@@ -20,6 +20,7 @@ describe('podcast feed ingestion', () => {
         titleTranslateEnabled: true,
       }),
       isSafeExternalUrl: vi.fn().mockResolvedValue(true),
+      getExternalUrlSafety: vi.fn().mockResolvedValue({ safe: true }),
       getAppSettings: vi.fn().mockResolvedValue({
         rssTimeoutMs: 10000,
         rssUserAgent: 'FeedFuse/1.0',
@@ -113,6 +114,7 @@ describe('podcast feed ingestion', () => {
         titleTranslateEnabled: true,
       }),
       isSafeExternalUrl: vi.fn().mockResolvedValue(true),
+      getExternalUrlSafety: vi.fn().mockResolvedValue({ safe: true }),
       getAppSettings: vi.fn().mockResolvedValue({
         rssTimeoutMs: 10000,
         rssUserAgent: 'FeedFuse/1.0',
@@ -181,6 +183,12 @@ describe('podcast feed ingestion', () => {
         titleTranslateEnabled: false,
       }),
       isSafeExternalUrl: vi.fn().mockResolvedValue(false),
+      getExternalUrlSafety: vi.fn().mockResolvedValue({
+        safe: false,
+        reason: 'fake_ip',
+        address: '198.18.0.69',
+        mode: 'public',
+      }),
       getAppSettings: vi.fn(),
       getUiSettings: vi.fn(),
       fetchFeedXml: vi.fn(),
@@ -196,13 +204,16 @@ describe('podcast feed ingestion', () => {
     const { fetchAndIngestFeed } = await import('../../worker/index');
     const result = await fetchAndIngestFeed(boss as never, 'feed-2', { deps });
 
-    expect(result.errorMessage).toBe('更新失败：订阅地址不安全');
+    expect(result.errorMessage).toBe(
+      '更新失败：当前 DNS 将域名解析到 fake-ip 地址 198.18.0.69，但 RSS_NETWORK_MODE 仍是 public。请改为 RSS_NETWORK_MODE=fake-ip 后重试。',
+    );
     expect(deps.recordFeedFetchResult).toHaveBeenCalledWith(
       expect.anything(),
       'feed-2',
       expect.objectContaining({
         userId: '2',
-        error: '更新失败：订阅地址不安全',
+        error:
+          '更新失败：当前 DNS 将域名解析到 fake-ip 地址 198.18.0.69，但 RSS_NETWORK_MODE 仍是 public。请改为 RSS_NETWORK_MODE=fake-ip 后重试。',
         rawError: 'Unsafe URL',
       }),
     );

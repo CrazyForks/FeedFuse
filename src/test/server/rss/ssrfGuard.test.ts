@@ -9,7 +9,7 @@ vi.mock('node:dns/promises', () => {
 });
 
 import { lookup } from 'node:dns/promises';
-import { isSafeExternalUrl } from '@/server/integrations/rss/ssrfGuard';
+import { getExternalUrlSafety, isSafeExternalUrl } from '@/server/integrations/rss/ssrfGuard';
 
 describe('ssrfGuard', () => {
   const lookupMock = vi.mocked(lookup);
@@ -66,6 +66,17 @@ describe('ssrfGuard', () => {
 
   it('rejects fake-ip addresses by default', async () => {
     await expect(isSafeExternalUrl('http://198.18.0.1/feed')).resolves.toBe(false);
+  });
+
+  it('explains fake-ip rejections with the resolved address', async () => {
+    lookupMock.mockResolvedValue([{ address: '198.18.0.69', family: 4 }]);
+
+    await expect(getExternalUrlSafety('https://daily.test/feed')).resolves.toEqual({
+      safe: false,
+      reason: 'fake_ip',
+      address: '198.18.0.69',
+      mode: 'public',
+    });
   });
 
   it('accepts fake-ip addresses when compatibility is enabled', async () => {

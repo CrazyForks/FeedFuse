@@ -517,7 +517,8 @@ export default function FeedList({
                 {expanded && (
                   <div id={`feed-category-panel-${category.id}`} className="mt-0.5 space-y-0.5 pl-4">
                     {categoryFeeds.map((feed) => {
-                      const fetchErrorText = feed.fetchRawError || feed.fetchError;
+                      // 左栏面向用户展示中文错误，原始错误只作为没有业务文案时的兜底。
+                      const fetchErrorText = feed.fetchError || feed.fetchRawError;
                       const isFeedErrored = Boolean(fetchErrorText);
                       const isRssFeed = (feed.kind ?? 'rss') === 'rss';
                       const showTextAutomationPolicies = isRssFeed && !feed.isPodcast;

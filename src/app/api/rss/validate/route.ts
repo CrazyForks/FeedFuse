@@ -2,7 +2,11 @@ import { requireApiSession } from '@/server/domains/auth/services/session';
 import Parser from 'rss-parser';
 import { ok } from '@/server/infra/http/apiResponse';
 import { fetchRssXml } from '@/server/infra/http/externalHttpClient';
-import { isSafeExternalUrl } from '@/server/integrations/rss/ssrfGuard';
+import {
+  formatExternalUrlSafetyMessage,
+  getExternalUrlSafety,
+  isSafeExternalUrl,
+} from '@/server/integrations/rss/ssrfGuard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -113,11 +117,12 @@ export async function GET(request: Request) {
 
   const normalizedUrl = url.toString();
 
-  if (!(await isSafeExternalUrl(normalizedUrl, feedUrlSafetyOptions))) {
+  const initialSafety = await getExternalUrlSafety(normalizedUrl, feedUrlSafetyOptions);
+  if (!initialSafety.safe) {
     return toJson({
       valid: false,
       reason: 'unsafe_url',
-      message: '当前网络环境不允许访问该链接',
+      message: formatExternalUrlSafetyMessage(initialSafety, 'source'),
     });
   }
 
@@ -129,11 +134,12 @@ export async function GET(request: Request) {
     });
 
     // 跟随重定向后需要再次校验最终地址，避免绕过 RSS 网络访问限制。
-    if (!(await isSafeExternalUrl(res.finalUrl, feedUrlSafetyOptions))) {
+    const finalSafety = await getExternalUrlSafety(res.finalUrl, feedUrlSafetyOptions);
+    if (!finalSafety.safe) {
       return toJson({
         valid: false,
         reason: 'unsafe_url',
-        message: '当前网络环境不允许访问该链接',
+        message: formatExternalUrlSafetyMessage(finalSafety, 'redirect'),
       });
     }
 

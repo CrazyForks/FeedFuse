@@ -1,10 +1,24 @@
 import ipaddr from 'ipaddr.js';
 import { lookup } from 'node:dns/promises';
+import { getRssNetworkConfig } from '@/server/infra/env';
+
+const FAKE_IP_BENCHMARK_CIDR_BASE = ipaddr.parse('198.18.0.0');
+const FAKE_IP_BENCHMARK_CIDR_PREFIX = 15;
+
+function isBenchmarkTestingIp(addr: ipaddr.IPv4 | ipaddr.IPv6): boolean {
+  return addr.kind() === 'ipv4' && addr.match(FAKE_IP_BENCHMARK_CIDR_BASE, FAKE_IP_BENCHMARK_CIDR_PREFIX);
+}
 
 function isPublicIp(ip: string): boolean {
   if (!ipaddr.isValid(ip)) return false;
 
-  return ipaddr.parse(ip).range() === 'unicast';
+  const addr = ipaddr.parse(ip);
+  const range = addr.range();
+  if (range === 'unicast') return true;
+
+  const config = getRssNetworkConfig(process.env as Record<string, unknown>);
+  // 本地代理软件的 fake-ip DNS 会把公网媒体域名解析到 198.18.0.0/15。
+  return range === 'reserved' && config.mode === 'fake-ip' && isBenchmarkTestingIp(addr);
 }
 
 export async function isSafeMediaUrl(value: string): Promise<boolean> {

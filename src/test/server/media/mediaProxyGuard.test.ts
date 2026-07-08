@@ -16,6 +16,7 @@ describe('mediaProxyGuard', () => {
 
   beforeEach(() => {
     lookupMock.mockReset();
+    vi.unstubAllEnvs();
   });
 
   it('rejects localhost and loopback targets', async () => {
@@ -33,6 +34,22 @@ describe('mediaProxyGuard', () => {
     lookupMock.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
 
     await expect(isSafeMediaUrl('https://public.example/image.jpg')).resolves.toBe(true);
+  });
+
+  it('accepts fake-ip media targets when network compatibility is enabled', async () => {
+    vi.stubEnv('RSS_NETWORK_MODE', 'fake-ip');
+    lookupMock.mockResolvedValue([{ address: '198.18.0.46', family: 4 }]);
+
+    await expect(isSafeMediaUrl('https://img.3dmgame.com/image.jpg')).resolves.toBe(true);
+    await expect(isSafeMediaUrl('https://cdn.3dmgame.com/video.mp4')).resolves.toBe(true);
+    await expect(isSafeMediaUrl('https://cdn.3dmgame.com/audio.mp3')).resolves.toBe(true);
+  });
+
+  it('keeps rejecting fake-ip media targets by default', async () => {
+    lookupMock.mockResolvedValue([{ address: '198.18.0.46', family: 4 }]);
+
+    await expect(isSafeMediaUrl('https://img.3dmgame.com/image.jpg')).resolves.toBe(false);
+    await expect(isSafeMediaUrl('https://cdn.3dmgame.com/video.mp4')).resolves.toBe(false);
   });
 
   it('rejects credentialed urls', async () => {

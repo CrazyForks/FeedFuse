@@ -73,6 +73,13 @@
 - RSS 安全阻断不能只返回“链接不安全”这类泛化文案；`/api/rss/validate` 和 worker 刷新失败必须尽量说明具体原因，例如 fake-ip、内网地址、本机回环地址、本地域名、账号密码、协议不支持或 DNS 无法解析。
 - fake-ip 阻断提示必须包含解析出的 `198.18.0.0/15` 地址和当前 `RSS_NETWORK_MODE`，并明确提示需要 `RSS_NETWORK_MODE=fake-ip`。
 
+## 媒体代理契约
+
+- `/api/media/image` 代理 URL 的签名语义由 `src/server/integrations/media/imageProxyUrl.ts` 统一生成和校验；route 只能做请求边界解析、鉴权、签名校验和上游响应透传。
+- 图片、视频、音频等媒体代理的 SSRF 防护必须统一复用 `src/server/integrations/media/mediaProxyGuard.ts`，不要在具体 route 或抓取函数里重复实现网络地址规则。
+- 媒体代理必须复用 RSS 网络模式语义；`RSS_NETWORK_MODE=fake-ip` 时允许 `198.18.0.0/15` fake-ip 解析结果，默认 `public` 模式仍拒绝该网段。
+- 修改媒体代理签名、网络安全策略或 HTML 媒体改写时，至少覆盖 `src/test/app/api/media/image/route.test.ts`、`src/test/server/media/mediaProxyGuard.test.ts` 和 `src/test/server/media/rewriteHtmlImages.test.ts` 的相关用例。
+
 ## 订阅源自动化契约
 
 - 订阅源自动化字段属于 `Feed` / feed DTO 合约，包括 `fullTextOnOpenEnabled`、`fullTextOnFetchEnabled`、`aiSummaryOnOpenEnabled`、`aiSummaryOnFetchEnabled`、`bodyTranslateOnFetchEnabled`、`bodyTranslateOnOpenEnabled`、`titleTranslateEnabled`、`bodyTranslateEnabled`。

@@ -6,6 +6,16 @@
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-07-09
+
+这一版聚焦 RSS 校验与媒体代理的网络访问语义修复，减少安全拦截场景下的模糊错误提示，并让订阅正文媒体加载复用一致的访问边界。
+
+### 修复
+
+- 修复 RSS 链接校验、Worker 抓取和播客入库场景中的错误消息透传，避免安全拦截被泛化成不明确提示。
+- 修复媒体代理复用 RSS 网络访问模式时的私网、重定向和地址校验语义，确保媒体加载与 RSS 抓取保持一致。
+- 补齐媒体代理 RSS 网络模式边界测试，覆盖安全拦截与允许访问的关键路径。
+
 ## [0.4.0] - 2026-06-22
 
 这一版聚焦 AI 提示词兼容与外部访问边界收紧，补齐深度思考参数支持，并修复多家兼容服务下的摘要与翻译调用问题。
@@ -162,7 +172,8 @@
 - 修复图片代理、全文抓取、AI 任务状态、OPML 图标回填、阅读器选中态与多处可访问性和构建问题。
 - 增强 RSS 拉取异常提示、错误映射与配置校验，降低边界场景下的失败率。
 
-[Unreleased]: https://github.com/BryanHoo/FeedFuse/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/FeedFuse/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/BryanHoo/FeedFuse/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/BryanHoo/FeedFuse/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/BryanHoo/FeedFuse/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/BryanHoo/FeedFuse/compare/v0.1.6...v0.2.0

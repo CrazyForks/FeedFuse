@@ -19,9 +19,10 @@ describe('mediaProxyGuard', () => {
     vi.unstubAllEnvs();
   });
 
-  it('rejects localhost and loopback targets', async () => {
-    await expect(isSafeMediaUrl('http://localhost/image.jpg')).resolves.toBe(false);
-    await expect(isSafeMediaUrl('http://127.0.0.1/image.jpg')).resolves.toBe(false);
+  it('accepts local media targets allowed by the RSS guard', async () => {
+    await expect(isSafeMediaUrl('http://localhost/image.jpg')).resolves.toBe(true);
+    await expect(isSafeMediaUrl('http://127.0.0.1/image.jpg')).resolves.toBe(true);
+    await expect(isSafeMediaUrl('http://host.docker.internal/image.jpg')).resolves.toBe(true);
   });
 
   it('rejects domains resolving to private addresses', async () => {
@@ -50,6 +51,51 @@ describe('mediaProxyGuard', () => {
 
     await expect(isSafeMediaUrl('https://img.3dmgame.com/image.jpg')).resolves.toBe(false);
     await expect(isSafeMediaUrl('https://cdn.3dmgame.com/video.mp4')).resolves.toBe(false);
+  });
+
+  it('accepts RFC1918 media targets in lan mode', async () => {
+    vi.stubEnv('RSS_NETWORK_MODE', 'lan');
+    lookupMock.mockResolvedValue([{ address: '192.168.1.20', family: 4 }]);
+
+    await expect(isSafeMediaUrl('https://nas.example/image.jpg')).resolves.toBe(true);
+    await expect(isSafeMediaUrl('http://10.8.0.2/video.mp4')).resolves.toBe(true);
+    await expect(isSafeMediaUrl('http://172.16.5.20/audio.mp3')).resolves.toBe(true);
+  });
+
+  it('accepts explicitly allowed media CIDRs in custom mode', async () => {
+    vi.stubEnv('RSS_NETWORK_MODE', 'custom');
+    vi.stubEnv('RSS_ALLOWED_CIDRS', '100.64.0.0/10,192.168.0.0/16');
+    lookupMock.mockResolvedValue([{ address: '100.64.1.2', family: 4 }]);
+
+    await expect(isSafeMediaUrl('https://media.example/image.jpg')).resolves.toBe(true);
+    await expect(isSafeMediaUrl('http://192.168.1.2/audio.mp3')).resolves.toBe(true);
+  });
+
+  it('accepts .local media hostnames after lan/custom DNS resolution', async () => {
+    vi.stubEnv('RSS_NETWORK_MODE', 'lan');
+    lookupMock.mockResolvedValue([{ address: '192.168.1.10', family: 4 }]);
+    await expect(isSafeMediaUrl('http://nas.local/image.jpg')).resolves.toBe(true);
+
+    vi.stubEnv('RSS_NETWORK_MODE', 'custom');
+    vi.stubEnv('RSS_ALLOWED_CIDRS', '192.168.0.0/16');
+    lookupMock.mockResolvedValue([{ address: '192.168.1.11', family: 4 }]);
+    await expect(isSafeMediaUrl('http://media.local/video.mp4')).resolves.toBe(true);
+  });
+
+  it('accepts local media targets in lan mode', async () => {
+    vi.stubEnv('RSS_NETWORK_MODE', 'lan');
+
+    await expect(isSafeMediaUrl('http://localhost/image.jpg')).resolves.toBe(true);
+    await expect(isSafeMediaUrl('http://127.0.0.1/image.jpg')).resolves.toBe(true);
+    await expect(isSafeMediaUrl('http://host.docker.internal/image.jpg')).resolves.toBe(true);
+  });
+
+  it('accepts DNS loopback when custom CIDR allows it', async () => {
+    vi.stubEnv('RSS_NETWORK_MODE', 'custom');
+    vi.stubEnv('RSS_ALLOWED_CIDRS', '127.0.0.0/8');
+    lookupMock.mockResolvedValue([{ address: '127.0.0.1', family: 4 }]);
+
+    await expect(isSafeMediaUrl('https://loopback.example/image.jpg')).resolves.toBe(true);
   });
 
   it('rejects credentialed urls', async () => {

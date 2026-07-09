@@ -77,7 +77,7 @@
 
 - `/api/media/image` 代理 URL 的签名语义由 `src/server/integrations/media/imageProxyUrl.ts` 统一生成和校验；route 只能做请求边界解析、鉴权、签名校验和上游响应透传。
 - 图片、视频、音频等媒体代理的 SSRF 防护必须统一复用 `src/server/integrations/media/mediaProxyGuard.ts`，不要在具体 route 或抓取函数里重复实现网络地址规则。
-- 媒体代理必须复用 RSS 网络模式语义；`RSS_NETWORK_MODE=fake-ip` 时允许 `198.18.0.0/15` fake-ip 解析结果，默认 `public` 模式仍拒绝该网段。
+- 媒体代理必须完全复用 RSS 网络模式语义；`RSS_NETWORK_MODE=fake-ip` 时允许 `198.18.0.0/15` fake-ip 解析结果，`lan` 时允许 RFC1918 地址，`custom` 时按 `RSS_ALLOWED_CIDRS` 放行，`.local`、localhost、本机回环地址和 `host.docker.internal` 这类本机目标也必须交给 RSS guard 统一判定，不能在媒体代理内额外收紧。
 - 修改媒体代理签名、网络安全策略或 HTML 媒体改写时，至少覆盖 `src/test/app/api/media/image/route.test.ts`、`src/test/server/media/mediaProxyGuard.test.ts` 和 `src/test/server/media/rewriteHtmlImages.test.ts` 的相关用例。
 
 ## 订阅源自动化契约

@@ -1,5 +1,7 @@
 import { redirect } from 'next/navigation';
-import { isAuthenticated } from '@/server/domains/auth/services/session';
+import { getApiSession } from '@/server/domains/auth/services/session';
+import { getPool } from '@/server/infra/db/pool';
+import { getUserById } from '@/server/domains/auth/repositories/usersRepo';
 import ReaderApp from './ReaderApp';
 import type { ViewType } from '../../types';
 
@@ -16,7 +18,14 @@ function normalizeViewSearchParam(input: string | string[] | undefined): ViewTyp
 }
 
 export default async function ReaderPage({ searchParams }: ReaderPageProps = {}) {
-  if (!(await isAuthenticated())) {
+  const session = await getApiSession();
+  if (!session) {
+    redirect('/login');
+  }
+
+  // 服务端已经完成会话校验，直接下发用户信息，避免客户端再次请求 /api/auth/me。
+  const user = await getUserById(getPool(), session.userId);
+  if (!user || user.status !== 'active') {
     redirect('/login');
   }
 
@@ -26,6 +35,16 @@ export default async function ReaderPage({ searchParams }: ReaderPageProps = {})
     <ReaderApp
       renderedAt={new Date().toISOString()}
       initialSelectedView={normalizeViewSearchParam(resolvedSearchParams?.view)}
+      initialCurrentUser={{
+        id: user.id,
+        username: user.username,
+        type: user.type,
+        role: user.role,
+        status: user.status,
+        sessionVersion: user.sessionVersion,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      }}
     />
   );
 }

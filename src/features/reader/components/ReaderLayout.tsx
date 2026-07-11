@@ -12,7 +12,6 @@ import ArticleList from '../../articles/components/ArticleList';
 import ArticleView, { dispatchReaderArticleCommand } from '../../articles/components/ArticleView';
 import FeedList from '../../feeds/components/FeedList';
 import ResizeHandle from './ResizeHandle';
-import GlobalSearchDialog from './GlobalSearchDialog';
 import { getSelectedArticleFromState, useAppStore } from '../../../store/appStore';
 import { useSettingsStore } from '../../../store/settingsStore';
 import type { ViewType } from '../../../types';
@@ -172,6 +171,10 @@ const MemoizedFeedList = memo(FeedList);
 const MemoizedArticleList = memo(ArticleList);
 const MemoizedArticleView = memo(ArticleView);
 const SettingsCenterModal = dynamic(() => import('../../settings/components/SettingsCenterModal'), {
+  ssr: false,
+  loading: () => null,
+});
+const GlobalSearchDialog = dynamic(() => import('./GlobalSearchDialog'), {
   ssr: false,
   loading: () => null,
 });
@@ -784,18 +787,20 @@ export default function ReaderLayout({ renderedAt, initialSelectedView }: Reader
         </Sheet>
       ) : null}
 
-      <GlobalSearchDialog
-        open={searchOpen}
-        onOpenChange={setSearchOpen}
-        onSelectResult={async (result, query) => {
-          setActiveSearchHighlightQuery(query);
-          await useAppStore.getState().openArticleInReader({
-            view: result.feedId,
-            articleId: result.id,
-            articleHistory: 'push',
-          });
-        }}
-      />
+      {searchOpen ? (
+        <GlobalSearchDialog
+          open
+          onOpenChange={setSearchOpen}
+          onSelectResult={async (result, query) => {
+            setActiveSearchHighlightQuery(query);
+            await useAppStore.getState().openArticleInReader({
+              view: result.feedId,
+              articleId: result.id,
+              articleHistory: 'push',
+            });
+          }}
+        />
+      ) : null}
 
       <Dialog open={shortcutHelpOpen} onOpenChange={setShortcutHelpOpen}>
         <DialogContent

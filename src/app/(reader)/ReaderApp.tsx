@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../../store/appStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { getCurrentUser } from '../../lib/api/apiClient';
+import type { CurrentUser } from '../../lib/api/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import type { ViewType } from '../../types';
 
@@ -15,9 +16,14 @@ const AUTO_SNAPSHOT_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 interface ReaderAppProps {
   renderedAt?: string;
   initialSelectedView?: ViewType;
+  initialCurrentUser?: CurrentUser;
 }
 
-export default function ReaderApp({ renderedAt, initialSelectedView }: ReaderAppProps) {
+export default function ReaderApp({
+  renderedAt,
+  initialSelectedView,
+  initialCurrentUser,
+}: ReaderAppProps) {
   useTheme();
   const selectedView = useAppStore((state) => state.selectedView);
   const loadSnapshot = useAppStore((state) => state.loadSnapshot);
@@ -47,7 +53,8 @@ export default function ReaderApp({ renderedAt, initialSelectedView }: ReaderApp
 
     void (async () => {
       try {
-        const user = await getCurrentUser({ notifyOnError: false });
+        // 首次导航复用服务端会话结果，客户端路由场景仍保留接口回退。
+        const user = initialCurrentUser ?? await getCurrentUser({ notifyOnError: false });
         if (cancelled) return;
         setCurrentUser(user);
       } catch {
@@ -64,7 +71,7 @@ export default function ReaderApp({ renderedAt, initialSelectedView }: ReaderApp
       cancelled = true;
       userScopedStateReadyRef.current = false;
     };
-  }, [hydratePersistedSettings, rehydrateUserScopedLocalState, setCurrentUser]);
+  }, [hydratePersistedSettings, initialCurrentUser, rehydrateUserScopedLocalState, setCurrentUser]);
 
   useEffect(() => {
     if (!userScopedStateReady) return;

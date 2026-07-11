@@ -244,7 +244,7 @@ export async function isAuthenticated(): Promise<boolean> {
   return (await getApiSession()) !== null;
 }
 
-async function getApiSession(): Promise<ApiSession | null> {
+export async function getApiSession(): Promise<ApiSession | null> {
   const token = (await cookies()).get(AUTH_SESSION_COOKIE_NAME)?.value;
   if (!token) {
     return null;

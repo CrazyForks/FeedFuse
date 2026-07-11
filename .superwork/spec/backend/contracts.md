@@ -80,6 +80,12 @@
 - 媒体代理必须完全复用 RSS 网络模式语义；`RSS_NETWORK_MODE=fake-ip` 时允许 `198.18.0.0/15` fake-ip 解析结果，`lan` 时允许 RFC1918 地址，`custom` 时按 `RSS_ALLOWED_CIDRS` 放行，`.local`、localhost、本机回环地址和 `host.docker.internal` 这类本机目标也必须交给 RSS guard 统一判定，不能在媒体代理内额外收紧。
 - 修改媒体代理签名、网络安全策略或 HTML 媒体改写时，至少覆盖 `src/test/app/api/media/image/route.test.ts`、`src/test/server/media/mediaProxyGuard.test.ts` 和 `src/test/server/media/rewriteHtmlImages.test.ts` 的相关用例。
 
+## 阅读快照契约
+
+- `/api/reader/snapshot` 的文章 `summary` 只服务列表预览；返回前必须把连续空白规范化为单个空格，并限制为最多 `280` 个 Unicode 码点，截断时以 `…` 结尾。
+- 摘要截断只能发生在快照 DTO 映射阶段；文章详情、正文翻译资格判断和其他需要完整语义的服务必须继续使用完整摘要。
+- 调整快照摘要规则时，至少覆盖 `src/test/server/services/readerSnapshotService.previewImage.test.ts` 和 `src/test/app/api/reader/snapshot/route.test.ts` 的相关用例。
+
 ## 订阅源自动化契约
 
 - 订阅源自动化字段属于 `Feed` / feed DTO 合约，包括 `fullTextOnOpenEnabled`、`fullTextOnFetchEnabled`、`aiSummaryOnOpenEnabled`、`aiSummaryOnFetchEnabled`、`bodyTranslateOnFetchEnabled`、`bodyTranslateOnOpenEnabled`、`titleTranslateEnabled`、`bodyTranslateEnabled`。

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import WebVitalsReporter from '@/components/WebVitalsReporter';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           跳转到主要内容
         </a>
         <main id="main-content">{children}</main>
+        <WebVitalsReporter />
       </body>
     </html>
   );

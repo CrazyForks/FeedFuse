@@ -446,7 +446,7 @@ describe('ReaderLayout', () => {
     expect(screen.getByLabelText('返回文章列表')).toBeInTheDocument();
   });
 
-  it('opens global search with cmd+f and ctrl+f', () => {
+  it('opens global search with cmd+f and ctrl+f', async () => {
     resetSettingsStore();
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1440 });
 
@@ -454,7 +454,7 @@ describe('ReaderLayout', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: 'f', metaKey: true });
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
 
     fireEvent.click(screen.getByLabelText('关闭全局搜索'));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -462,10 +462,10 @@ describe('ReaderLayout', () => {
     unmount();
     renderWithNotifications();
     fireEvent.keyDown(window, { key: 'f', ctrlKey: true });
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 
-  it('supports reader keyboard shortcuts for core article operations', () => {
+  it('supports reader keyboard shortcuts for core article operations', async () => {
     resetSettingsStore();
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1440 });
     const loadSnapshotMock = vi.fn(async () => undefined);
@@ -529,7 +529,7 @@ describe('ReaderLayout', () => {
     expect(screen.queryByRole('dialog', { name: '键盘快捷键' })).not.toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: '/' });
-    expect(screen.getByRole('dialog', { name: '全局搜索' })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: '全局搜索' })).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText('关闭全局搜索'));
 
     const selectedRow = screen.getByRole('button', { name: /Selected Article/ });

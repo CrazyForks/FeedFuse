@@ -184,17 +184,14 @@ export const useSettingsStore = create<SettingsState>()(
           return;
         }
 
-        try {
-          const [remoteSettingsResult, apiKeyStatusResult, translationApiKeyStatusResult] = await Promise.allSettled([
-            getSettings({ notifyOnError: false }),
-            getAiApiKeyStatus({ notifyOnError: false }),
-            getTranslationApiKeyStatus({ notifyOnError: false }),
-          ]);
-
-          const remoteSettings =
-            remoteSettingsResult.status === 'fulfilled' ? remoteSettingsResult.value : null;
+        // 密钥状态仅供设置页展示，不应阻塞阅读器首屏快照。
+        void Promise.allSettled([
+          getAiApiKeyStatus({ notifyOnError: false }),
+          getTranslationApiKeyStatus({ notifyOnError: false }),
+        ]).then(([apiKeyStatusResult, translationApiKeyStatusResult]) => {
           const hasApiKey =
-            apiKeyStatusResult.status === 'fulfilled' && typeof apiKeyStatusResult.value.hasApiKey === 'boolean'
+            apiKeyStatusResult.status === 'fulfilled' &&
+            typeof apiKeyStatusResult.value.hasApiKey === 'boolean'
               ? apiKeyStatusResult.value.hasApiKey
               : null;
           const hasTranslationApiKey =
@@ -203,32 +200,29 @@ export const useSettingsStore = create<SettingsState>()(
               ? translationApiKeyStatusResult.value.hasApiKey
               : null;
 
-          if (!remoteSettings && hasApiKey === null && hasTranslationApiKey === null) {
+          if (hasApiKey === null && hasTranslationApiKey === null) {
             return;
           }
 
           set((state) => ({
-            ...(remoteSettings
-              ? {
-                  persistedSettings: ensureAiTranslationSettings(remoteSettings),
-                  settings: pickUserSettings(remoteSettings),
-                }
-              : {}),
-            ...(hasApiKey === null && hasTranslationApiKey === null
-              ? {}
-              : {
-                  sessionSettings: {
-                    ...state.sessionSettings,
-                    ai: {
-                      ...state.sessionSettings.ai,
-                      ...(hasApiKey === null ? {} : { hasApiKey }),
-                      ...(hasTranslationApiKey === null
-                        ? {}
-                        : { hasTranslationApiKey }),
-                    },
-                  },
-                }),
+            sessionSettings: {
+              ...state.sessionSettings,
+              ai: {
+                ...state.sessionSettings.ai,
+                ...(hasApiKey === null ? {} : { hasApiKey }),
+                ...(hasTranslationApiKey === null ? {} : { hasTranslationApiKey }),
+              },
+            },
           }));
+        });
+
+        try {
+          const remoteSettings = await getSettings({ notifyOnError: false });
+
+          set({
+            persistedSettings: ensureAiTranslationSettings(remoteSettings),
+            settings: pickUserSettings(remoteSettings),
+          });
         } catch (err) {
           console.error(err);
         }

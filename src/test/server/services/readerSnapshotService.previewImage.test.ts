@@ -43,6 +43,49 @@ describe('readerSnapshotService (preview image)', () => {
     expect(sql).toContain('preview_image_url');
   });
 
+  it('normalizes and truncates long summaries returned by the reader snapshot', async () => {
+    listCategoriesMock.mockResolvedValue([]);
+    listFeedsMock.mockResolvedValue([]);
+    getUiSettingsMock.mockResolvedValue({});
+    const longSummary = `  开始 \n ${'界'.repeat(320)}  结束  `;
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'a1',
+            feedId: 'f1',
+            title: 'Hello',
+            titleOriginal: 'Hello',
+            titleZh: null,
+            summary: longSummary,
+            previewImage: null,
+            author: null,
+            publishedAt: '2026-03-08T00:00:00.000Z',
+            link: 'https://example.com/article',
+            sourceLanguage: 'zh',
+            contentHtml: '<p>Hello</p>',
+            contentFullHtml: null,
+            isRead: false,
+            isStarred: false,
+            sortPublishedAt: '2026-03-08T00:00:00.000Z',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ totalCount: 1 }] });
+
+    const pool = { query } as unknown as Pool;
+    const mod = (await import('@/server/domains/reader/services/readerSnapshotService')) as typeof import('@/server/domains/reader/services/readerSnapshotService');
+    const snapshot = await mod.getReaderSnapshot(pool, { view: 'all', limit: 1 });
+    const summary = snapshot.articles.items[0]?.summary;
+
+    expect(summary).not.toMatch(/\s{2,}/);
+    expect(Array.from(summary ?? '')).toHaveLength(280);
+    expect(summary).toMatch(/^开始 /);
+    expect(summary).toMatch(/…$/);
+  });
+
   it('keeps previewImage unchanged when IMAGE_PROXY_SECRET is missing', async () => {
     vi.stubEnv('DATABASE_URL', 'postgres://example');
     listCategoriesMock.mockResolvedValue([]);
@@ -165,9 +208,9 @@ describe('readerSnapshotService (preview image)', () => {
     expect(snapshot.articles.items[0].previewImage).toContain(
       'url=https%3A%2F%2Fimg.example.com%2Fcard.jpg',
     );
-    expect(snapshot.articles.items[0].previewImage).not.toContain('w=');
-    expect(snapshot.articles.items[0].previewImage).not.toContain('h=');
-    expect(snapshot.articles.items[0].previewImage).not.toContain('q=');
+    expect(snapshot.articles.items[0].previewImage).toContain('w=192');
+    expect(snapshot.articles.items[0].previewImage).toContain('h=164');
+    expect(snapshot.articles.items[0].previewImage).toContain('q=72');
   });
 
   it('rewrites feed icon to a signed proxy url', async () => {

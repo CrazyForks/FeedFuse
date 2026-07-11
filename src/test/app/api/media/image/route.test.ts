@@ -110,7 +110,7 @@ describe('/api/media/image', () => {
     expect(res.status).toBe(403);
   });
 
-  it('passes through signed preview image requests without resizing or recompression', async () => {
+  it('resizes signed preview image requests and encodes them as webp', async () => {
     const sourceImage = await sharp({
       create: {
         width: 800,
@@ -143,7 +143,13 @@ describe('/api/media/image', () => {
     const proxiedBytes = Buffer.from(await res.arrayBuffer());
 
     expect(res.status).toBe(200);
-    expect(res.headers.get('content-type')).toBe('image/jpeg');
-    expect(proxiedBytes).toEqual(sourceImage);
+    const metadata = await sharp(proxiedBytes).metadata();
+
+    expect(res.headers.get('content-type')).toBe('image/webp');
+    expect(res.headers.get('cache-control')).toContain('max-age=86400');
+    expect(metadata.format).toBe('webp');
+    expect(metadata.width).toBe(192);
+    expect(metadata.height).toBe(208);
+    expect(proxiedBytes.byteLength).toBeLessThan(sourceImage.byteLength);
   });
 });

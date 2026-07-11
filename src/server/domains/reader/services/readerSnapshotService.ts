@@ -8,6 +8,7 @@ import { listFeeds } from '@/server/domains/feeds/repositories/feedsRepo';
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
+const SNAPSHOT_SUMMARY_MAX_CODE_POINTS = 280;
 const ACTIVE_FEVER_ARTICLE_SQL = `
   not exists (
     select 1
@@ -259,11 +260,41 @@ function rewriteImageUrl(imageUrl: string | null): string | null {
 }
 
 function rewritePreviewImage(previewImage: string | null): string | null {
-  return rewriteImageUrl(previewImage);
+  if (!previewImage) return null;
+
+  const normalizedImageUrl = decodeHtmlEntities(previewImage).trim();
+  if (!normalizedImageUrl) return null;
+  if (normalizedImageUrl.startsWith('/')) return normalizedImageUrl;
+  if (isExpiredSignedImageUrl(normalizedImageUrl)) return null;
+
+  const secret = getOptionalImageProxySecret(getServerEnv().IMAGE_PROXY_SECRET);
+  if (!secret) return normalizedImageUrl;
+
+  // 卡片按 96x82 CSS 像素展示，生成 2x 缩略图兼顾高分屏清晰度与传输体积。
+  return buildImageProxyUrl({
+    sourceUrl: normalizedImageUrl,
+    secret,
+    width: 192,
+    height: 164,
+    quality: 72,
+  });
 }
 
 function rewriteFeedIcon(iconUrl: string | null): string | null {
   return rewriteImageUrl(iconUrl);
+}
+
+function normalizeSnapshotSummary(summary: string | null): string | null {
+  if (!summary) return null;
+
+  const normalized = summary.replace(/\s+/g, ' ').trim();
+  if (!normalized) return null;
+
+  const codePoints = Array.from(normalized);
+  if (codePoints.length <= SNAPSHOT_SUMMARY_MAX_CODE_POINTS) return normalized;
+
+  // 快照只服务列表预览，保留完整摘要给文章详情与翻译资格判断使用。
+  return `${codePoints.slice(0, SNAPSHOT_SUMMARY_MAX_CODE_POINTS - 1).join('').trimEnd()}…`;
 }
 
 type ArticleQueryRow = ReaderSnapshotArticleItem & {
@@ -494,6 +525,7 @@ export async function getReaderSnapshot(
         void sortPublishedAt;
         return {
           ...rest,
+          summary: normalizeSnapshotSummary(rest.summary),
           previewImage: rewritePreviewImage(rest.previewImage),
           bodyTranslationEligible: eligibility.bodyTranslationEligible,
           bodyTranslationBlockedReason: eligibility.bodyTranslationBlockedReason,

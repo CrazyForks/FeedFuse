@@ -126,6 +126,31 @@ describe('ReaderApp', () => {
     expect(await screen.findByTestId('settings-center-modal')).toBeInTheDocument();
   });
 
+  it('reuses server-provided user data without requesting auth me', async () => {
+    await act(async () => {
+      render(
+        <ReaderApp
+          initialCurrentUser={{
+            id: '2',
+            username: 'member',
+            type: 'member',
+            role: 'member',
+            status: 'active',
+            sessionVersion: 1,
+          }}
+        />,
+      );
+    });
+
+    await waitFor(() => {
+      expect(snapshotRequests).toBe(1);
+    });
+
+    const requestedUrls = vi.mocked(fetch).mock.calls.map(([input]) => getFetchCallUrl(input));
+    expect(requestedUrls.some((url) => url.includes('/api/auth/me'))).toBe(false);
+    expect(useAuthStore.getState().currentUser?.id).toBe('2');
+  });
+
   it('ignores unrelated reader key presses', async () => {
     await act(async () => {
       render(<ReaderApp />);

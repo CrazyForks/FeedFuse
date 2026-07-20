@@ -6,6 +6,19 @@
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-07-20
+
+这一版优化阅读器首屏加载与图片处理，并修复 Fever/FreshRSS 同步未复用上游完整正文的问题。
+
+### 更改
+
+- 优化阅读器首屏渲染、状态恢复和图片加载链路，改善初次打开与正文浏览体验。
+
+### 修复
+
+- 修复 Fever/FreshRSS 返回完整 `html` 时仍重复下载 RSS 并被短摘要覆盖的问题，优先清洗并复用上游正文。
+- 修复 RSS 同时包含 `content:encoded` 与 `description` 时错误选择短摘要的问题。
+
 ## [0.4.1] - 2026-07-09
 
 这一版聚焦 RSS 校验与媒体代理的网络访问语义修复，减少安全拦截场景下的模糊错误提示，并让订阅正文媒体加载复用一致的访问边界。
@@ -172,7 +185,8 @@
 - 修复图片代理、全文抓取、AI 任务状态、OPML 图标回填、阅读器选中态与多处可访问性和构建问题。
 - 增强 RSS 拉取异常提示、错误映射与配置校验，降低边界场景下的失败率。
 
-[Unreleased]: https://github.com/BryanHoo/FeedFuse/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/BryanHoo/FeedFuse/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/BryanHoo/FeedFuse/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/BryanHoo/FeedFuse/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/BryanHoo/FeedFuse/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/BryanHoo/FeedFuse/compare/v0.2.0...v0.3.0

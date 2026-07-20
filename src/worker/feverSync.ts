@@ -201,9 +201,25 @@ export async function runFeverSyncWorker(input: {
       maxItemId,
       reconcileMissingItems: runFullSync,
       hasFullItemSnapshot: false,
-      // Fever 仍由独立 worker 编排，但文章内容统一回到 RSS XML 解析与清洗链路。
+      // Fever 已提供正文时直接复用；仅在正文缺失时回退 RSS，避免重复请求上游订阅源。
       // 单点刷新 Fever feed 也必须升级成账号级同步，不能再做 feed 级 scoped sync。
       resolveArticleProjection: async ({ remoteFeed, localFeed, remoteItem }) => {
+        if (remoteItem.html?.trim()) {
+          const baseUrl = remoteItem.url ?? remoteFeed.siteUrl ?? localFeed.url;
+          return {
+            title: remoteItem.title || '(untitled)',
+            link: remoteItem.url ?? null,
+            author: remoteItem.author ?? null,
+            publishedAt: remoteItem.createdAt,
+            contentHtml: deps.sanitizeContent(remoteItem.html, { baseUrl }),
+            summary: null,
+            sourceLanguage: null,
+            previewImageUrl: null,
+            mediaAttachments: [],
+            isPodcastSource: false,
+          };
+        }
+
         const parsed = await loadParsedFeedSnapshot(
           deps,
           appSettings,

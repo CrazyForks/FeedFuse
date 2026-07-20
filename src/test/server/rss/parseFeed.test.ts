@@ -62,6 +62,21 @@ describe('rss parsing', () => {
     expect(feed.language).toBe('zh-CN');
   });
 
+  it('prefers content:encoded over description for RSS article content', async () => {
+    const xml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">',
+      '<channel><title>Example</title><item><title>Full article</title>',
+      '<description><![CDATA[Short summary]]></description>',
+      '<content:encoded><![CDATA[<p>Complete article body</p>]]></content:encoded>',
+      '</item></channel></rss>',
+    ].join('');
+
+    const feed = await parseFeed(xml, new Date('2026-07-19T00:00:00Z'));
+
+    expect(feed.items[0].contentHtml).toBe('<p>Complete article body</p>');
+  });
+
   it('parses playable RSS podcast enclosures with duration', async () => {
     const xml = await readFixture('podcast-rss.xml');
     const feed = await parseFeed(xml, new Date('2026-05-16T00:00:00Z'));

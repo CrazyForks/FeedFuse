@@ -41,6 +41,7 @@ describe('feverSync worker', () => {
       etag: null,
       lastModified: null,
     });
+    const sanitizeContent = vi.fn().mockReturnValue('<p>clean</p>');
     createClientForAccountMock.mockResolvedValue(client);
     getFeverSyncStateMock.mockResolvedValue({
       feverAccountId: '1',
@@ -90,7 +91,7 @@ describe('feverSync worker', () => {
             },
           ],
         }),
-        sanitizeContent: vi.fn().mockReturnValue('<p>clean</p>'),
+        sanitizeContent,
       },
     });
 
@@ -158,13 +159,33 @@ describe('feverSync worker', () => {
       expect.objectContaining({
         title: 'Hello',
         contentHtml: '<p>clean</p>',
-        summary: 'summary',
-        sourceLanguage: 'en',
-        previewImageUrl: 'https://example.com/cover.jpg',
+        summary: null,
+        sourceLanguage: null,
+        previewImageUrl: null,
         isPodcastSource: false,
       }),
     );
-    await syncInput.resolveArticleProjection({ remoteFeed, localFeed: feed, remoteItem });
+    expect(fetchFeedXml).not.toHaveBeenCalled();
+    expect(sanitizeContent).toHaveBeenCalledWith('<p>remote</p>', {
+      baseUrl: 'https://example.com/post',
+    });
+
+    const rssFallbackItem = { ...remoteItem, html: '   ' };
+    await expect(
+      syncInput.resolveArticleProjection({ remoteFeed, localFeed: feed, remoteItem: rssFallbackItem }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        contentHtml: '<p>clean</p>',
+        summary: 'summary',
+        sourceLanguage: 'en',
+        previewImageUrl: 'https://example.com/cover.jpg',
+      }),
+    );
+    await syncInput.resolveArticleProjection({
+      remoteFeed,
+      localFeed: feed,
+      remoteItem: rssFallbackItem,
+    });
     expect(getAppSettings).toHaveBeenCalledTimes(1);
     expect(fetchFeedXml).toHaveBeenCalledTimes(1);
 

@@ -106,6 +106,8 @@
 ## Fever 同步与写回契约
 
 - `feeds.provider` 是长期存在的来源字段，当前允许值为 `local_rss` 和 `fever`；Fever 上游对象通过 `fever_accounts`、`fever_feed_mappings`、`fever_item_mappings`、`fever_sync_states` 投影到现有 `feeds` / `articles`。
+- Fever item 返回非空 `html` 时必须将其作为权威正文，按文章 URL 清洗后直接入库，不能再下载 RSS 覆盖；只有 `html` 缺失或为空时才允许回退 RSS XML。
+- Fever 正文回退到 RSS XML 时，解析器必须优先选择非空 `content:encoded`，再使用 `description` / 摘要，避免完整正文被短摘要覆盖。
 - `feed.fetch` / `feed.refresh_all` 这条本地 RSS 抓取链路只允许处理 `feeds.kind = 'rss' and feeds.provider = 'local_rss'`；Fever 投影源绝不能进入本地 RSS XML 抓取队列。
 - Fever 协议适配只放在 `src/server/integrations/fever/**`；route 和 worker 不直接拼 Fever 请求，也不直接解析 Fever DTO。
 - Fever 同步、投影和写回编排放在 `src/server/domains/fever/services/**`；worker 仅通过 `fever.sync` 任务调度这些 service。

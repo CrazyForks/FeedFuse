@@ -278,10 +278,14 @@ export async function parseFeed(xml: string, fetchedAt: Date): Promise<ParsedFee
       parseDate(item.pubDate) ??
       fetchedAt;
 
-    const contentHtml =
-      typeof item.content === 'string'
-        ? item.content
-        : getStringField(item, 'content:encoded');
+    const encodedContent = getStringField(item, 'content:encoded');
+    const descriptionContent = typeof item.content === 'string' ? item.content : null;
+    // RSS 扩展正文优先于 description，避免完整文章被摘要覆盖。
+    const contentHtml = encodedContent?.trim()
+      ? encodedContent
+      : descriptionContent?.trim()
+        ? descriptionContent
+        : null;
 
     const summary =
       typeof item.contentSnippet === 'string'

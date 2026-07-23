@@ -98,7 +98,6 @@ export default function FeedList({
   const [translationPolicyFeedId, setTranslationPolicyFeedId] = useState<string | null>(null);
   const [renameCategoryId, setRenameCategoryId] = useState<string | null>(null);
   const [deleteCategoryId, setDeleteCategoryId] = useState<string | null>(null);
-  const [hoveredFeedErrorId, setHoveredFeedErrorId] = useState<string | null>(null);
 
   const allArticlesUnreadCount = useMemo(
     () => feeds.reduce((count, feed) => count + feed.unreadCount, 0),
@@ -530,22 +529,6 @@ export default function FeedList({
                           onClick={() => setSelectedView(feed.id)}
                           aria-current={renderedSelectedView === feed.id ? 'true' : undefined}
                           aria-describedby={isFeedErrored ? errorDescriptionId : undefined}
-                          onMouseEnter={() => {
-                            if (isFeedErrored) {
-                              setHoveredFeedErrorId(feed.id);
-                            }
-                          }}
-                          onMouseLeave={() => {
-                            setHoveredFeedErrorId((current) => (current === feed.id ? null : current));
-                          }}
-                          onFocus={() => {
-                            if (isFeedErrored) {
-                              setHoveredFeedErrorId(feed.id);
-                            }
-                          }}
-                          onBlur={() => {
-                            setHoveredFeedErrorId((current) => (current === feed.id ? null : current));
-                          }}
                           className={cn(
                             'flex w-full items-center justify-between gap-2 rounded-xl border border-transparent px-3 py-2 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset dark:border-white/[0.03]',
                             renderedSelectedView === feed.id
@@ -618,9 +601,13 @@ export default function FeedList({
                           <ContextMenuTrigger asChild>
                             <span className="block">
                               <TooltipProvider delayDuration={150}>
-                                <Tooltip open={hoveredFeedErrorId === feed.id}>
+                                {/* 错误文案需要可悬停和选择，由 Radix 维护触发器到浮层的指针缓冲区。 */}
+                                <Tooltip disableHoverableContent={false}>
                                   <TooltipTrigger asChild>{feedButton}</TooltipTrigger>
-                                  <TooltipContent side="right" className="max-w-64 whitespace-normal">
+                                  <TooltipContent
+                                    side="right"
+                                    className="max-w-64 cursor-text select-text whitespace-normal leading-relaxed"
+                                  >
                                     <div className="space-y-1">
                                       <p className="font-medium">更新失败</p>
                                       <p>{fetchErrorText}</p>

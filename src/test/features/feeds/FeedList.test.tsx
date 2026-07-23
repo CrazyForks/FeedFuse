@@ -1941,7 +1941,26 @@ describe('FeedList manage', () => {
     );
 
     const feedButton = screen.getByRole('button', { name: /Broken Feed/i });
+    Object.defineProperty(feedButton, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        x: 100,
+        y: 100,
+        top: 100,
+        left: 100,
+        right: 300,
+        bottom: 132,
+        width: 200,
+        height: 32,
+        toJSON: () => ({}),
+      }),
+    });
     fireEvent.mouseEnter(feedButton);
+    fireEvent.pointerMove(feedButton, {
+      clientX: 200,
+      clientY: 116,
+      pointerType: 'mouse',
+    });
 
     expect((await screen.findAllByText('更新失败')).length).toBeGreaterThan(0);
     expect(
@@ -1953,6 +1972,44 @@ describe('FeedList manage', () => {
     ).toBeGreaterThan(0);
     expect(screen.queryAllByText('Unsafe URL')).toHaveLength(0);
     expect(feedButton.className).toMatch(/destructive|red/);
+
+    const visibleErrorText = screen
+      .getAllByText(
+        '更新失败：当前 DNS 将域名解析到 fake-ip 地址 198.18.0.69，但 RSS_NETWORK_MODE 仍是 public。请改为 RSS_NETWORK_MODE=fake-ip 后重试。',
+      )
+      .find((element) => element.tagName === 'P');
+    const tooltipContent = visibleErrorText?.closest('[data-state]') ?? null;
+    expect(tooltipContent).not.toBeNull();
+    Object.defineProperty(tooltipContent, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        x: 304,
+        y: 90,
+        top: 90,
+        left: 304,
+        right: 560,
+        bottom: 180,
+        width: 256,
+        height: 90,
+        toJSON: () => ({}),
+      }),
+    });
+
+    fireEvent.pointerLeave(feedButton, {
+      clientX: 300,
+      clientY: 116,
+      pointerType: 'mouse',
+      relatedTarget: tooltipContent,
+    });
+    fireEvent.mouseLeave(feedButton, { relatedTarget: tooltipContent });
+    fireEvent.pointerMove(tooltipContent as Element, {
+      clientX: 320,
+      clientY: 116,
+      pointerType: 'mouse',
+    });
+
+    expect(document.body.contains(tooltipContent)).toBe(true);
+    expect(tooltipContent).toHaveClass('select-text', 'cursor-text');
   });
 
   it('returns to normal styling after fetchError is cleared', async () => {
@@ -1995,6 +2052,7 @@ describe('FeedList manage', () => {
 
     const feedButton = screen.getByRole('button', { name: /Broken Feed/i });
     fireEvent.mouseEnter(feedButton);
+    fireEvent.pointerMove(feedButton, { pointerType: 'mouse' });
 
     expect((await screen.findAllByText('更新失败')).length).toBeGreaterThan(0);
 

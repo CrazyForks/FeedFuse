@@ -39,6 +39,7 @@
 - 如果前端需要新字段，先确认 `src/app/api/**` 返回结构和 `src/types/**` / `src/lib/**` 是否同步
 - 如果 UI 依赖新异步状态，先确认 `src/worker/**` 与 `src/server/domains/**/services/**` 是否已经稳定提供该状态
 - 阅读器左栏展示订阅源刷新失败时，必须优先使用面向用户的 `fetchError` / `lastFetchError`；`fetchRawError` / `lastFetchRawError` 只作为缺少业务文案时的兜底，不能让 `Unsafe URL` 这类原始错误覆盖中文原因。
+- 阅读器左栏的订阅源错误 tooltip 必须允许指针从订阅源移动到浮层，错误正文必须可选择和复制，不能在触发器失去 hover 时立即卸载。
 
 ## 订阅源自动化交互契约
 

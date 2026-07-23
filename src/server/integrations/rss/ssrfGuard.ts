@@ -98,7 +98,8 @@ function isExplicitlyAllowedByCidrs(addr: ipaddr.IPv4 | ipaddr.IPv6, cidrs: stri
 
 function getIpSafety(ip: string, options?: { allowLoopback?: boolean }): ExternalUrlSafetyResult {
   if (!ipaddr.isValid(ip)) return { safe: false, reason: 'unsafe_ip' };
-  const addr = ipaddr.parse(ip);
+  // DNS 可能返回 IPv4-mapped IPv6，先还原为 IPv4 再执行统一的网段策略。
+  const addr = ipaddr.process(ip);
   const range = addr.range();
   const config = getNetworkConfig();
   if (range === 'unicast') return { safe: true };

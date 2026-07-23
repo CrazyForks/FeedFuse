@@ -72,6 +72,7 @@
 - `.local` 主机名在 `RSS_NETWORK_MODE=lan` 或 `custom` 下不能直接拒绝，必须先解析，再按解析出的 IP 是否命中 RFC1918 或 `RSS_ALLOWED_CIDRS` 判定。
 - RSS 安全阻断不能只返回“链接不安全”这类泛化文案；`/api/rss/validate` 和 worker 刷新失败必须尽量说明具体原因，例如 fake-ip、内网地址、本机回环地址、本地域名、账号密码、协议不支持或 DNS 无法解析。
 - fake-ip 阻断提示必须包含解析出的 `198.18.0.0/15` 地址和当前 `RSS_NETWORK_MODE`，并明确提示需要 `RSS_NETWORK_MODE=fake-ip`。
+- DNS 返回 IPv4-mapped IPv6 地址（如 `::ffff:198.18.0.41`）时，必须先还原为 IPv4，再按 fake-ip、RFC1918 和自定义 CIDR 规则判定。
 
 ## 媒体代理契约
 

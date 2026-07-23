@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 2,
+  "packageManager": "pnpm",
+  "packages": [
+    {
+      "name": "root",
+      "layers": [
+        "frontend",
+        "backend",
+        "shared"
+      ]
+    }
+  ],
+  "artifactPaths": {
+    "designs": ".superwork/prd",
+    "plans": ".superwork/plans",
+    "specs": ".superwork/spec"
+  },
+  "verification": [
+    "pnpm lint",
+    "pnpm type-check",
+    "pnpm test:unit",
+    "pnpm build"
+  ]
+}

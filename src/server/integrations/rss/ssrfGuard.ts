@@ -96,10 +96,18 @@ function isExplicitlyAllowedByCidrs(addr: ipaddr.IPv4 | ipaddr.IPv6, cidrs: stri
   return false;
 }
 
+function normalizeIpAddress(ip: string): ipaddr.IPv4 | ipaddr.IPv6 {
+  const addr = ipaddr.process(ip);
+  if (addr.kind() === 'ipv6' && addr.range() === 'rfc6145') {
+    // IPv4-translated 地址的末 32 位仍应按真实 IPv4 网段执行安全策略。
+    return ipaddr.fromByteArray(addr.toByteArray().slice(-4));
+  }
+  return addr;
+}
+
 function getIpSafety(ip: string, options?: { allowLoopback?: boolean }): ExternalUrlSafetyResult {
   if (!ipaddr.isValid(ip)) return { safe: false, reason: 'unsafe_ip' };
-  // DNS 可能返回 IPv4-mapped IPv6，先还原为 IPv4 再执行统一的网段策略。
-  const addr = ipaddr.process(ip);
+  const addr = normalizeIpAddress(ip);
   const range = addr.range();
   const config = getNetworkConfig();
   if (range === 'unicast') return { safe: true };

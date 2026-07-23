@@ -96,6 +96,15 @@ describe('ssrfGuard', () => {
     ).resolves.toBe(true);
   });
 
+  it('accepts IPv4-translated fake-ip DNS answers when compatibility is enabled', async () => {
+    vi.stubEnv('RSS_NETWORK_MODE', 'fake-ip');
+    lookupMock.mockResolvedValue([{ address: '::ffff:0:c612:30', family: 6 }]);
+
+    await expect(
+      isSafeExternalUrl('https://www.ruanyifeng.com/blog/atom.xml'),
+    ).resolves.toBe(true);
+  });
+
   it('rejects fake-ip addresses when compatibility is disabled', async () => {
     vi.stubEnv('RSS_NETWORK_MODE', 'public');
     await expect(isSafeExternalUrl('http://198.18.0.1/feed')).resolves.toBe(false);
